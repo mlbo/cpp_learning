@@ -7,22 +7,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/code)
 
 # BFS模板演示
-add_executable(day20_bfs_template
+add_library(day20_bfs_template STATIC
     code/algorithm/bfs_template.cpp
 )
 
 # BFS演示
-add_executable(day20_bfs_demo
+add_library(day20_bfs_demo STATIC
     code/algorithm/bfs_demo.cpp
 )
 
 # LeetCode 102
-add_executable(day20_lc102
+add_library(day20_lc102 STATIC
     code/leetcode/0102_level_order/solution.cpp
 )
 
 # LeetCode 107
-add_executable(day20_lc107
+add_library(day20_lc107 STATIC
     code/leetcode/0107_level_order_bottom/solution.cpp
 )
 
@@ -30,7 +30,6 @@ add_executable(day20_lc107
 add_executable(day20_main
     code/main.cpp
     code/algorithm/bfs_template.cpp
-    code/algorithm/bfs_demo.cpp
     code/data_structure/tree_node.cpp
     code/leetcode/0102_level_order/solution.cpp
     code/leetcode/0107_level_order_bottom/solution.cpp

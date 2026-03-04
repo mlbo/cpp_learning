@@ -7,22 +7,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/code)
 
 # 堆演示
-add_executable(day19_heap
+add_library(day19_heap STATIC
     code/data_structure/heap_demo.cpp
 )
 
 # 优先队列演示
-add_executable(day19_pq
+add_library(day19_pq STATIC
     code/data_structure/priority_queue_demo.cpp
 )
 
 # LeetCode 215
-add_executable(day19_lc215
+add_library(day19_lc215 STATIC
     code/leetcode/0215_kth_largest/solution.cpp
 )
 
 # LeetCode 347
-add_executable(day19_lc347
+add_library(day19_lc347 STATIC
     code/leetcode/0347_top_k_frequent/solution.cpp
 )
 

@@ -318,7 +318,7 @@ void demo_auto_deduction() {
     std::cout << "auto list2 = {1.0,2.0,3.0}: initializer_list<double>, size=" << list2.size() << "\n";
 
     // 混合类型推导为 common_type
-    auto list3 = {1, 2.0, 3};  // double（common_type）
+    std::initializer_list<double> list3 = {1, 2.0, 3};  // double
     std::cout << "auto list3 = {1, 2.0, 3}: initializer_list<double>, size=" << list3.size() << "\n";
 
     // 注意：单个元素推导为值类型，不是 initializer_list

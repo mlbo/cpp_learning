@@ -3,7 +3,7 @@
  * 参数使用auto，实现通用Lambda
  */
 
-#include "lambda_generic.h"
+#include "lambda_generic_demo.h"
 #include <iostream>
 #include <vector>
 #include <string>

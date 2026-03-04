@@ -7,32 +7,32 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/code)
 
 # 完美转发演示
-add_executable(day25_perfect_forward
+add_library(day25_perfect_forward STATIC
     code/cpp11_features/perfect_forwarding_demo.cpp
 )
 
 # std::forward演示
-add_executable(day25_std_forward
+add_library(day25_std_forward STATIC
     code/cpp11_features/std_forward_demo.cpp
 )
 
 # EMC++ Item 29
-add_executable(day25_item29
-    code/emcpp/item29_std_forward_detail.cpp
+add_library(day25_item29 STATIC
+    code/emcpp/item29_std_forward.cpp
 )
 
 # EMC++ Item 30
-add_executable(day25_item30
+add_library(day25_item30 STATIC
     code/emcpp/item30_perfect_forward_fail.cpp
 )
 
 # LeetCode 3
-add_executable(day25_lc3
+add_library(day25_lc3 STATIC
     code/leetcode/0003_longest_substring/solution.cpp
 )
 
 # LeetCode 438
-add_executable(day25_lc438
+add_library(day25_lc438 STATIC
     code/leetcode/0438_find_anagrams/solution.cpp
 )
 
@@ -41,7 +41,7 @@ add_executable(day25_main
     code/main.cpp
     code/cpp11_features/perfect_forwarding_demo.cpp
     code/cpp11_features/std_forward_demo.cpp
-    code/emcpp/item29_std_forward_detail.cpp
+    code/emcpp/item29_std_forward.cpp
     code/emcpp/item30_perfect_forward_fail.cpp
     code/leetcode/0003_longest_substring/solution.cpp
     code/leetcode/0438_find_anagrams/solution.cpp

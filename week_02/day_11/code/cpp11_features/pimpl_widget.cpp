@@ -18,12 +18,12 @@ namespace cpp11_features {
 // ========== 构造函数实现 ==========
 
 Widget::Widget()
-    : pImpl_(std::make_unique<Impl>()) {
+    : pImpl_(std::make_unique<WidgetImpl>()) {
     std::cout << "[Widget] 默认构造" << std::endl;
 }
 
 Widget::Widget(const std::string& name, int id)
-    : pImpl_(std::make_unique<Impl>(name, id)) {
+    : pImpl_(std::make_unique<WidgetImpl>(name, id)) {
     std::cout << "[Widget] 参数构造" << std::endl;
 }
 
@@ -40,7 +40,7 @@ Widget::~Widget() {
 // ========== 拷贝操作实现 ==========
 
 Widget::Widget(const Widget& other)
-    : pImpl_(std::make_unique<Impl>(*other.pImpl_)) {
+    : pImpl_(std::make_unique<WidgetImpl>(*other.pImpl_)) {
     // 深拷贝：创建新的Impl，使用Impl的拷贝构造
     std::cout << "[Widget] 拷贝构造" << std::endl;
 }

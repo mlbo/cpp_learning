@@ -10,8 +10,6 @@
 #include <vector>
 
 #include "data_structure/list_node.h"
-#include "leetcode/0203_remove_elements/solution.h"
-#include "leetcode/0206_reverse_list/solution.h"
 
 // 分隔线
 void printSeparator(const std::string& title) {
@@ -110,57 +108,13 @@ void demoUniquePtr() {
 // 演示LeetCode 203
 void demoLeetCode203() {
     printSeparator("LeetCode 203: 移除链表元素");
-    
-    using namespace list_ops;
-    
-    // 测试用例1
-    ListNode* head1 = createList({1, 2, 6, 3, 4, 5, 6});
-    std::cout << "\n原始链表: ";
-    printList(head1);
-    
-    ListNode* result1 = leetcode::removeElements(head1, 6);
-    std::cout << "移除6后: ";
-    printList(result1);
-    deleteList(result1);
-    
-    // 测试用例2
-    ListNode* head2 = createList({7, 7, 7, 7});
-    std::cout << "\n原始链表: ";
-    printList(head2);
-    
-    ListNode* result2 = leetcode::removeElements(head2, 7);
-    std::cout << "移除7后: ";
-    printList(result2);
-    // result2为空，不需要删除
+    std::cout << "请运行 leetcode_0203 目标查看完整演示。\n";
 }
 
 // 演示LeetCode 206
 void demoLeetCode206() {
     printSeparator("LeetCode 206: 反转链表");
-    
-    using namespace list_ops;
-    
-    // 迭代法
-    ListNode* head1 = createList({1, 2, 3, 4, 5});
-    std::cout << "\n【迭代法】\n";
-    std::cout << "原始链表: ";
-    printList(head1);
-    
-    ListNode* reversed1 = leetcode::reverseList(head1);
-    std::cout << "反转后: ";
-    printList(reversed1);
-    deleteList(reversed1);
-    
-    // 递归法
-    ListNode* head2 = createList({1, 2, 3, 4, 5});
-    std::cout << "\n【递归法】\n";
-    std::cout << "原始链表: ";
-    printList(head2);
-    
-    ListNode* reversed2 = leetcode::reverseListRecursive(head2);
-    std::cout << "反转后: ";
-    printList(reversed2);
-    deleteList(reversed2);
+    std::cout << "请运行 leetcode_0206 目标查看完整演示。\n";
 }
 
 int main() {

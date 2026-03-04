@@ -8,8 +8,9 @@
 #include "cpp11_features/function_demo.h"
 #include "cpp11_features/bind_demo.h"
 #include "emcpp/item34_lambda_vs_bind.h"
-#include "leetcode/0739_daily_temperatures/solution.h"
-#include "leetcode/0496_next_greater_element/solution.h"
+
+void testDailyTemperatures();
+void testNextGreaterElement();
 
 int main() {
     std::cout << "========================================" << std::endl;

@@ -7,8 +7,9 @@
 #include "data_structure/cpu_cache_demo.h"
 #include "data_structure/memory_alignment_demo.h"
 #include "data_structure/cache_friendly_demo.h"
-#include "leetcode/0005_longest_palindrome/solution.h"
-#include "leetcode/0647_palindromic_substrings/solution.h"
+
+void testLongestPalindrome();
+void testPalindromicSubstrings();
 
 int main() {
     std::cout << "========================================" << std::endl;

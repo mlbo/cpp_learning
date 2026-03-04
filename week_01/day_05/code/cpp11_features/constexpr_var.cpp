@@ -51,7 +51,7 @@ constexpr const char* greeting = "Hello, constexpr!";
 // ==================== constexpr引用 ====================
 
 // constexpr引用必须绑定到编译期常量
-constexpr int& ref_to_constexpr = max_size;  // ❌ 错误！不能对constexpr变量取地址
+constexpr const int& ref_to_constexpr = max_size;
 
 // ==================== const vs constexpr对比 ====================
 

@@ -6,27 +6,27 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 
 # 数据结构示例
-add_executable(day01_complexity 
+add_library(day01_complexity STATIC
     code/data_structure/complexity.cpp
 )
 
 # C++11特性示例
-add_executable(day01_auto_demo 
+add_library(day01_auto_demo STATIC
     code/cpp11_features/auto_demo.cpp
 )
 
 # EMC++条款示例
-add_executable(day01_emcpp
+add_library(day01_emcpp STATIC
     code/emcpp/type_deduction_items.cpp
 )
 
 # LeetCode题目
-add_executable(day01_lc0001 
+add_library(day01_lc0001 STATIC
     code/leetcode/0001_two_sum/solution.cpp
     code/leetcode/0001_two_sum/test.cpp
 )
 
-add_executable(day01_lc0167 
+add_library(day01_lc0167 STATIC
     code/leetcode/0167_two_sum_ii/solution.cpp
     code/leetcode/0167_two_sum_ii/test.cpp
 )
@@ -37,4 +37,8 @@ add_executable(day01_main
     code/data_structure/complexity.cpp
     code/cpp11_features/auto_demo.cpp
     code/emcpp/type_deduction_items.cpp
+    code/leetcode/0001_two_sum/solution.cpp
+    code/leetcode/0001_two_sum/test.cpp
+    code/leetcode/0167_two_sum_ii/solution.cpp
+    code/leetcode/0167_two_sum_ii/test.cpp
 )

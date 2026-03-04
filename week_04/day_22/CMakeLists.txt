@@ -7,27 +7,27 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/code)
 
 # 哈希表演示
-add_executable(day22_hash_table
+add_library(day22_hash_table STATIC
     code/data_structure/hash_table_demo.cpp
 )
 
 # 右值引用演示
-add_executable(day22_rvalue_reference
+add_library(day22_rvalue_reference STATIC
     code/cpp11_features/rvalue_reference_demo.cpp
 )
 
 # EMC++ Item 09 类型别名
-add_executable(day22_emcpp_item09
+add_library(day22_emcpp_item09 STATIC
     code/emcpp/item09_type_alias.cpp
 )
 
 # LeetCode 242 有效的字母异位词
-add_executable(day22_lc242
+add_library(day22_lc242 STATIC
     code/leetcode/0242_valid_anagram/solution.cpp
 )
 
 # LeetCode 383 赎金信
-add_executable(day22_lc383
+add_library(day22_lc383 STATIC
     code/leetcode/0383_ransom_note/solution.cpp
 )
 

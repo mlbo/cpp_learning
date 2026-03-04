@@ -7,32 +7,32 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/code)
 
 # 数据结构演示
-add_executable(day16_queue_demo
+add_library(day16_queue_demo STATIC
     code/data_structure/queue_demo.cpp
 )
 
 # Lambda泛型演示
-add_executable(day16_lambda_generic
+add_library(day16_lambda_generic STATIC
     code/cpp11_features/lambda_generic_demo.cpp
 )
 
 # Lambda初始化捕获演示
-add_executable(day16_lambda_init
+add_library(day16_lambda_init STATIC
     code/cpp11_features/lambda_init_capture_demo.cpp
 )
 
 # EMC++ Item 32-33演示
-add_executable(day16_item32_33
+add_library(day16_item32_33 STATIC
     code/emcpp/item32_item33.cpp
 )
 
 # LeetCode 232
-add_executable(day16_lc232
+add_library(day16_lc232 STATIC
     code/leetcode/0232_implement_queue_using_stacks/solution.cpp
 )
 
 # LeetCode 225
-add_executable(day16_lc225
+add_library(day16_lc225 STATIC
     code/leetcode/0225_implement_stack_using_queues/solution.cpp
 )
 

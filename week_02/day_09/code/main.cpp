@@ -16,7 +16,6 @@
 
 // 数据结构模块
 void demoFastSlowPointer();
-void demoDummyNode();
 
 // C++11特性模块
 void demoSharedPtrBasic();
@@ -26,9 +25,6 @@ void demoCircularReference();
 // EMC++模块
 void demoItem19Item20();
 
-// LeetCode模块
-void testMergeLists();
-void testLinkedListCycle();
 
 // 辅助函数
 void printSection(const std::string& title) {
@@ -55,7 +51,7 @@ int main() {
     demoFastSlowPointer();
     
     printSection("Part 2: 虚拟头节点技巧");
-    demoDummyNode();
+    std::cout << "dummy_node 示例已拆分为独立模块，不在 day_09_demo 中执行。\n";
     
     // ========== C++11特性演示 ==========
     printSection("Part 3: shared_ptr 基础用法");
@@ -72,11 +68,10 @@ int main() {
     demoItem19Item20();
     
     // ========== LeetCode题解 ==========
-    printSection("Part 7: LeetCode 21 - 合并两个有序链表");
-    testMergeLists();
-    
-    printSection("Part 8: LeetCode 141 - 环形链表");
-    testLinkedListCycle();
+    printSection("Part 7: LeetCode 题解");
+    std::cout << "请单独运行以下可执行文件查看题解测试：\n";
+    std::cout << "  - week_02/day_09/build/leetcode_0021（如单独配置）\n";
+    std::cout << "  - week_02/day_09/build/leetcode_0141（如单独配置）\n";
     
     // ========== 总结 ==========
     printSection("今日总结");

@@ -10,6 +10,7 @@
 #include <queue>
 #include <condition_variable>
 #include <functional>
+#include <atomic>
 
 // 二叉树节点
 struct TreeNode {

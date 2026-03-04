@@ -24,9 +24,7 @@ set(EMCPP_SOURCES
 
 set(LEETCODE_SOURCES
     code/leetcode/0011_container_with_most_water/solution.cpp
-    code/leetcode/0011_container_with_most_water/test.cpp
     code/leetcode/0015_3sum/solution.cpp
-    code/leetcode/0015_3sum/test.cpp
 )
 
 # 主程序
@@ -35,6 +33,8 @@ add_executable(day04_main
     ${CPP11_SOURCES}
     ${EMCPP_SOURCES}
     ${LEETCODE_SOURCES}
+    code/leetcode/0011_container_with_most_water/test.cpp
+    code/leetcode/0015_3sum/test.cpp
 )
 
 target_include_directories(day04_main PRIVATE
@@ -43,7 +43,7 @@ target_include_directories(day04_main PRIVATE
 )
 
 # 添加测试目标
-add_executable(day04_test_leetcode11
+add_library(day04_test_leetcode11 STATIC
     code/leetcode/0011_container_with_most_water/solution.cpp
     code/leetcode/0011_container_with_most_water/test.cpp
 )
@@ -51,7 +51,7 @@ target_include_directories(day04_test_leetcode11 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/code/leetcode/0011_container_with_most_water
 )
 
-add_executable(day04_test_leetcode15
+add_library(day04_test_leetcode15 STATIC
     code/leetcode/0015_3sum/solution.cpp
     code/leetcode/0015_3sum/test.cpp
 )

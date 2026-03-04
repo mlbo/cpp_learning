@@ -160,7 +160,7 @@ void print_container(const Container& c) {
             if (i > 0) cout << ", ";
             cout << c[i];
         }
-    } else if constexpr (requires { c.size(); }) {
+    } else {
         cout << "  容器(size=" << c.size() << "): [";
         bool first = true;
         for (const auto& elem : c) {
@@ -168,8 +168,6 @@ void print_container(const Container& c) {
             cout << elem;
             first = false;
         }
-    } else {
-        cout << "  未知容器: [";
     }
     cout << "]\n";
 }

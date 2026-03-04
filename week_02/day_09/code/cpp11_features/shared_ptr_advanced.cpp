@@ -15,6 +15,7 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+#include <set>
 #include <functional>
 
 // ============================================================

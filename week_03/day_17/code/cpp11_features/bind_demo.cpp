@@ -121,11 +121,11 @@ void bindDemo() {
     // ========== 6. 注意事项 ==========
     std::cout << "\n--- 6. 注意事项 ---" << std::endl;
     std::cout << "  1. 绑定引用需要使用std::ref或std::cref" << std::endl;
-    std::cout << "  2. 绑定成员函数需要对象指针或引用" << std::cout << std::endl;
+    std::cout << "  2. 绑定成员函数需要对象指针或引用" << std::endl;
     std::cout << "  3. 对于重载函数，需要显式指定函数类型" << std::endl;
     
     int x = 10;
-    auto printRef = std::bind(print, std::ref(x));
+    auto printRef = std::bind(static_cast<void(*)(int)>(print), std::ref(x));
     x = 20;
     std::cout << "  使用std::ref绑定引用: ";
     printRef();

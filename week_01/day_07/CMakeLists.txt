@@ -29,18 +29,15 @@ add_executable(day_07_main
     code/review/init_review.cpp
     code/review/pointer_review.cpp
     code/project/dynamic_array.cpp
-    code/project/dynamic_array_test.cpp
 )
 
 # LeetCode 42: 接雨水
 add_executable(leetcode_42
-    code/leetcode/0042_trapping_rain_water/solution.cpp
     code/leetcode/0042_trapping_rain_water/test.cpp
 )
 
 # LeetCode 189: 轮转数组
 add_executable(leetcode_189
-    code/leetcode/0189_rotate_array/solution.cpp
     code/leetcode/0189_rotate_array/test.cpp
 )
 

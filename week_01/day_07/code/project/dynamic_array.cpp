@@ -6,6 +6,7 @@
 #include "dynamic_array.h"
 #include <utility>
 #include <new>
+#include <string>
 
 namespace cpp_learning {
 

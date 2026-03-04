@@ -56,6 +56,7 @@ class WidgetGood {
 public:
     // 声明所有需要的特殊成员函数
     WidgetGood();
+    explicit WidgetGood(const std::string& name);
     ~WidgetGood();  // 声明，不使用=default
 
     // 移动操作
@@ -105,6 +106,11 @@ public:
 
 WidgetGood::WidgetGood() : pImpl_(std::make_unique<Impl>()) {
     std::cout << "[WidgetGood] 构造" << std::endl;
+}
+
+WidgetGood::WidgetGood(const std::string& name) : pImpl_(std::make_unique<Impl>()) {
+    pImpl_->name_ = name;
+    std::cout << "[WidgetGood] 构造(name)" << std::endl;
 }
 
 // 关键！必须在.cpp中定义，因为此时Impl是完整类型

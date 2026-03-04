@@ -8,8 +8,9 @@
 #include "cpp11_features/lambda_generic_demo.h"
 #include "cpp11_features/lambda_init_capture_demo.h"
 #include "emcpp/item32_item33.h"
-#include "leetcode/0232_implement_queue_using_stacks/solution.h"
-#include "leetcode/0225_implement_stack_using_queues/solution.h"
+
+void testMyQueue();
+void testMyStack();
 
 int main() {
     std::cout << "========================================" << std::endl;

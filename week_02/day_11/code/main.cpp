@@ -14,9 +14,7 @@
 #include <map>
 
 // 声明外部演示函数
-namespace cpp11_features {
-    int runPimplDemo();
-}
+int runPimplDemo();
 
 // ========== 主程序 ==========
 
@@ -152,7 +150,7 @@ int main() {
     printBanner();
 
     std::map<int, std::function<void()>> actions = {
-        {1, []() { cpp11_features::runPimplDemo(); }},
+        {1, []() { runPimplDemo(); }},
         {2, []() {
             std::cout << "\n请运行: ./build_and_run.sh item22" << std::endl;
             std::cout << "或直接运行: ./build/item22_pimpl" << std::endl;
@@ -166,7 +164,7 @@ int main() {
             std::cout << "或直接运行: ./build/leetcode_61" << std::endl;
         }},
         {5, []() {
-            cpp11_features::runPimplDemo();
+            runPimplDemo();
             std::cout << "\n其他演示请单独运行:" << std::endl;
             std::cout << "  ./build_and_run.sh item22" << std::endl;
             std::cout << "  ./build_and_run.sh leetcode23" << std::endl;

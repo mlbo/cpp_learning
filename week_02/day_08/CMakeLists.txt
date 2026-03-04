@@ -79,7 +79,6 @@ target_link_libraries(leetcode_0206 PRIVATE list_data_structure)
 # ============ 主程序 ============
 add_executable(day_08_demo
     code/main.cpp
-    code/data_structure/list_demo.cpp
 )
 target_link_libraries(day_08_demo PRIVATE list_data_structure)
 

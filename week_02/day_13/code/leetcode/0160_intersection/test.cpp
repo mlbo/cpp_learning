@@ -68,6 +68,23 @@ void deleteListUntil(ListNode* head, ListNode* stop) {
     }
 }
 
+ListNode* findIntersectionByAddress(ListNode* headA, ListNode* headB) {
+    ListNode* pa = headA;
+    ListNode* pb = headB;
+    while (pa != pb) {
+        pa = pa ? pa->next : headB;
+        pb = pb ? pb->next : headA;
+    }
+    return pa;
+}
+
+void deleteIntersectingLists(ListNode* headA, ListNode* headB) {
+    ListNode* intersection = findIntersectionByAddress(headA, headB);
+    deleteListUntil(headA, intersection);
+    deleteListUntil(headB, intersection);
+    deleteListUntil(intersection, nullptr);
+}
+
 // 测试用例
 void runTests() {
     Solution160 solution;
@@ -112,9 +129,8 @@ void runTests() {
             std::cout << "未找到交点\n";
         }
         
-        // 清理（需要分别删除两个链表的独立部分）
-        deleteListUntil(headA, nullptr);
-        deleteListUntil(headB, nullptr);  // 注意：这会删除公共部分两次，实际应该更小心
+        // 清理（避免公共尾部重复释放）
+        deleteIntersectingLists(headA, headB);
         std::cout << "\n";
     }
     
@@ -218,15 +234,8 @@ void testIntersection() {
         std::cout << "无交点\n";
     }
     
-    // 清理
-    deleteListUntil(headA, nullptr);
-    // 注意：需要单独清理B链表的非公共部分
-    ListNode* curr = headB;
-    while (curr && curr != result) {
-        ListNode* temp = curr;
-        curr = curr->next;
-        delete temp;
-    }
+    // 清理（避免公共尾部重复释放）
+    deleteIntersectingLists(headA, headB);
 }
 
 } // namespace leetcode

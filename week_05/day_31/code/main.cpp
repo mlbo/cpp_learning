@@ -14,27 +14,6 @@
 #include <thread>
 #include <chrono>
 
-// 前向声明
-namespace bst {
-    void run_demo();
-}
-
-namespace condition_var {
-    void run_demo();
-}
-
-namespace thread_handle {
-    void run_demo();
-}
-
-namespace lc98 {
-    void run_tests();
-}
-
-namespace lc700 {
-    void run_tests();
-}
-
 // ========================================
 // 树节点定义（用于所有演示）
 // ========================================
@@ -67,35 +46,12 @@ int main() {
     std::cout << "║     Day 31: 二叉搜索树 (BST) 专题          ║\n";
     std::cout << "╚════════════════════════════════════════════╝\n\n";
     
-    // 1. BST 基本操作演示
-    std::cout << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-    std::cout << "📚 模块一：二叉搜索树基本操作\n";
-    std::cout << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-    bst::run_demo();
-    
-    // 2. 条件变量演示
-    std::cout << "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-    std::cout << "📚 模块二：C++11 条件变量\n";
-    std::cout << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-    condition_var::run_demo();
-    
-    // 3. 线程句柄析构行为
-    std::cout << "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-    std::cout << "📚 模块三：EMC++ Item 38 - 线程句柄析构\n";
-    std::cout << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-    thread_handle::run_demo();
-    
-    // 4. LeetCode 98 验证
-    std::cout << "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-    std::cout << "📚 模块四：LeetCode 98 - 验证二叉搜索树\n";
-    std::cout << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-    lc98::run_tests();
-    
-    // 5. LeetCode 700 验证
-    std::cout << "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-    std::cout << "📚 模块五：LeetCode 700 - BST 中的搜索\n";
-    std::cout << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-    lc700::run_tests();
+    std::cout << "本日各模块请分别运行对应可执行文件：\n";
+    std::cout << "  - day31_bst_demo\n";
+    std::cout << "  - day31_condition_variable\n";
+    std::cout << "  - day31_item38\n";
+    std::cout << "  - day31_lc0098\n";
+    std::cout << "  - day31_lc0700\n";
     
     std::cout << "\n╔════════════════════════════════════════════╗\n";
     std::cout << "║          Day 31 学习完成！🎉               ║\n";

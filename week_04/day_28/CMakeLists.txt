@@ -21,7 +21,7 @@ include_directories(${CMAKE_SOURCE_DIR}/common/include)
 # ========================================
 
 # 哈希表复习示例
-add_executable(day28_hash_table_review
+add_library(day28_hash_table_review STATIC
     code/data_structure/hash_table_review.cpp
 )
 
@@ -30,7 +30,7 @@ add_executable(day28_hash_table_review
 # ========================================
 
 # 移动语义复习示例
-add_executable(day28_move_semantics_review
+add_library(day28_move_semantics_review STATIC
     code/cpp11_features/move_semantics_review.cpp
 )
 
@@ -39,7 +39,7 @@ add_executable(day28_move_semantics_review
 # ========================================
 
 # Item 9, 23-30 复习示例
-add_executable(day28_emcpp_review
+add_library(day28_emcpp_review STATIC
     code/emcpp/item09_23_30_review.cpp
 )
 
@@ -69,9 +69,7 @@ add_executable(day_28_main
     code/cpp11_features/move_semantics_review.cpp
     code/emcpp/item09_23_30_review.cpp
     code/leetcode/0146_lru_cache/solution.cpp
-    code/leetcode/0146_lru_cache/test.cpp
     code/leetcode/0460_lfu_cache/solution.cpp
-    code/leetcode/0460_lfu_cache/test.cpp
 )
 
 # ========================================

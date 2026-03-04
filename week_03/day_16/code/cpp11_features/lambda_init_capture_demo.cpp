@@ -3,7 +3,7 @@
  * 在捕获列表中初始化新变量
  */
 
-#include "lambda_init_capture.h"
+#include "lambda_init_capture_demo.h"
 #include <iostream>
 #include <memory>
 #include <vector>

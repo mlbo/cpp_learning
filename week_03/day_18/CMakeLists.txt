@@ -7,32 +7,32 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/code)
 
 # 函数调用栈演示
-add_executable(day18_call_stack
+add_library(day18_call_stack STATIC
     code/low_level/call_stack_demo.cpp
 )
 
 # 栈帧演示
-add_executable(day18_stack_frame
+add_library(day18_stack_frame STATIC
     code/low_level/stack_frame.cpp
 )
 
 # enum class演示
-add_executable(day18_enum_class
+add_library(day18_enum_class STATIC
     code/cpp11_features/enum_class_demo.cpp
 )
 
 # EMC++ Item 10演示
-add_executable(day18_item10
+add_library(day18_item10 STATIC
     code/emcpp/item10_enum_class.cpp
 )
 
 # LeetCode 84
-add_executable(day18_lc84
+add_library(day18_lc84 STATIC
     code/leetcode/0084_largest_rectangle/solution.cpp
 )
 
 # LeetCode 42
-add_executable(day18_lc42
+add_library(day18_lc42 STATIC
     code/leetcode/0042_trapping_rain_water/solution.cpp
 )
 

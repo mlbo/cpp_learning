@@ -18,12 +18,6 @@ namespace practice {
     void demonstrateSmartPtrSummary();
 }
 
-// LeetCode 模块声明
-namespace leetcode {
-    void testIntersection();
-    void testSortList();
-}
-
 int main() {
     std::cout << "========================================\n";
     std::cout << "Day 13: 链表综合练习\n";
@@ -47,16 +41,15 @@ int main() {
     practice::demonstrateSmartPtrSummary();
     std::cout << "\n";
     
-    // 4. LeetCode 160: 相交链表
+    // 4. LeetCode 160/148
     std::cout << "【4】LeetCode 160: 相交链表\n";
     std::cout << "----------------------------------------\n";
-    leetcode::testIntersection();
+    std::cout << "请运行 test_160_intersection 查看完整测试。\n";
     std::cout << "\n";
     
-    // 5. LeetCode 148: 排序链表
     std::cout << "【5】LeetCode 148: 排序链表\n";
     std::cout << "----------------------------------------\n";
-    leetcode::testSortList();
+    std::cout << "请运行 test_148_sort_list 查看完整测试。\n";
     std::cout << "\n";
     
     std::cout << "========================================\n";

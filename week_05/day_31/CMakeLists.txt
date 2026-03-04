@@ -7,21 +7,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Threads REQUIRED)
 
 # 数据结构演示
-add_executable(day31_bst_demo
+add_library(day31_bst_demo STATIC
     code/data_structure/bst_demo.cpp
 )
 
 # C++11特性演示
-add_executable(day31_condition_variable
+add_library(day31_condition_variable STATIC
     code/cpp11_features/condition_variable_demo.cpp
 )
-target_link_libraries(day31_condition_variable PRIVATE Threads::Threads)
 
 # EMC++条款示例
-add_executable(day31_item38
+add_library(day31_item38 STATIC
     code/emcpp/item38_thread_handle.cpp
 )
-target_link_libraries(day31_item38 PRIVATE Threads::Threads)
 
 # LeetCode题目
 add_executable(day31_lc0098
@@ -35,8 +33,5 @@ add_executable(day31_lc0700
 # 综合主程序
 add_executable(day31_main
     code/main.cpp
-    code/data_structure/bst_demo.cpp
-    code/cpp11_features/condition_variable_demo.cpp
-    code/emcpp/item38_thread_handle.cpp
 )
 target_link_libraries(day31_main PRIVATE Threads::Threads)

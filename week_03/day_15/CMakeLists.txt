@@ -18,23 +18,23 @@ add_executable(day15_main
 )
 
 # 单独的可执行文件
-add_executable(day15_stack_demo
+add_library(day15_stack_demo STATIC
     code/data_structure/stack_demo.cpp
 )
 
-add_executable(day15_lambda_demo
+add_library(day15_lambda_demo STATIC
     code/cpp11_features/lambda_demo.cpp
 )
 
-add_executable(day15_item31
+add_library(day15_item31 STATIC
     code/emcpp/item31_avoid_default_capture.cpp
 )
 
-add_executable(day15_lc20
+add_library(day15_lc20 STATIC
     code/leetcode/0020_valid_parentheses/solution.cpp
 )
 
-add_executable(day15_lc1047
+add_library(day15_lc1047 STATIC
     code/leetcode/1047_remove_adjacent_duplicates/solution.cpp
 )
 

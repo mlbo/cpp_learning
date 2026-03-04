@@ -123,7 +123,7 @@ struct FileCloser {
     }
 };
 
-void demoCustomDeleter() {
+static void demoCustomDeleter() {
     std::cout << "\n【条款19 要点3：自定义删除器】\n\n";
     
     std::cout << "--- 管理文件句柄 ---\n";

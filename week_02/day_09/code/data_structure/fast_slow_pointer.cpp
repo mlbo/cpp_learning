@@ -160,7 +160,7 @@ ListNode* detectCycle(ListNode* head) {
 // ============================================================
 
 // 创建链表
-ListNode* createList(const std::vector<int>& vals) {
+static ListNode* createList(const std::vector<int>& vals) {
     if (vals.empty()) return nullptr;
     
     ListNode* head = new ListNode(vals[0]);
@@ -173,7 +173,7 @@ ListNode* createList(const std::vector<int>& vals) {
 }
 
 // 创建带环链表
-ListNode* createListWithCycle(const std::vector<int>& vals, int pos) {
+static ListNode* createListWithCycle(const std::vector<int>& vals, int pos) {
     if (vals.empty()) return nullptr;
     
     ListNode* head = new ListNode(vals[0]);

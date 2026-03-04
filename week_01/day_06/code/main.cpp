@@ -12,11 +12,12 @@
 #include <vector>
 #include <iomanip>
 
-#include "binary_search_basic.hpp"
-#include "binary_search_left.hpp"
-#include "binary_search_right.hpp"
-#include "binary_search_template.hpp"
-#include "solution.h"
+#include "binary_search_basic.cpp"
+#include "binary_search_left.cpp"
+#include "binary_search_right.cpp"
+#include "binary_search_template.cpp"
+#include "leetcode/0704_binary_search/solution.h"
+#include "leetcode/0034_find_first_and_last/solution.h"
 
 // 打印数组
 void printArray(const std::vector<int>& nums) {

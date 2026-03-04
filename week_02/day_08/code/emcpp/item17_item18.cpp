@@ -86,7 +86,7 @@ public:
         return *this;
     }
     
-    ~WithDestructor() { delete data_; }
+    ~WithCopy() { delete data_; }
     
     // 移动操作不会自动生成
     

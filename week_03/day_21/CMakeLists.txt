@@ -7,27 +7,27 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/code)
 
 # 栈队列复习
-add_executable(day21_stack_queue
+add_library(day21_stack_queue STATIC
     code/review/stack_queue_summary.cpp
 )
 
 # Lambda复习
-add_executable(day21_lambda
+add_library(day21_lambda STATIC
     code/review/lambda_summary.cpp
 )
 
 # EMC++复习
-add_executable(day21_emcpp
+add_library(day21_emcpp STATIC
     code/review/emcpp_review.cpp
 )
 
 # LeetCode 155
-add_executable(day21_lc155
+add_library(day21_lc155 STATIC
     code/leetcode/0155_min_stack/solution.cpp
 )
 
 # LeetCode 150
-add_executable(day21_lc150
+add_library(day21_lc150 STATIC
     code/leetcode/0150_eval_rpn/solution.cpp
 )
 

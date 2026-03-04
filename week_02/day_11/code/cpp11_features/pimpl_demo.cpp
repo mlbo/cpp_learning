@@ -11,6 +11,7 @@
 #include "pimpl_widget.h"
 #include <iostream>
 #include <vector>
+#include <map>
 #include <chrono>
 #include <cassert>
 
@@ -207,5 +208,3 @@ int runPimplDemo() {
 
     return 0;
 }
-
-} // namespace cpp11_features

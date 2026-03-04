@@ -7,8 +7,9 @@
 #include "low_level/call_stack_demo.h"
 #include "cpp11_features/enum_class_demo.h"
 #include "emcpp/item10_enum_class.h"
-#include "leetcode/0084_largest_rectangle/solution.h"
-#include "leetcode/0042_trapping_rain_water/solution.h"
+
+void testLargestRectangle();
+void testTrap();
 
 int main() {
     std::cout << "========================================" << std::endl;

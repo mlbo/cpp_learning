@@ -25,8 +25,6 @@
 #include "project/thread_safe_list.h"
 
 // LeetCode 模块
-#include "leetcode/0234_palindrome/solution.h"
-#include "leetcode/0138_copy_random/solution.h"
 
 // ============================================================
 // 线程安全链表演示
@@ -85,44 +83,7 @@ void demo_thread_safe_list() {
 
 void demo_leetcode_234() {
     std::cout << "\n=== LeetCode 234: 回文链表演示 ===\n";
-
-    Solution solution;
-
-    // 测试用例1: 1->2->2->1 (回文)
-    ListNode* test1 = new ListNode(1);
-    test1->next = new ListNode(2);
-    test1->next->next = new ListNode(2);
-    test1->next->next->next = new ListNode(1);
-
-    std::cout << "Test case 1: [1,2,2,1]\n";
-    std::cout << "Result (快慢指针法): " << (solution.isPalindrome(test1) ? "true" : "false") << "\n";
-    std::cout << "Result (数组法): " << (solution.isPalindrome_array(test1) ? "true" : "false") << "\n";
-
-    // 释放内存
-    while (test1) {
-        ListNode* temp = test1;
-        test1 = test1->next;
-        delete temp;
-    }
-
-    // 测试用例2: 1->2 (非回文)
-    ListNode* test2 = new ListNode(1);
-    test2->next = new ListNode(2);
-
-    std::cout << "\nTest case 2: [1,2]\n";
-    std::cout << "Result: " << (solution.isPalindrome(test2) ? "true" : "false") << "\n";
-
-    while (test2) {
-        ListNode* temp = test2;
-        test2 = test2->next;
-        delete temp;
-    }
-
-    // 测试用例3: 单节点
-    ListNode* test3 = new ListNode(1);
-    std::cout << "\nTest case 3: [1]\n";
-    std::cout << "Result: " << (solution.isPalindrome(test3) ? "true" : "false") << "\n";
-    delete test3;
+    std::cout << "请运行独立测试程序: test_leetcode234\n";
 }
 
 // ============================================================
@@ -131,67 +92,7 @@ void demo_leetcode_234() {
 
 void demo_leetcode_138() {
     std::cout << "\n=== LeetCode 138: 随机链表复制演示 ===\n";
-
-    // 创建测试链表
-    // 节点关系: 7 -> 13 -> 11 -> 10 -> 1
-    // random: 7.random=null, 13.random=7, 11.random=1, 10.random=11, 1.random=7
-
-    Node* node7 = new Node(7);
-    Node* node13 = new Node(13);
-    Node* node11 = new Node(11);
-    Node* node10 = new Node(10);
-    Node* node1 = new Node(1);
-
-    node7->next = node13;
-    node13->next = node11;
-    node11->next = node10;
-    node10->next = node1;
-
-    node13->random = node7;
-    node11->random = node1;
-    node10->random = node11;
-    node1->random = node7;
-
-    std::cout << "Original list created\n";
-
-    Solution solution;
-
-    // 方法1: 哈希表法
-    Node* copy1 = solution.copyRandomList(node7);
-    std::cout << "Copy created (hash map method)\n";
-    if (copy1 && copy1->next && copy1->next->random) {
-        std::cout << "Verification: copy->next->random->val = " << copy1->next->random->val << " (expected 7)\n";
-    }
-
-    // 方法2: 节点拆分法
-    Node* copy2 = solution.copyRandomList_optimized(node7);
-    std::cout << "Copy created (optimized method, O(1) space)\n";
-    if (copy2 && copy2->next && copy2->next->random) {
-        std::cout << "Verification: copy->next->random->val = " << copy2->next->random->val << " (expected 7)\n";
-    }
-
-    // 清理原链表
-    Node* curr = node7;
-    while (curr) {
-        Node* temp = curr;
-        curr = curr->next;
-        delete temp;
-    }
-
-    // 清理复制链表
-    curr = copy1;
-    while (curr) {
-        Node* temp = curr;
-        curr = curr->next;
-        delete temp;
-    }
-
-    curr = copy2;
-    while (curr) {
-        Node* temp = curr;
-        curr = curr->next;
-        delete temp;
-    }
+    std::cout << "请运行独立测试程序: test_leetcode138\n";
 }
 
 // ============================================================

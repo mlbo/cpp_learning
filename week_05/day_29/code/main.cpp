@@ -130,7 +130,7 @@ void threadDemo() {
             std::cout << "  线程2: 使用函数对象" << std::endl;
         }
     };
-    std::thread t2(Worker());
+    std::thread t2{Worker{}};
     t2.join();
     
     // 方式3：多线程并行

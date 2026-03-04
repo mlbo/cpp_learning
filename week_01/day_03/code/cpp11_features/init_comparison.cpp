@@ -78,7 +78,7 @@ void demo_narrowing_comparison() {
     // 安全转换：两种方式都可以
     int n = 42;
     double d1(n);   // OK
-    double d2{n};   // OK
+    double d2{static_cast<double>(n)};   // OK
 
     std::cout << "安全转换 int->double: " << d1 << ", " << d2 << "\n";
 }

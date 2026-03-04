@@ -7,6 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # 编译选项
 add_compile_options(-Wall -Wextra -Wpedantic)
+find_package(Threads REQUIRED)
 
 # 包含目录
 include_directories(${CMAKE_SOURCE_DIR}/code)
@@ -18,14 +19,14 @@ add_executable(test_160_intersection
     code/leetcode/0160_intersection/solution.cpp
     code/leetcode/0160_intersection/test.cpp
 )
-target_link_libraries(test_160_intersection PRIVATE pthread)
+target_link_libraries(test_160_intersection PRIVATE Threads::Threads)
 
 # LeetCode 148: 排序链表
 add_executable(test_148_sort_list
     code/leetcode/0148_sort_list/solution.cpp
     code/leetcode/0148_sort_list/test.cpp
 )
-target_link_libraries(test_148_sort_list PRIVATE pthread)
+target_link_libraries(test_148_sort_list PRIVATE Threads::Threads)
 
 # 主程序
 add_executable(day_13
@@ -36,7 +37,7 @@ add_executable(day_13
     code/leetcode/0160_intersection/solution.cpp
     code/leetcode/0148_sort_list/solution.cpp
 )
-target_link_libraries(day_13 PRIVATE pthread)
+target_link_libraries(day_13 PRIVATE Threads::Threads)
 
 # 测试命令
 enable_testing()

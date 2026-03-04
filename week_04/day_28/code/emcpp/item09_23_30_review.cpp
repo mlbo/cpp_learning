@@ -341,7 +341,7 @@ void demonstrateItem30() {
     
     // 3. 仅声明的静态常量整型成员
     struct Widget2 {
-        static const int value = 42;  // 仅声明
+        enum { value = 42 };
     };
     // const int Widget2::value;  // 需要定义
     std::cout << "3. 静态常量成员:\n";

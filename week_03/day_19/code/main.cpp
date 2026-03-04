@@ -6,8 +6,9 @@
 #include <iostream>
 #include "data_structure/heap_demo.h"
 #include "data_structure/priority_queue_demo.h"
-#include "leetcode/0215_kth_largest/solution.h"
-#include "leetcode/0347_top_k_frequent/solution.h"
+
+void testFindKthLargest();
+void testTopKFrequent();
 
 int main() {
     std::cout << "========================================" << std::endl;

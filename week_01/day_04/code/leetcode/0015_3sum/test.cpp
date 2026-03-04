@@ -103,7 +103,7 @@ void explainDeduplication() {
     std::cout << "注意: i=2 时 nums[2]=-1 与 nums[1] 相同，直接跳过\n\n";
 }
 
-void explainAlgorithm() {
+static void explainAlgorithm() {
     std::cout << "═══════════════════════════════════════════════════════════════\n";
     std::cout << "算法流程\n";
     std::cout << "═══════════════════════════════════════════════════════════════\n\n";

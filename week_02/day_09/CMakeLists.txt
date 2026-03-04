@@ -7,7 +7,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # 编译选项
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address,leak")
+if(APPLE)
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address")
+else()
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address,leak")
+endif()
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
 # 包含公共头文件
@@ -19,7 +23,6 @@ add_executable(day_09_demo
     
     # 数据结构
     code/data_structure/fast_slow_pointer.cpp
-    code/data_structure/dummy_node.cpp
     
     # C++11特性
     code/cpp11_features/shared_ptr_demo.cpp
@@ -29,9 +32,6 @@ add_executable(day_09_demo
     # EMC++条款
     code/emcpp/item19_item20.cpp
     
-    # LeetCode
-    code/leetcode/0021_merge_lists/solution.cpp
-    code/leetcode/0141_cycle/solution.cpp
 )
 
 target_compile_features(day_09_demo PRIVATE cxx_std_17)

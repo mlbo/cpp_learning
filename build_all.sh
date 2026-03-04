@@ -418,7 +418,7 @@ main() {
     show_summary
     
     # 打包
-    create_package
+    # create_package
     
     echo ""
     print_success "全部完成！"

@@ -19,8 +19,8 @@ set(SOURCES
     code/emcpp/item23_std_move.cpp
     code/emcpp/item24_universal_reference.cpp
     code/emcpp/item25_std_forward.cpp
-    code/leetcode/0001_two_sum/two_sum.cpp
-    code/leetcode/0454_4sum_ii/four_sum_ii.cpp
+    code/leetcode/0001_two_sum/solution.cpp
+    code/leetcode/0454_4sum_ii/solution.cpp
 )
 
 # 创建可执行文件

@@ -14,8 +14,10 @@
 
 #include <memory>  // 只需要包含<memory>，其他依赖在实现文件中
 #include <string>
+#include <vector>
 
 namespace cpp11_features {
+class WidgetImpl;
 
 /**
  * @brief 使用Pimpl模式的Widget类
@@ -97,21 +99,7 @@ public:
 
 private:
     // ========== Pimpl核心 ==========
-
-    /**
-     * @brief 实现类的前向声明
-     * @note 在头文件中Impl是 incomplete type
-     */
-    class Impl;
-
-    /**
-     * @brief 指向实现的unique_ptr
-     * @note 使用unique_ptr而非raw pointer的原因：
-     *       1. 自动管理内存，无需手动delete
-     *       2. 零开销，没有shared_ptr的控制块开销
-     *       3. 表达独占所有权语义
-     */
-    std::unique_ptr<Impl> pImpl_;
+    std::unique_ptr<WidgetImpl> pImpl_;
 };
 
 // 非成员swap函数

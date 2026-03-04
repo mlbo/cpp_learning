@@ -27,13 +27,6 @@ namespace emcpp_review {
     void demonstrate();
 }
 
-namespace lru_cache_test {
-    void test();
-}
-
-namespace lfu_cache_test {
-    void test();
-}
 
 // 打印分隔线
 void printSeparator(const std::string& title) {
@@ -72,17 +65,8 @@ int main() {
     printSeparator("第三部分：EMC++条款复习");
     emcpp_review::demonstrate();
 
-    // ========================================
-    // 第四部分：LRU缓存测试
-    // ========================================
-    printSeparator("第四部分：LRU缓存测试 (LC 146)");
-    lru_cache_test::test();
-
-    // ========================================
-    // 第五部分：LFU缓存测试
-    // ========================================
-    printSeparator("第五部分：LFU缓存测试 (LC 460)");
-    lfu_cache_test::test();
+    printSeparator("第四部分：缓存算法说明 (LC 146 / LC 460)");
+    std::cout << "LRU/LFU 的独立测试请运行 day28_lc0146 和 day28_lc0460 可执行文件。\n";
 
     // ========================================
     // 本周总结

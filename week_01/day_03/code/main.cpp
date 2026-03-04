@@ -13,19 +13,23 @@
 #include <iostream>
 #include <string>
 
-// C++11 特性演示
-#include "cpp11_features/uniform_init.cpp"
-#include "cpp11_features/initializer_list.cpp"
-#include "cpp11_features/init_comparison.cpp"
+namespace cpp11_features {
+void run_uniform_init_demo();
+void run_initializer_list_demo();
+void run_init_comparison_demo();
+}
 
-// EMC++ 条款演示
-#include "emcpp/item07_init_choice.cpp"
+namespace emcpp {
+void run_item07_demo();
+}
 
-// LeetCode 题解
-#include "leetcode/0088_merge_sorted_array/solution.cpp"
-#include "leetcode/0088_merge_sorted_array/test.cpp"
-#include "leetcode/0283_move_zeroes/solution.cpp"
-#include "leetcode/0283_move_zeroes/test.cpp"
+namespace leetcode_0088 {
+void run_tests();
+}
+
+namespace leetcode_0283 {
+void run_tests();
+}
 
 void print_banner() {
     std::cout << R"(

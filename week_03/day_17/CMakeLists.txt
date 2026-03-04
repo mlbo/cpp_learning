@@ -7,32 +7,32 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/code)
 
 # 单调栈演示
-add_executable(day17_mono_stack
+add_library(day17_mono_stack STATIC
     code/algorithm/monotonic_stack_demo.cpp
 )
 
 # function演示
-add_executable(day17_function
+add_library(day17_function STATIC
     code/cpp11_features/function_demo.cpp
 )
 
 # bind演示
-add_executable(day17_bind
+add_library(day17_bind STATIC
     code/cpp11_features/bind_demo.cpp
 )
 
 # EMC++ Item 34
-add_executable(day17_item34
+add_library(day17_item34 STATIC
     code/emcpp/item34_lambda_vs_bind.cpp
 )
 
 # LeetCode 739
-add_executable(day17_lc739
+add_library(day17_lc739 STATIC
     code/leetcode/0739_daily_temperatures/solution.cpp
 )
 
 # LeetCode 496
-add_executable(day17_lc496
+add_library(day17_lc496 STATIC
     code/leetcode/0496_next_greater_element/solution.cpp
 )
 

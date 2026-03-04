@@ -88,7 +88,7 @@ void demoArrayCreation() {
     
     // 创建数组（指定大小，零初始化）
     std::cout << "\n【创建数组（零初始化）】\n";
-    auto arr2 = std::make_unique<double[]>(10)();  // 注意末尾的()
+    auto arr2 = std::make_unique<double[]>(10);
     std::cout << "零初始化: arr2[0]=" << arr2[0] << ", arr2[5]=" << arr2[5] << "\n";
     
     // 注意：make_unique不支持初始化列表

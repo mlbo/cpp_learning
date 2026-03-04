@@ -8,8 +8,9 @@
 #include "cpp11_features/lambda_demo.h"
 #include "cpp11_features/lambda_capture_demo.h"
 #include "emcpp/item31_avoid_default_capture.h"
-#include "leetcode/0020_valid_parentheses/solution.h"
-#include "leetcode/1047_remove_adjacent_duplicates/solution.h"
+
+void testValidParentheses();
+void testRemoveDuplicates();
 
 int main() {
     std::cout << "========================================" << std::endl;

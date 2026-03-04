@@ -59,7 +59,7 @@ void visualizeExample() {
     std::cout << "  面积 = 7 × 7 = 49\n\n";
 }
 
-void explainAlgorithm() {
+static void explainAlgorithm() {
     std::cout << "═══════════════════════════════════════════════════════════════\n";
     std::cout << "算法详解\n";
     std::cout << "═══════════════════════════════════════════════════════════════\n\n";

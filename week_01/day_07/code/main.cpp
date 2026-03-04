@@ -12,8 +12,6 @@ void type_deduction_review();
 void init_review();
 void pointer_review();
 
-// 项目模块
-void dynamic_array_test();
 
 int main() {
     std::cout << R"(
@@ -46,11 +44,7 @@ int main() {
     std::cout << "└─────────────────────────────────────────────────────┘\n";
     pointer_review();
 
-    // 4. 综合项目测试
-    std::cout << "\n┌─────────────────────────────────────────────────────┐\n";
-    std::cout << "│  🚀 综合项目: DynamicArray 测试                      │\n";
-    std::cout << "└─────────────────────────────────────────────────────┘\n";
-    dynamic_array_test();
+    std::cout << "\nDynamicArray 独立测试请运行 leetcode 目标外的专用测试程序。\n";
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);

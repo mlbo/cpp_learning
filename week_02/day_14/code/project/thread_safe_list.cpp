@@ -22,7 +22,8 @@ std::string list_to_string(const ThreadSafeList<T>& list) {
     oss << "[";
 
     bool first = true;
-    list.for_each([&](const T& value) {
+    auto& mutable_list = const_cast<ThreadSafeList<T>&>(list);
+    mutable_list.for_each([&](const T& value) {
         if (!first) oss << ", ";
         oss << value;
         first = false;
@@ -38,7 +39,8 @@ std::string list_to_string(const ThreadSafeList<T>& list) {
 template<typename T>
 bool verify_content(const ThreadSafeList<T>& list, const std::vector<T>& expected) {
     std::vector<T> actual;
-    list.for_each([&](const T& value) {
+    auto& mutable_list = const_cast<ThreadSafeList<T>&>(list);
+    mutable_list.for_each([&](const T& value) {
         actual.push_back(value);
     });
 

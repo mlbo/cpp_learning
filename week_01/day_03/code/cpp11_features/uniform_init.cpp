@@ -245,7 +245,7 @@ void demo_narrowing_conversion() {
 
     // 场景 18：int 到 double（不是窄化，允许）
     int n = 42;
-    double d1{n};    // OK，int 到 double 不是窄化
+    double d1{static_cast<double>(n)};    // OK
     std::cout << "int->double: " << d1 << " (安全转换)\n";
 }
 

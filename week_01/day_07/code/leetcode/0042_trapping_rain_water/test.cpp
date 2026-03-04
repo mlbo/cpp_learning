@@ -8,6 +8,7 @@
 #include <vector>
 #include <chrono>
 #include <cassert>
+#include <iomanip>
 
 using namespace leetcode;
 
@@ -20,11 +21,11 @@ struct TestCase {
 
 // 运行单个测试
 void run_test(Solution& sol, const TestCase& tc, 
-              int (Solution::*method)(std::vector<int>&),
+              int (*method)(std::vector<int>&),
               const std::string& method_name) {
     
     std::vector<int> height = tc.height;  // 复制，避免修改
-    int result = (sol.*method)(height);
+    int result = method(height);
     
     bool passed = (result == tc.expected);
     

@@ -29,6 +29,7 @@ add_executable(constexpr_ctor
 add_executable(constexpr_if
     code/cpp11_features/constexpr_if.cpp
 )
+target_compile_features(constexpr_if PRIVATE cxx_std_20)
 
 # LeetCode 209题
 add_executable(leetcode_0209

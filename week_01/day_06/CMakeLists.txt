@@ -27,7 +27,6 @@ set(LEETCODE_34_SOURCES
 # 主程序
 add_executable(binary_search_demo
     code/main.cpp
-    ${ALGORITHM_SOURCES}
     ${LEETCODE_704_SOURCES}
     ${LEETCODE_34_SOURCES}
 )
