@@ -307,13 +307,13 @@ void memoryOrderDemo() {
 ```mermaid
 graph TB
     subgraph "C++并发组件关系"
-        A[std::thread<br/>线程创建] --> B[std::mutex<br/>互斥保护]
-        B --> C[std::condition_variable<br/>线程协调]
-        A --> D[std::atomic<br/>无锁同步]
+        A["std::thread<br/>线程创建"] --> B["std::mutex<br/>互斥保护"]
+        B --> C["std::condition_variable<br/>线程协调"]
+        A --> D["std::atomic<br/>无锁同步"]
         
-        E[RAII锁管理] --> F[lock_guard<br/>简单场景]
-        E --> G[unique_lock<br/>灵活场景]
-        E --> H[scoped_lock<br/>多锁场景]
+        E[RAII锁管理] --> F["lock_guard<br/>简单场景"]
+        E --> G["unique_lock<br/>灵活场景"]
+        E --> H["scoped_lock<br/>多锁场景"]
     end
 ```
 

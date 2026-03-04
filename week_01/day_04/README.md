@@ -276,16 +276,16 @@ int maxArea(vector<int>& height) {
 ```mermaid
 flowchart TB
     A[排序数组] --> B[遍历第一个数i]
-    B --> C[剪枝: nums\[i\] > 0 跳出]
+    B --> C["剪枝: nums[i] > 0 跳出"]
     C --> D[去重: 跳过相同的i]
     D --> E[双指针: left=i+1, right=n-1]
     E --> F{计算sum}
     F -->|sum = 0| G[记录结果]
     G --> H[跳过重复的left/right]
     H --> E
-    F -->|sum < 0| I[left++]
+    F -->|"sum < 0"| I["left++"]
     I --> E
-    F -->|sum > 0| J[right--]
+    F -->|"sum > 0"| J["right--"]
     J --> E
 ```
 

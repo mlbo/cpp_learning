@@ -30,10 +30,10 @@ flowchart TB
     A[传入参数] --> B{参数类型推导}
     B -->|左值| C[T推导为Type&]
     B -->|右值| D[T推导为Type]
-    C --> E[参数类型为 Type& &&]
-    D --> F[参数类型为 Type&&]
+    C --> E["参数类型为 Type& &&"]
+    D --> F["参数类型为 Type&&"]
     E --> G[引用折叠为 Type&]
-    F --> H[保持为 Type&&]
+    F --> H["保持为 Type&&"]
     G --> I[std::forward保持左值]
     H --> J[std::forward保持右值]
     end

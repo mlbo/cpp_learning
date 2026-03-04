@@ -129,10 +129,10 @@ flowchart LR
 ```mermaid
 graph TB
     subgraph 程序内存布局
-        A[栈区 Stack<br/>局部变量 函数调用]
-        B[堆区 Heap<br/>动态分配]
-        C[全局区 Data<br/>全局/静态变量]
-        D[代码区 Text<br/>程序指令]
+        A["栈区 Stack<br/>局部变量 函数调用"]
+        B["堆区 Heap<br/>动态分配"]
+        C["全局区 Data<br/>全局/静态变量"]
+        D["代码区 Text<br/>程序指令"]
     end
     A --> B --> C --> D
 ```

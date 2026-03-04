@@ -4,7 +4,7 @@
 
 ```mermaid
 mindmap
-  root((第二周<br/>Day 8-14))
+  root((第二周 Day 8-14))
     智能指针
       unique_ptr
         独占所有权
@@ -17,7 +17,7 @@ mindmap
       weak_ptr
         打破循环引用
         观察者模式
-        lock()方法
+        lock 方法
     右值引用与移动语义
       左值vs右值
         类型特征

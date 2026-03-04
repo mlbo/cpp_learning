@@ -26,7 +26,7 @@ mindmap
         扩容策略
       LRU缓存
         哈希表+双向链表
-        O(1)查找与删除
+        O（1）查找与删除
       LFU缓存
         频率计数
         多级缓存结构
@@ -147,7 +147,7 @@ graph LR
     C --> F[临时对象/字面量]
     C --> G[即将销毁]
     D --> H[左值引用 T&]
-    F --> I[右值引用 T&&]
+    F --> I["右值引用 T&&"]
 ```
 
 ### std::move 与 std::forward
@@ -308,10 +308,10 @@ std::string createString() {
 ```mermaid
 graph TB
     subgraph "CPU缓存层次"
-        A[CPU核心] --> B[L1缓存<br/>32KB-64KB<br/>~1ns延迟]
-        B --> C[L2缓存<br/>256KB-1MB<br/>~4ns延迟]
-        C --> D[L3缓存<br/>4MB-64MB<br/>~12ns延迟]
-        D --> E[主内存<br/>数GB<br/>~100ns延迟]
+        A[CPU核心] --> B["L1缓存<br/>32KB-64KB<br/>~1ns延迟"]
+        B --> C["L2缓存<br/>256KB-1MB<br/>~4ns延迟"]
+        C --> D["L3缓存<br/>4MB-64MB<br/>~12ns延迟"]
+        D --> E["主内存<br/>数GB<br/>~100ns延迟"]
     end
 ```
 

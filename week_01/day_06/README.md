@@ -187,13 +187,13 @@ while (left < right) {
 flowchart TD
     A[开始] --> B[初始化 left=0, right=n-1]
     B --> C{left <= right?}
-    C -->|否| D[返回 -1<br/>未找到]
+    C -->|否| D["返回 -1<br/>未找到"]
     C -->|是| E[计算 mid = left + right-left / 2]
-    E --> F{nums[mid] == target?}
-    F -->|是| G[返回 mid<br/>找到目标]
-    F -->|否| H{nums[mid] < target?}
-    H -->|是| I[left = mid + 1<br/>搜索右半部分]
-    H -->|否| J[right = mid - 1<br/>搜索左半部分]
+    E --> F{"nums[mid] == target?"}
+    F -->|是| G["返回 mid<br/>找到目标"]
+    F -->|否| H{"nums[mid] < target?"}
+    H -->|是| I["left = mid + 1<br/>搜索右半部分"]
+    H -->|否| J["right = mid - 1<br/>搜索左半部分"]
     I --> C
     J --> C
 ```
@@ -205,12 +205,12 @@ flowchart TD
     A[开始] --> B[初始化 left=0, right=n]
     B --> C{left < right?}
     C -->|否| D{left < n 且 nums left == target?}
-    D -->|是| E[返回 left<br/>找到左边界]
-    D -->|否| F[返回 -1<br/>未找到]
+    D -->|是| E["返回 left<br/>找到左边界"]
+    D -->|否| F["返回 -1<br/>未找到"]
     C -->|是| G[计算 mid = left + right-left / 2]
     G --> H{nums mid >= target?}
-    H -->|是| I[right = mid<br/>收缩右边界]
-    H -->|否| J[left = mid + 1<br/>收缩左边界]
+    H -->|是| I["right = mid<br/>收缩右边界"]
+    H -->|否| J["left = mid + 1<br/>收缩左边界"]
     I --> C
     J --> C
 ```

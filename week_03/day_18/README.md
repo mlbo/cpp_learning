@@ -207,8 +207,8 @@ enum class Status { OK, ERROR, PENDING };
 
 ```mermaid
 graph LR
-    A[柱子高度h] --> B[找左边第一个< h的位置]
-    A --> C[找右边第一个< h的位置]
+    A[柱子高度h] --> B["找左边第一个< h的位置"]
+    A --> C["找右边第一个< h的位置"]
     B --> D[宽度 = right - left - 1]
     C --> D
     D --> E[面积 = h * 宽度]

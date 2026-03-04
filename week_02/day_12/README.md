@@ -38,12 +38,12 @@ flowchart TD
     D -->|否| F[std::shared_ptr]
     
     C --> G{需要自定义删除器?}
-    G -->|是| H[unique_ptr<T, Deleter>]
-    G -->|否| I[unique_ptr<T>]
+    G -->|是| H["unique_ptr 自定义删除器版本"]
+    G -->|否| I["unique_ptr 默认版本"]
     
     F --> J{数组还是单个对象?}
-    J -->|数组| K[shared_ptr<T[]> 或 vector]
-    J -->|单个| L[shared_ptr<T>]
+    J -->|数组| K["shared_ptr 数组版本 或 vector"]
+    J -->|单个| L["shared_ptr 单对象版本"]
     
     E --> M[配合shared_ptr使用]
     

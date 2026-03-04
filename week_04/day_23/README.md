@@ -68,21 +68,21 @@ String(String&& other) noexcept {
 ```mermaid
 flowchart TB
     subgraph 值类别
-        A[glvalue 泛左值<br/>有身份] --> B[lvalue 左值<br/>有身份，不可移动]
-        A --> C[xvalue 将亡值<br/>有身份，可移动]
-        D[rvalue 右值<br/>可移动] --> C
-        D --> E[prvalue 纯右值<br/>无身份，可移动]
+        A["glvalue 泛左值<br/>有身份"] --> B["lvalue 左值<br/>有身份，不可移动"]
+        A --> C["xvalue 将亡值<br/>有身份，可移动"]
+        D["rvalue 右值<br/>可移动"] --> C
+        D --> E["prvalue 纯右值<br/>无身份，可移动"]
     end
     
     subgraph 移动语义流程
-        F[源对象<br/>持有资源] --> G{是右值?}
+        F["源对象<br/>持有资源"] --> G{是右值?}
         G -->|是| H[调用移动构造/赋值]
         G -->|否| I[调用拷贝构造/赋值]
-        H --> J[资源转移<br/>指针交换]
-        I --> K[资源复制<br/>深拷贝]
-        J --> L[目标对象<br/>获得资源]
+        H --> J["资源转移<br/>指针交换"]
+        I --> K["资源复制<br/>深拷贝"]
+        J --> L["目标对象<br/>获得资源"]
         K --> L
-        J --> M[源对象<br/>置空]
+        J --> M["源对象<br/>置空"]
     end
     
     style H fill:#90EE90
@@ -445,7 +445,7 @@ private:
 ```mermaid
 flowchart LR
     A[开始] --> B[遍历数组]
-    B --> C[计算补数<br/>complement = target - nums[i]]
+    B --> C["计算补数<br/>complement = target - nums[i]"]
     C --> D{补数在哈希表中?}
     D -->|是| E[返回两个下标]
     D -->|否| F[将当前元素存入哈希表]
@@ -506,12 +506,12 @@ public:
 ```mermaid
 flowchart TB
     subgraph 第一阶段
-        A1[遍历A和B] --> B1[计算sumAB = A[i] + B[j]]
-        B1 --> C1[哈希表记录<br/>sumAB -> 出现次数]
+        A1[遍历A和B] --> B1["计算 sumAB = A[i] + B[j]"]
+        B1 --> C1["哈希表记录<br/>sumAB -> 出现次数"]
     end
     
     subgraph 第二阶段
-        A2[遍历C和D] --> B2[计算sumCD = C[k] + D[l]]
+        A2[遍历C和D] --> B2["计算 sumCD = C[k] + D[l]"]
         B2 --> C2[查找 -sumCD 的出现次数]
         C2 --> D2[累加到结果]
     end

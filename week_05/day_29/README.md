@@ -54,8 +54,8 @@
 ```mermaid
 graph TB
     subgraph 二叉树基本结构
-        A[根节点<br/>Root] --> B[左子节点<br/>Left Child]
-        A --> C[右子节点<br/>Right Child]
+        A["根节点<br/>Root"] --> B["左子节点<br/>Left Child"]
+        A --> C["右子节点<br/>Right Child"]
         B --> D[左子节点]
         B --> E[右子节点]
         C --> F[左子节点]

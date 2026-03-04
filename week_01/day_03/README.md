@@ -323,13 +323,13 @@ void merge(vector<int>& nums1, int m, vector<int>& nums2, int n) {
 
 ```mermaid
 flowchart TD
-    subgraph 方法一：两次遍历
+    subgraph method1["方法一：两次遍历"]
         A1["第一次遍历"] --> B1["将非零元素移到前面"]
         B1 --> C1["记录非零元素个数"]
         C1 --> D1["第二次遍历填充0"]
     end
     
-    subgraph 方法二：双指针一次遍历
+    subgraph method2["方法二：双指针一次遍历"]
         A2["快指针遍历"] --> B2["慢指针记录非零位置"]
         B2 --> C2["遇到非零交换"]
         C2 --> D2["一次遍历完成"]

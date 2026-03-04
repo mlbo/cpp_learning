@@ -20,7 +20,7 @@ graph TD
     A[constexpr] --> B[变量]
     A --> C[函数]
     A --> D[构造函数]
-    A --> E[if constexpr C++17]
+    A --> E["if constexpr C++17"]
     
     B --> B1[编译期常量]
     C --> C1[编译期可计算函数]
@@ -420,9 +420,9 @@ graph TB
     C -->|是| D[扩展窗口: sum += nums]
     D --> E{sum ≥ target?}
     E -->|是| F[更新minLen]
-    F --> G[收缩窗口: sum -= nums, left++]
+    F --> G["收缩窗口: sum -= nums, left++"]
     G --> E
-    E -->|否| H[right++]
+    E -->|否| H["right++"]
     H --> C
     C -->|否| I{minLen == ∞?}
     I -->|是| J[返回 0]
