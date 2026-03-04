@@ -47,6 +47,7 @@ void cpp11Summary() {
     std::cout << "auto推导: " << x << std::endl;
     
     // 智能指针
+    // C++11写法（注释）: std::unique_ptr<int> uptr(new int(100));
     auto uptr = std::make_unique<int>(100);
     auto sptr = std::make_shared<int>(200);
     std::weak_ptr<int> wptr = sptr;

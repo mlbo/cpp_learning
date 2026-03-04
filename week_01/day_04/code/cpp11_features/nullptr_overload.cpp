@@ -179,6 +179,8 @@ void printArgs() {
 // 可变参数模板
 template<typename T, typename... Args>
 void printArgs(T first, Args... rest) {
+    // C++11写法（注释）:
+    // 用重载 + std::enable_if/std::is_pointer<std::remove_pointer<...>::type> 实现分派
     if constexpr (std::is_same_v<T, std::nullptr_t>) {
         std::cout << "  [nullptr] ";
     } else if constexpr (std::is_pointer_v<T>) {

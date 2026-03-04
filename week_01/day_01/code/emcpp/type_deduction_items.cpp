@@ -174,6 +174,9 @@ void item03_decltype() {
     std::cout << "  decltype((x)) z = x; -> int& (双层括号)\n";
     
     // decltype(auto) 结合auto和decltype
+    // C++11写法（注释）:
+    // decltype(x) da1 = x;
+    // decltype((x)) da2 = x;
     auto a1 = x;              // int
     decltype(auto) da1 = x;   // int
     
@@ -192,6 +195,11 @@ void item03_decltype() {
 }
 
 // 返回值使用decltype(auto)的示例
+// C++11写法（注释）:
+// template<typename Container, typename Index>
+// auto get_element(Container&& c, Index i) -> decltype(std::forward<Container>(c)[i]) {
+//     return std::forward<Container>(c)[i];
+// }
 template<typename Container, typename Index>
 decltype(auto) get_element(Container&& c, Index i) {
     return std::forward<Container>(c)[i];
@@ -249,6 +257,9 @@ void item05_prefer_auto() {
     
     // 优点3：避免冗长的类型名
     std::unique_ptr<std::vector<std::pair<int, std::string>>> ptr1;
+    // C++11写法（注释）:
+    // std::unique_ptr<std::vector<std::pair<int, std::string>>> ptr2(
+    //     new std::vector<std::pair<int, std::string>>());
     auto ptr2 = std::make_unique<std::vector<std::pair<int, std::string>>>();
     std::cout << "  优点3：简化复杂类型声明\n";
     (void)ptr1; (void)ptr2;

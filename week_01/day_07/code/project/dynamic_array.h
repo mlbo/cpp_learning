@@ -78,6 +78,10 @@ public:
      * @param last 结束迭代器
      */
     template<typename InputIt,
+             // C++11写法（注释）:
+             // typename = typename std::enable_if<
+             //     std::is_convertible<typename std::iterator_traits<InputIt>::iterator_category,
+             //                         std::input_iterator_tag>::value>::type
              typename = std::enable_if_t<std::is_convertible_v<
                  typename std::iterator_traits<InputIt>::iterator_category,
                  std::input_iterator_tag>>>

@@ -111,6 +111,10 @@ public:
         q.push({root, std::to_string(root->val)});
         
         while (!q.empty()) {
+            // C++11写法（注释）:
+            // std::pair<TreeNode*, std::string> cur = q.front();
+            // TreeNode* node = cur.first;
+            // std::string path = cur.second;
             auto [node, path] = q.front();
             q.pop();
             

@@ -240,6 +240,7 @@ void create_object(Args&&... args) {
     // T obj{std::forward<Args>(args)...};  // 方式 2
 
     // 条款 30 建议使用 std::make_unique 和 std::make_shared
+    // C++11写法（注释）: std::unique_ptr<T> ptr(new T(std::forward<Args>(args)...));
     auto ptr = std::make_unique<T>(std::forward<Args>(args)...);
     std::cout << "创建了对象\n";
 }

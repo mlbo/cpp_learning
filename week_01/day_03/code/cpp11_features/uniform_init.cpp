@@ -213,6 +213,7 @@ void demo_special_cases() {
 
     // 场景 15.2：unique_ptr 初始化
     std::unique_ptr<int> up1{new int{42}};
+    // C++11写法（注释）: std::unique_ptr<int> up2(new int(42));
     auto up2 = std::make_unique<int>(42);  // 更推荐的方式
     std::cout << "unique_ptr: " << *up1 << ", " << *up2 << "\n";
 

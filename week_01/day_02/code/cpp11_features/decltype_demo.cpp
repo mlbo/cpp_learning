@@ -26,7 +26,9 @@ void print_type(const char* name) {
 template<typename T>
 void print_type_info(const T& var, const char* var_name) {
     std::cout << var_name << " 的类型: " << typeid(var).name();
-    
+    // C++11写法（注释）:
+    // std::is_reference<T>::value / std::is_const<typename std::remove_reference<T>::type>::value
+    // std::is_pointer<T>::value / std::is_array<T>::value
     if (std::is_reference_v<T>) {
         std::cout << " (引用)";
     }

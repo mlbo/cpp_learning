@@ -216,6 +216,7 @@ void auto_best_practices() {
     std::cout << "    - 需要明确类型意图时\n";
     
     // auto 配合智能指针
+    // C++11写法（注释）: std::unique_ptr<int> uptr(new int(42));
     auto uptr = std::make_unique<int>(42);
     auto sptr = std::make_shared<int>(42);
     std::cout << "\n  智能指针:\n";

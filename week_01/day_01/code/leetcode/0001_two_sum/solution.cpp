@@ -66,6 +66,10 @@ std::vector<int> Solution::twoSum_optimized(std::vector<int>& nums, int target) 
     map.reserve(nums.size());
     
     for (size_t i = 0; i < nums.size(); ++i) {
+        // C++11写法（注释）:
+        // std::pair<std::unordered_map<int,int>::iterator, bool> ret =
+        //     map.insert(std::make_pair(nums[i], static_cast<int>(i)));
+        // auto it = ret.first; bool inserted = ret.second;
         auto [it, inserted] = map.insert({nums[i], static_cast<int>(i)});
         if (!inserted && nums[i] * 2 == target) {
             // 处理相同元素的情况 [3, 3], target = 6

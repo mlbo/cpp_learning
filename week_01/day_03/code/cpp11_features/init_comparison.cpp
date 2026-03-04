@@ -47,6 +47,7 @@ void demo_most_vexing_parse() {
     // 另一个经典的例子
     // std::unique_ptr<int> up1();  // 函数声明！
     std::unique_ptr<int> up2{};    // 正确
+    // C++11写法（注释）: std::unique_ptr<int> up3(new int());
     auto up3 = std::make_unique<int>();  // 更推荐
 }
 

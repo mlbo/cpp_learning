@@ -89,6 +89,9 @@ void call_f(T param) {
 template<typename T>
 void call_f_fixed(T param) {
     // 如果需要传递空指针，应该明确使用nullptr
+    // C++11写法（注释）:
+    // typename std::enable_if<std::is_same<T, std::nullptr_t>::value, void>::type ...
+    // typename std::enable_if<!std::is_same<T, std::nullptr_t>::value, void>::type ...
     if constexpr (std::is_null_pointer_v<T>) {
         Widget w(static_cast<int*>(param));  // 明确转换
         std::cout << "  call_f_fixed: 创建Widget(nullptr)\n";
