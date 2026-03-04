@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CPP Learning 35 Days</title>
+    <script>
+      (function() {
+        const stored = localStorage.getItem("docs-theme");
+        const preferDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const theme = stored === "light" || stored === "dark" ? stored : (preferDark ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css"
+    />
+    <link rel="stylesheet" href="assets/theme.css" />
+  </head>
+  <body>
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="切换深浅色">🌙 深色</button>
+    <div id="app">Loading...</div>
+    <script>
+      const currentTheme = document.documentElement.getAttribute("data-theme") || "light";
+      window.$docsify = {
+        name: "CPP Learning 35 Days",
+        nameLink: "#/",
+        loadNavbar: false,
+        loadSidebar: true,
+        alias: {
+          "/.*/_sidebar.md": "/_sidebar.md",
+          // Backward-compatible aliases for old week topic URLs.
+          "/content/02-weeks/week_01/算法小白形象化题解指南(\\.md)?": "/content/01-tutorials/Leecode%20专项/算法小白形象化题解指南.md",
+          "/content/02-weeks/week_02/链表专题形象化题解指南(\\.md)?": "/content/01-tutorials/Leecode%20专项/链表专题形象化题解指南.md",
+          "/content/02-weeks/week_03/栈队列专题形象化题解指南(\\.md)?": "/content/01-tutorials/Leecode%20专项/栈队列专题形象化题解指南.md",
+          "/content/02-weeks/week_04/哈希表专题形象化题解指南(\\.md)?": "/content/01-tutorials/Leecode%20专项/哈希表专题形象化题解指南.md",
+          "/content/02-weeks/week_05/树与并发专题形象化题解指南(\\.md)?": "/content/01-tutorials/Leecode%20专项/树与并发专题形象化题解指南.md",
+          "/week_01/算法小白形象化题解指南(\\.md)?": "/content/01-tutorials/Leecode%20专项/算法小白形象化题解指南.md",
+          "/week_02/链表专题形象化题解指南(\\.md)?": "/content/01-tutorials/Leecode%20专项/链表专题形象化题解指南.md",
+          "/week_03/栈队列专题形象化题解指南(\\.md)?": "/content/01-tutorials/Leecode%20专项/栈队列专题形象化题解指南.md",
+          "/week_04/哈希表专题形象化题解指南(\\.md)?": "/content/01-tutorials/Leecode%20专项/哈希表专题形象化题解指南.md",
+          "/week_05/树与并发专题形象化题解指南(\\.md)?": "/content/01-tutorials/Leecode%20专项/树与并发专题形象化题解指南.md",
+          "/week_01/(.*)": "/content/02-weeks/week_01/$1",
+          "/week_02/(.*)": "/content/02-weeks/week_02/$1",
+          "/week_03/(.*)": "/content/02-weeks/week_03/$1",
+          "/week_04/(.*)": "/content/02-weeks/week_04/$1",
+          "/week_05/(.*)": "/content/02-weeks/week_05/$1",
+          "/tutorials/(.*)": "/content/01-tutorials/$1",
+          "/model_inference_project/(.*)": "/content/03-projects/model_inference_project/$1",
+        },
+        sidebarDisplayLevel: 1,
+        subMaxLevel: 0,
+        auto2top: true,
+        search: {
+          placeholder: "搜索 / Search",
+          noData: "No Results",
+          depth: 3,
+        },
+        pagination: {
+          previousText: "Prev",
+          nextText: "Next",
+          crossChapter: true,
+          crossChapterText: true,
+        },
+        plugins: [
+          function(hook) {
+            hook.doneEach(function() {
+              const sidebar = document.querySelector(".sidebar-nav");
+              if (!sidebar) return;
+              const items = sidebar.querySelectorAll("li");
+              items.forEach((item) => {
+                const childList = item.querySelector(":scope > ul");
+                if (!childList) return;
+                if (item.dataset.toggleReady === "1") return;
+                const link = item.querySelector(":scope > a, :scope > p > a");
+                const host = item.querySelector(":scope > p") || item;
+                if (!link || !host) return;
+
+                const toggleButton = document.createElement("button");
+                toggleButton.type = "button";
+                toggleButton.className = "nav-toggle";
+                toggleButton.setAttribute("aria-label", "toggle section");
+                host.insertBefore(toggleButton, link);
+                item.classList.add("has-toggle");
+
+                const currentHash = decodeURIComponent(window.location.hash || "#/");
+                const href = decodeURIComponent(link.getAttribute("href") || "");
+                const hasActiveDescendant = !!item.querySelector(":scope > ul li.active, :scope > ul a.active");
+                const legacyWeekHref = href.replace("#/content/02-weeks/", "#/");
+                const shouldOpen = hasActiveDescendant || (href && (currentHash.startsWith(href) || currentHash.startsWith(legacyWeekHref)));
+                item.classList.toggle("is-open", shouldOpen);
+                childList.style.display = shouldOpen ? "" : "none";
+
+                toggleButton.addEventListener("click", (event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  const isOpen = item.classList.toggle("is-open");
+                  childList.style.display = isOpen ? "" : "none";
+                });
+
+                item.dataset.toggleReady = "1";
+              });
+            });
+          },
+        ],
+        mermaidConfig: {
+          querySelector: ".mermaid",
+        },
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/js/docsify-themeable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code/dist/docsify-copy-code.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-mermaid@2/dist/docsify-mermaid.js"></script>
+    <script>
+      mermaid.initialize(
+        currentTheme === "dark"
+          ? {
+              startOnLoad: false,
+              securityLevel: "strict",
+              theme: "base",
+              themeVariables: {
+                darkMode: true,
+                background: "#0f1722",
+                textColor: "#e6edf3",
+                lineColor: "#9fb3c8",
+                primaryColor: "#1e293b",
+                primaryTextColor: "#e6edf3",
+                secondaryColor: "#1f2937",
+                secondaryTextColor: "#e6edf3",
+                tertiaryColor: "#1f2937",
+                tertiaryTextColor: "#e6edf3",
+                edgeLabelBackground: "#0f1722",
+                fontFamily: "Roboto, PingFang SC, Microsoft YaHei, sans-serif",
+              },
+            }
+          : {
+              startOnLoad: false,
+              securityLevel: "strict",
+              theme: "default",
+            }
+      );
+
+      (function() {
+        const button = document.getElementById("theme-toggle");
+        if (!button) return;
+
+        function syncButton() {
+          const theme = document.documentElement.getAttribute("data-theme") || "light";
+          button.textContent = theme === "dark" ? "☀️ 浅色" : "🌙 深色";
+        }
+
+        button.addEventListener("click", () => {
+          const current = document.documentElement.getAttribute("data-theme") || "light";
+          const next = current === "dark" ? "light" : "dark";
+          document.documentElement.setAttribute("data-theme", next);
+          localStorage.setItem("docs-theme", next);
+          syncButton();
+          window.location.reload();
+        });
+
+        syncButton();
+      })();
+    </script>
+  </body>
+</html>
