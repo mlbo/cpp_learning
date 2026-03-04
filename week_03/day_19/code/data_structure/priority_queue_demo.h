@@ -1,0 +1,6 @@
+#ifndef DAY19_PRIORITY_QUEUE_DEMO_H
+#define DAY19_PRIORITY_QUEUE_DEMO_H
+
+void priorityQueueDemo();
+
+#endif // DAY19_PRIORITY_QUEUE_DEMO_H

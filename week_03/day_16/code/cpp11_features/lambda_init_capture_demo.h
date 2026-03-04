@@ -1,0 +1,6 @@
+#ifndef DAY16_LAMBDA_INIT_CAPTURE_DEMO_H
+#define DAY16_LAMBDA_INIT_CAPTURE_DEMO_H
+
+void lambdaInitCaptureDemo();
+
+#endif // DAY16_LAMBDA_INIT_CAPTURE_DEMO_H

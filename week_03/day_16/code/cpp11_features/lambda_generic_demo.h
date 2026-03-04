@@ -1,0 +1,6 @@
+#ifndef DAY16_LAMBDA_GENERIC_DEMO_H
+#define DAY16_LAMBDA_GENERIC_DEMO_H
+
+void lambdaGenericDemo();
+
+#endif // DAY16_LAMBDA_GENERIC_DEMO_H

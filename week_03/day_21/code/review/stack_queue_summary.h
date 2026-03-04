@@ -1,0 +1,6 @@
+#ifndef DAY21_STACK_QUEUE_SUMMARY_H
+#define DAY21_STACK_QUEUE_SUMMARY_H
+
+void stackQueueSummary();
+
+#endif // DAY21_STACK_QUEUE_SUMMARY_H

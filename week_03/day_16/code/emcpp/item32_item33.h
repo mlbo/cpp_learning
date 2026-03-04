@@ -1,0 +1,6 @@
+#ifndef DAY16_ITEM32_ITEM33_H
+#define DAY16_ITEM32_ITEM33_H
+
+void item32Item33Demo();
+
+#endif // DAY16_ITEM32_ITEM33_H
