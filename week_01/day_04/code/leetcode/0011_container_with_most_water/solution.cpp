@@ -5,21 +5,42 @@
 
 #include "solution.h"
 #include <iostream>
+#include <cstdint>
+#include <stdexcept>
+
+#include "../../../../common/integer_contracts.h"
+
+namespace leetcode_0011 {
+
+namespace {
+
+void validate_input(const std::vector<int>& height) {
+    (void)week01::checked_index(height.size());
+    if (std::any_of(height.begin(), height.end(), [](int value) { return value < 0; })) {
+        throw std::invalid_argument("container heights must be nonnegative");
+    }
+}
+
+}  // namespace
 
 int Solution::maxArea(std::vector<int>& height) {
-    int left = 0;
-    int right = static_cast<int>(height.size()) - 1;
-    int maxWater = 0;
+    validate_input(height);
+    if (height.size() < 2) {
+        return 0;
+    }
+    std::size_t left = 0;
+    std::size_t right = height.size() - 1;
+    std::int64_t max_water = 0;
     
     while (left < right) {
         // 计算当前容器的面积
         // 高度取较小值（短板效应）
-        int h = std::min(height[left], height[right]);
-        int width = right - left;
-        int area = h * width;
+        const int h = std::min(height[left], height[right]);
+        const auto width = static_cast<std::int64_t>(right - left);
+        const auto area = static_cast<std::int64_t>(h) * width;
         
         // 更新最大面积
-        maxWater = std::max(maxWater, area);
+        max_water = std::max(max_water, area);
         
         // 移动较矮的边
         // 为什么？假设左边界较矮，如果移动右边界：
@@ -34,21 +55,23 @@ int Solution::maxArea(std::vector<int>& height) {
         }
     }
     
-    return maxWater;
+    return week01::checked_result(max_water);
 }
 
 int Solution::maxAreaBruteForce(std::vector<int>& height) {
-    int maxWater = 0;
-    int n = static_cast<int>(height.size());
+    validate_input(height);
+    std::int64_t max_water = 0;
     
     // 枚举所有可能的容器
-    for (int i = 0; i < n; ++i) {
-        for (int j = i + 1; j < n; ++j) {
-            int h = std::min(height[i], height[j]);
-            int width = j - i;
-            maxWater = std::max(maxWater, h * width);
+    for (std::size_t i = 0; i < height.size(); ++i) {
+        for (std::size_t j = i + 1; j < height.size(); ++j) {
+            const int h = std::min(height[i], height[j]);
+            const auto width = static_cast<std::int64_t>(j - i);
+            max_water = std::max(max_water, static_cast<std::int64_t>(h) * width);
         }
     }
     
-    return maxWater;
+    return week01::checked_result(max_water);
 }
+
+} // namespace leetcode_0011

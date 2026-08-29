@@ -2,10 +2,9 @@
  * LeetCode 76: 最小覆盖子串 - 测试文件
  */
 
-#include "solution.cpp"
+#include "leetcode/0076_minimum_window/solution.h"
 #include <iostream>
 #include <vector>
-#include <cassert>
 
 using namespace std;
 
@@ -18,8 +17,8 @@ struct TestCase {
 };
 
 // 运行测试用例
-void runTest(const TestCase& tc, int testNum) {
-    Solution sol;
+void runTest(const TestCase& tc, size_t testNum) {
+    day27::lc0076::Solution sol;
     string result = sol.minWindow(tc.s, tc.t);
     
     bool passed = (result == tc.expected);
@@ -86,15 +85,39 @@ int main() {
             "cae",
             "cwae",
             "复杂情况"
+        },
+        {
+            "",
+            "a",
+            "",
+            "空源字符串"
+        },
+        {
+            "abc",
+            "",
+            "",
+            "空目标按接口约定返回空串"
+        },
+        {
+            "AAABBC",
+            "AABC",
+            "AABBC",
+            "区分大小写并保留重复计数"
+        },
+        {
+            string("\xFF\x01\xFF", 3),
+            string("\x01\xFF", 2),
+            string("\xFF\x01", 2),
+            "高位字节不会形成负下标"
         }
     };
 
-    int passed = 0;
+    size_t passed = 0;
     for (size_t i = 0; i < testCases.size(); i++) {
-        Solution sol;
+        day27::lc0076::Solution sol;
         string result = sol.minWindow(testCases[i].s, testCases[i].t);
         if (result == testCases[i].expected) {
-            passed++;
+            ++passed;
         }
         runTest(testCases[i], i + 1);
     }
@@ -104,7 +127,8 @@ int main() {
     
     // 演示算法执行过程
     cout << "\n========== 算法执行演示 ==========" << endl;
-    demonstrateAlgorithm("ADOBECODEBANC", "ABC");
+    day27::lc0076::demonstrateAlgorithm("ADOBECODEBANC", "ABC");
+    day27::lc0076::demonstrateAlgorithm("abc", "");
 
-    return passed == (int)testCases.size() ? 0 : 1;
+    return passed == testCases.size() ? 0 : 1;
 }

@@ -16,6 +16,8 @@
 #include <string>
 #include <vector>
 
+#include "../../../common/noexcept_output.h"
+
 // 辅助类用于演示
 class Widget {
 public:
@@ -24,7 +26,9 @@ public:
     }
     
     ~Widget() {
-        std::cout << "Widget '" << name_ << "' 析构\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "Widget '" << name_ << "' 析构\n";
+        });
     }
     
     void sayHello() const {
@@ -63,11 +67,11 @@ void demoCreation() {
     // 方式4：创建数组
     std::cout << "\n创建数组unique_ptr:\n";
     std::unique_ptr<int[]> arr = std::make_unique<int[]>(5);
-    for (int i = 0; i < 5; ++i) {
-        arr[i] = i * 10;
+    for (std::size_t i = 0; i < 5U; ++i) {
+        arr[i] = static_cast<int>(i) * 10;
     }
     std::cout << "数组元素: ";
-    for (int i = 0; i < 5; ++i) {
+    for (std::size_t i = 0; i < 5U; ++i) {
         std::cout << arr[i] << " ";
     }
     std::cout << "\n";

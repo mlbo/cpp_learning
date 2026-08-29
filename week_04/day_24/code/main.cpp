@@ -15,27 +15,26 @@
  *   ./day_24_demo
  */
 
+#include "cpp11_features/universal_reference_demo.h"
+
 #include <iostream>
 #include <string>
 
 // ==================== C++11 特性演示函数声明 ====================
-
-// 通用引用演示
-void runUniversalRefDemo();
 
 // 引用折叠演示
 void runReferenceCollapsingDemo();
 
 // ==================== EMC++ 演示函数声明 ====================
 
-// Item 26: 避免在通用引用上重载
-void runItem26Demo();
+// Item 26-27: 重载风险与替代方案
+void runItem26And27Demo();
 
-// Item 27: 理解引用折叠规则
-void runItem27Demo();
+// Item 28: 引用折叠规则
+void runItem28RulesDemo();
 
-// Item 28: 理解引用折叠的上下文
-void runItem28Demo();
+// Item 28: 引用折叠的四种上下文
+void runItem28ContextsDemo();
 
 // ==================== LeetCode 演示函数声明 ====================
 
@@ -80,14 +79,14 @@ int main() {
     std::cout << "║          第二部分：EMC++ Item 26-28 演示                   ║\n";
     std::cout << "╚════════════════════════════════════════════════════════════╝\n";
     
-    // Item 26: 避免在通用引用上重载
-    runItem26Demo();
+    // Item 26-27: 重载风险与替代方案
+    runItem26And27Demo();
     
-    // Item 27: 理解引用折叠规则
-    runItem27Demo();
+    // Item 28: 引用折叠规则
+    runItem28RulesDemo();
     
-    // Item 28: 理解引用折叠的上下文
-    runItem28Demo();
+    // Item 28: 引用折叠的四种上下文
+    runItem28ContextsDemo();
     
     // ==================== 第三部分：LeetCode 刷题 ====================
     
@@ -110,13 +109,13 @@ int main() {
     std::cout << "╚════════════════════════════════════════════════════════════╝\n";
     
     std::cout << "\n核心要点:\n";
-    std::cout << "  1. 通用引用 T&& 需要：类型推导 + 精确的 T&& 形式\n";
+    std::cout << "  1. 函数形参成为转发引用，需要推导未加 cv 的模板参数 T 且形式为 T&&\n";
     std::cout << "  2. 引用折叠规则：有左值引用参与 → 折叠为左值引用\n";
     std::cout << "  3. 避免在通用引用上重载，使用标签分发或 SFINAE\n";
     std::cout << "  4. std::forward 利用引用折叠实现完美转发\n";
     
     std::cout << "\n关键记忆口诀:\n";
-    std::cout << "  - 通用引用是「智能快递员」，能接收左值或右值\n";
+    std::cout << "  - 转发引用记录调用点值类别；绑定本身不接管所有权\n";
     std::cout << "  - 引用折叠中，左值引用是「强力胶」，粘住就变左值\n";
     
     std::cout << "\n";

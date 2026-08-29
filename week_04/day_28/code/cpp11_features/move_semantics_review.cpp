@@ -16,6 +16,10 @@
 #include <vector>
 #include <utility>
 #include <memory>
+#include <cstring>
+#include <stdexcept>
+#include <streambuf>
+#include <type_traits>
 
 namespace move_semantics_review {
 
@@ -34,9 +38,7 @@ private:
     
 public:
     // 默认构造函数
-    MyString() : data_(nullptr), size_(0) {
-        std::cout << "  [默认构造] 空字符串\n";
-    }
+    MyString() : data_(nullptr), size_(0) {}
     
     // 带参构造函数
     MyString(const char* str) {
@@ -44,22 +46,15 @@ public:
             size_ = std::strlen(str);
             data_ = new char[size_ + 1];
             std::strcpy(data_, str);
-            std::cout << "  [构造] \"" << data_ << "\" (size=" << size_ << ")\n";
         } else {
             data_ = nullptr;
             size_ = 0;
-            std::cout << "  [构造] 空字符串\n";
         }
     }
     
     // 析构函数
     ~MyString() {
-        if (data_) {
-            std::cout << "  [析构] \"" << data_ << "\"\n";
-            delete[] data_;
-        } else {
-            std::cout << "  [析构] 空字符串\n";
-        }
+        delete[] data_;
     }
     
     // 拷贝构造函数
@@ -67,26 +62,22 @@ public:
         if (other.data_) {
             data_ = new char[size_ + 1];
             std::strcpy(data_, other.data_);
-            std::cout << "  [拷贝构造] \"" << data_ << "\"\n";
         } else {
             data_ = nullptr;
-            std::cout << "  [拷贝构造] 空字符串\n";
         }
     }
     
     // 拷贝赋值运算符
     MyString& operator=(const MyString& other) {
         if (this != &other) {
-            delete[] data_;
-            size_ = other.size_;
+            char* replacement = nullptr;
             if (other.data_) {
-                data_ = new char[size_ + 1];
-                std::strcpy(data_, other.data_);
-                std::cout << "  [拷贝赋值] \"" << data_ << "\"\n";
-            } else {
-                data_ = nullptr;
-                std::cout << "  [拷贝赋值] 空字符串\n";
+                replacement = new char[other.size_ + 1];
+                std::memcpy(replacement, other.data_, other.size_ + 1);
             }
+            delete[] data_;
+            data_ = replacement;
+            size_ = other.size_;
         }
         return *this;
     }
@@ -96,11 +87,6 @@ public:
         : data_(other.data_), size_(other.size_) {
         other.data_ = nullptr;
         other.size_ = 0;
-        if (data_) {
-            std::cout << "  [移动构造] \"" << data_ << "\" (资源转移)\n";
-        } else {
-            std::cout << "  [移动构造] 空字符串\n";
-        }
     }
     
     // 移动赋值运算符
@@ -111,11 +97,6 @@ public:
             size_ = other.size_;
             other.data_ = nullptr;
             other.size_ = 0;
-            if (data_) {
-                std::cout << "  [移动赋值] \"" << data_ << "\" (资源转移)\n";
-            } else {
-                std::cout << "  [移动赋值] 空字符串\n";
-            }
         }
         return *this;
     }
@@ -147,20 +128,15 @@ private:
     
 public:
     // 默认构造
-    Resource() : data_(nullptr), size_(0) {
-        std::cout << "  [Resource] 默认构造\n";
-    }
+    Resource() : data_(nullptr), size_(0) {}
     
     // 带参构造
     Resource(const std::string& name, size_t size) 
-        : name_(name), data_(new int[size]), size_(size) {
-        std::cout << "  [Resource] 构造: " << name_ << " (" << size_ << " 个int)\n";
-    }
+        : name_(name), data_(new int[size]), size_(size) {}
     
     // 析构函数
     ~Resource() {
         delete[] data_;
-        std::cout << "  [Resource] 析构: " << name_ << "\n";
     }
     
     // 禁用拷贝（资源唯一）
@@ -174,7 +150,6 @@ public:
         , size_(other.size_) {
         other.data_ = nullptr;
         other.size_ = 0;
-        std::cout << "  [Resource] 移动构造: " << name_ << "\n";
     }
     
     Resource& operator=(Resource&& other) noexcept {
@@ -185,7 +160,6 @@ public:
             size_ = other.size_;
             other.data_ = nullptr;
             other.size_ = 0;
-            std::cout << "  [Resource] 移动赋值: " << name_ << "\n";
         }
         return *this;
     }
@@ -200,41 +174,47 @@ public:
 void demonstrateLvalueRvalue() {
     std::cout << "=== 左值与右值演示 ===\n\n";
     
-    // 左值：有名字、有地址的对象
-    int x = 10;           // x是左值
+    // 值类别是表达式属性；变量名表达式是常见左值。
+    int x = 10;           // 表达式 x 是左值
     int& lref = x;        // 左值引用绑定到左值
     
     std::cout << "左值示例:\n";
-    std::cout << "  int x = 10;  // x是左值\n";
+    std::cout << "  左值是具有身份的表达式，不由对象是否有名字单独决定\n";
+    std::cout << "  int x = 10;  // 表达式 x 是左值\n";
     std::cout << "  int& lref = x;  // 左值引用\n";
     std::cout << "  x = " << x << ", lref = " << lref << "\n";
     
-    // 右值：临时对象或字面量
+    // 右值包括纯右值和将亡值；字面量只是纯右值的常见例子。
     // int& rref1 = 10;   // 错误！左值引用不能绑定右值
     int&& rref = 10;      // 右值引用绑定到右值
     
     std::cout << "\n右值示例:\n";
+    std::cout << "  右值是纯右值与将亡值的总称，std::move(x) 产生的 xvalue 仍有身份\n";
     std::cout << "  int&& rref = 10;  // 右值引用绑定字面量\n";
+    std::cout << "  命名后的 rref 表达式本身仍是左值\n";
     std::cout << "  rref = " << rref << "\n";
     
-    // 右值引用可以延长临时对象的生命周期
-    std::cout << "\n右值引用延长生命周期:\n";
+    // 临时量直接绑定到这个局部引用变量时，生命周期延长到该变量的作用域末尾。
+    // 这种延长不会因返回引用或把引用继续传给别处而自动传播。
+    std::cout << "\n局部引用直接绑定临时量时延长生命周期:\n";
     {
         std::string&& temp = std::string("temporary");
         std::cout << "  在作用域内，临时对象仍然有效: \"" << temp << "\"\n";
     }
     std::cout << "  作用域结束，临时对象被销毁\n";
     
-    // std::move将左值转换为右值
+    // std::move 只把表达式转换为 xvalue，不执行资源转移。
     std::cout << "\nstd::move转换:\n";
     std::string str = "Hello";
     std::string moved = std::move(str);
-    std::cout << "  原字符串: \"" << str << "\" (移动后可能为空)\n";
+    std::cout << "  原字符串: \"" << str << "\" (仍有效，具体状态未指定)\n";
     std::cout << "  新字符串: \"" << moved << "\"\n";
 }
 
 void demonstrateMoveSemantics() {
     std::cout << "\n=== 移动语义演示 ===\n\n";
+    std::cout << "特殊成员只管理资源，日志放在调用点；这样流异常不会造成构造泄漏，"
+                 "也不会在复制赋值已经提交后再向调用方报失败。\n\n";
     
     std::cout << "创建对象:\n";
     MyString s1("Hello World");
@@ -260,32 +240,33 @@ void demonstrateStdMove() {
     
     std::cout << "std::move本质:\n";
     std::cout << "  - 不执行任何移动操作\n";
-    std::cout << "  - 只是将左值转换为右值引用\n";
-    std::cout << "  - 告知编译器\"这个对象可以被移动\"\n\n";
+    std::cout << "  - 把表达式转换为 xvalue\n";
+    std::cout << "  - 允许后续重载考虑右值路径，但不保证一定发生移动\n\n";
     
     std::vector<int> v1 = {1, 2, 3, 4, 5};
     std::cout << "原始vector: ";
     for (int x : v1) std::cout << x << " ";
     std::cout << "\n";
     
-    // std::move后，源对象处于有效但未定义状态
+    // std::move后，标准容器源对象有效但状态未指定
     std::vector<int> v2 = std::move(v1);
     std::cout << "std::move后:\n";
-    std::cout << "  v1大小: " << v1.size() << " (有效但未定义)\n";
+    std::cout << "  v1大小: " << v1.size() << " (有效但状态未指定)\n";
     std::cout << "  v2: ";
     for (int x : v2) std::cout << x << " ";
     std::cout << "\n";
     
-    // 对基本类型，std::move只是拷贝
+    // 本例 int 没有可转交资源；初始化仍复制数值，std::move 只改变表达式类别。
     int a = 10;
-    int b = std::move(a);  // 对int来说只是拷贝
+    int b = std::move(a);
     std::cout << "\n基本类型std::move:\n";
     std::cout << "  a = " << a << ", b = " << b << " (只是拷贝)\n";
 }
 
 void demonstrateRuleOfFive() {
     std::cout << "\n=== Rule of Five 演示 ===\n\n";
-    
+    std::cout << "默认先选Rule of Zero：让标准库资源成员自动组合特殊成员。\n";
+    std::cout << "只有类型直接拥有裸资源时，才用Rule of Five系统检查以下五项：\n";
     std::cout << "Rule of Five:\n";
     std::cout << "  1. 析构函数\n";
     std::cout << "  2. 拷贝构造函数\n";
@@ -312,10 +293,10 @@ void demonstrateRuleOfFive() {
 void demonstrateNoexcept() {
     std::cout << "\n=== noexcept的重要性 ===\n\n";
     
-    std::cout << "为什么移动操作要标记为noexcept?\n";
-    std::cout << "  1. 标准容器在重新分配时会优先使用移动\n";
-    std::cout << "  2. 如果移动不是noexcept，容器会使用拷贝\n";
-    std::cout << "  3. 异常安全的移动操作更可靠\n\n";
+    std::cout << "什么时候移动操作应该标记为 noexcept?\n";
+    std::cout << "  1. 只有实现确实不会抛异常时才能作出该承诺\n";
+    std::cout << "  2. 移动可能抛异常且拷贝可用时，容器迁移旧元素可能选择拷贝\n";
+    std::cout << "  3. 拷贝不可用时仍可能使用可抛移动，具体保证取决于操作与类型\n\n";
     
     std::vector<MyString> vec;
     vec.reserve(3);
@@ -326,40 +307,55 @@ void demonstrateNoexcept() {
     vec.push_back(MyString("Third"));
     
     std::cout << "\nvector需要扩容时:\n";
-    std::cout << "  如果移动构造是noexcept，使用移动\n";
-    std::cout << "  否则使用拷贝（更安全但更慢）\n";
+    std::cout << "  MyString 的移动确实不抛: "
+              << std::boolalpha
+              << std::is_nothrow_move_constructible_v<MyString> << "\n";
+    std::cout << "  正确的 noexcept 信息会影响容器为异常保证作出的迁移选择\n";
+}
+
+enum class ForwardingRoute {
+    Lvalue,
+    Rvalue
+};
+
+ForwardingRoute forwardingTarget(int&) {
+    return ForwardingRoute::Lvalue;
+}
+
+ForwardingRoute forwardingTarget(int&&) {
+    return ForwardingRoute::Rvalue;
+}
+
+template<typename T>
+ForwardingRoute forwardToTarget(T&& value) {
+    return forwardingTarget(std::forward<T>(value));
+}
+
+const char* routeName(ForwardingRoute route) {
+    return route == ForwardingRoute::Lvalue ? "int& 左值重载" : "int&& 右值重载";
 }
 
 void demonstratePerfectForwarding() {
     std::cout << "\n=== 完美转发基础 ===\n\n";
-    
-    // 辅助函数：识别值类别
-    auto identify = [](int& x) { std::cout << "  左值: " << x << "\n"; };
-    auto identifyRval = [](int&& x) { std::cout << "  右值: " << x << "\n"; };
-    
-    // 完美转发包装器
-    auto wrapper = [&identify, &identifyRval](int&& x) {
-        std::cout << "  转发前: " << x << "\n";
-        identifyRval(std::forward<int>(x));  // 保持右值属性
+
+    std::cout << "固定 int&& 形参是右值引用，不是转发引用；内部继续交付时使用 std::move。\n";
+    auto consumeKnownRvalue = [](int&& value) {
+        return forwardingTarget(std::move(value));
     };
-    
-    std::cout << "完美转发保持值类别:\n";
+    std::cout << "  固定右值引用调用目标: " << routeName(consumeKnownRvalue(100)) << "\n\n";
+
+    // generic lambda 的 auto&& 会推导实参类型，并真实调用目标重载。
+    auto perfectForward = [](auto&& value) {
+        return forwardingTarget(std::forward<decltype(value)>(value));
+    };
+
+    std::cout << "转发引用 + std::forward 的目标重载结果:\n";
     int a = 42;
-    
-    // 通过std::forward保持参数的原始属性
-    auto perfectForward = [](auto&& x) {
-        std::cout << "  参数值: " << x << "\n";
-        // std::forward保持x的原始值类别
-    };
-    
-    std::cout << "传入左值:\n";
-    perfectForward(a);
-    
-    std::cout << "传入右值:\n";
-    perfectForward(100);
+    std::cout << "  传入左值 a -> " << routeName(perfectForward(a)) << "\n";
+    std::cout << "  传入右值 100 -> " << routeName(perfectForward(100)) << "\n";
     
     std::cout << "\nstd::forward vs std::move:\n";
-    std::cout << "  std::move: 无条件转换为右值\n";
+    std::cout << "  std::move: 无条件产生 xvalue，但不执行移动\n";
     std::cout << "  std::forward: 条件转换，保持原始值类别\n";
 }
 
@@ -367,13 +363,13 @@ void demonstrateCommonPitfalls() {
     std::cout << "\n=== 常见陷阱 ===\n\n";
     
     std::cout << "陷阱1: 移动后的对象状态\n";
-    std::cout << "  移动后对象处于\"有效但未定义\"状态\n";
-    std::cout << "  可以安全地销毁或重新赋值\n";
-    std::cout << "  但不应访问其值\n\n";
+    std::cout << "  移动后对象应满足类型契约；标准容器通常有效但状态未指定\n";
+    std::cout << "  可以安全地销毁、重新赋值，并调用前置条件仍满足的操作\n";
+    std::cout << "  不应依赖其具体值，除非类型额外给出更强承诺\n\n";
     
     std::cout << "陷阱2: 返回局部对象时不要std::move\n";
-    std::cout << "  编译器会自动进行RVO优化\n";
-    std::cout << "  手动std::move反而阻碍优化\n\n";
+    std::cout << "  直接返回通常保留复制消除或隐式移动的机会\n";
+    std::cout << "  手动std::move可能阻碍复制消除\n\n";
     
     std::cout << "正确示例:\n";
     std::cout << "  std::string create() {\n";
@@ -387,8 +383,54 @@ void demonstrateCommonPitfalls() {
     std::cout << "    return std::move(s);  // 阻碍RVO\n";
     std::cout << "  }\n\n";
     
-    std::cout << "陷阱3: 对基本类型std::move无意义\n";
-    std::cout << "  int, double等基本类型的移动等于拷贝\n";
+    std::cout << "陷阱3: 不要把std::move等同于资源转移\n";
+    std::cout << "  本例int初始化仍复制数值；std::move只改变表达式类别，也可能影响重载决议\n";
+}
+
+bool verify_forwarding_contract() {
+    int value = 7;
+    return forwardToTarget(value) == ForwardingRoute::Lvalue &&
+           forwardToTarget(7) == ForwardingRoute::Rvalue;
+}
+
+bool verify_special_member_stream_contract() {
+    class ThrowingStreamBuffer : public std::streambuf {
+    protected:
+        int_type overflow(int_type) override {
+            throw std::runtime_error("injected output failure");
+        }
+    } throwingBuffer;
+
+    std::streambuf* const originalBuffer = std::cout.rdbuf(&throwingBuffer);
+    const std::ios::iostate originalExceptions = std::cout.exceptions();
+    std::cout.exceptions(std::ios::badbit | std::ios::failbit);
+
+    bool passed = false;
+    try {
+        MyString source("contract");
+        MyString copied(source);
+        MyString assigned("old");
+        assigned = source;
+        MyString moved(std::move(source));
+
+        Resource resource("resource", 2);
+        Resource movedResource(std::move(resource));
+        Resource assignedResource;
+        assignedResource = std::move(movedResource);
+
+        passed = std::string(copied.c_str()) == "contract" &&
+                 std::string(assigned.c_str()) == "contract" &&
+                 std::string(moved.c_str()) == "contract" &&
+                 source.empty() && assignedResource.name() == "resource";
+    } catch (...) {
+        passed = false;
+    }
+
+    std::cout.exceptions(std::ios::goodbit);
+    std::cout.clear();
+    std::cout.rdbuf(originalBuffer);
+    std::cout.exceptions(originalExceptions);
+    return passed;
 }
 
 void demonstrate() {

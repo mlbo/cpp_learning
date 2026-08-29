@@ -6,9 +6,17 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <climits>
+#include <limits>
 
 using namespace std;
+
+namespace {
+
+size_t byteIndex(char character) {
+    return static_cast<unsigned char>(character);
+}
+
+} // namespace
 
 // 函数声明
 void demonstrateStringOperations();
@@ -154,20 +162,21 @@ void demonstrateSlidingWindow() {
     cout << "字符串: \"" << s << "\"" << endl;
     
     // 滑动窗口实现
-    vector<int> charIndex(256, -1);  // 记录字符最后出现位置
-    int maxLen = 0, start = 0;
-    int left = 0;
+    vector<size_t> charIndex(256, string::npos);  // 记录字符最后出现位置
+    size_t maxLen = 0;
+    size_t start = 0;
+    size_t left = 0;
     
-    for (int right = 0; right < s.size(); right++) {
-        char c = s[right];
+    for (size_t right = 0; right < s.size(); ++right) {
+        const size_t c = byteIndex(s[right]);
         // 如果字符已在窗口内，移动左边界
-        if (charIndex[c] >= left) {
+        if (charIndex[c] != string::npos && charIndex[c] >= left) {
             left = charIndex[c] + 1;
         }
         charIndex[c] = right;
         
-        if (right - left + 1 > maxLen) {
-            maxLen = right - left + 1;
+        if (right - left + 1U > maxLen) {
+            maxLen = right - left + 1U;
             start = left;
         }
     }
@@ -186,19 +195,21 @@ void demonstrateStringMatching() {
     cout << "模式: \"" << pattern << "\"" << endl;
     
     // 暴力匹配
-    int found = -1;
-    for (int i = 0; i <= (int)(text.size() - pattern.size()); i++) {
-        int j = 0;
-        while (j < (int)pattern.size() && text[i + j] == pattern[j]) {
-            j++;
-        }
-        if (j == (int)pattern.size()) {
-            found = i;
-            break;
+    string::size_type found = string::npos;
+    if (pattern.size() <= text.size()) {
+        for (string::size_type i = 0; i + pattern.size() <= text.size(); ++i) {
+            string::size_type j = 0;
+            while (j < pattern.size() && text[i + j] == pattern[j]) {
+                ++j;
+            }
+            if (j == pattern.size()) {
+                found = i;
+                break;
+            }
         }
     }
     
-    if (found != -1) {
+    if (found != string::npos) {
         cout << "找到匹配位置: " << found << endl;
         cout << "匹配子串: \"" << text.substr(found, pattern.size()) << "\"" << endl;
     } else {
@@ -218,22 +229,22 @@ next数组含义：对于模式串位置i，next[i]表示
     
     // 计算next数组演示
     cout << "模式串 \"" << pattern << "\" 的部分匹配分析：" << endl;
-    vector<int> next(pattern.size(), 0);
-    int j = 0;
-    for (int i = 1; i < (int)pattern.size(); i++) {
+    vector<string::size_type> next(pattern.size(), 0);
+    string::size_type j = 0;
+    for (string::size_type i = 1; i < pattern.size(); ++i) {
         while (j > 0 && pattern[i] != pattern[j]) {
             j = next[j - 1];
         }
         if (pattern[i] == pattern[j]) {
-            j++;
+            ++j;
         }
         next[i] = j;
     }
     
     cout << "next数组: [";
-    for (int i = 0; i < (int)next.size(); i++) {
+    for (size_t i = 0; i < next.size(); ++i) {
         cout << next[i];
-        if (i < (int)next.size() - 1) cout << ", ";
+        if (i + 1U < next.size()) cout << ", ";
     }
     cout << "]" << endl;
 }
@@ -258,30 +269,31 @@ s = "ADOBECODEBANC", t = "ABC"
     cout << "t = \"" << t << "\"" << endl;
     
     // 滑动窗口求解
-    vector<int> need(128, 0);
-    vector<int> window(128, 0);
+    vector<int> need(256, 0);
+    vector<int> window(256, 0);
     
-    for (char c : t) need[c]++;
+    for (char c : t) ++need[byteIndex(c)];
     
-    int left = 0, right = 0;
-    int valid = 0;  // 窗口中满足需求的字符种类数
-    int needCount = 0;  // t中不同字符的种类数
-    for (int i = 0; i < 128; i++) {
-        if (need[i] > 0) needCount++;
+    size_t left = 0;
+    size_t right = 0;
+    size_t valid = 0;  // 窗口中满足需求的字符种类数
+    size_t needCount = 0;  // t中不同字符的种类数
+    for (size_t i = 0; i < need.size(); ++i) {
+        if (need[i] > 0) ++needCount;
     }
     
-    int minLen = INT_MAX;
-    int minStart = 0;
+    size_t minLen = string::npos;
+    size_t minStart = 0;
     
-    while (right < (int)s.size()) {
+    while (right < s.size()) {
         // 扩展窗口
-        char c = s[right];
-        right++;
+        const size_t c = byteIndex(s[right]);
+        ++right;
         
         if (need[c] > 0) {
-            window[c]++;
+            ++window[c];
             if (window[c] == need[c]) {
-                valid++;
+                ++valid;
             }
         }
         
@@ -293,19 +305,19 @@ s = "ADOBECODEBANC", t = "ABC"
                 minStart = left;
             }
             
-            char d = s[left];
-            left++;
+            const size_t d = byteIndex(s[left]);
+            ++left;
             
             if (need[d] > 0) {
                 if (window[d] == need[d]) {
-                    valid--;
+                    --valid;
                 }
-                window[d]--;
+                --window[d];
             }
         }
     }
     
-    if (minLen != INT_MAX) {
+    if (minLen != string::npos) {
         cout << "\n最小覆盖子串: \"" << s.substr(minStart, minLen) << "\"" << endl;
         cout << "起始位置: " << minStart << ", 长度: " << minLen << endl;
     } else {
@@ -333,29 +345,29 @@ s1 = "ab", s2 = "eidbaooo"
     cout << "s2 = \"" << s2 << "\"" << endl;
     
     // 固定窗口滑动
-    vector<int> count1(26, 0);
-    vector<int> count2(26, 0);
+    vector<int> count1(256, 0);
+    vector<int> count2(256, 0);
     
-    for (char c : s1) count1[c - 'a']++;
+    for (char c : s1) ++count1[byteIndex(c)];
     
-    int windowSize = s1.size();
+    const size_t windowSize = s1.size();
     bool found = false;
-    int foundPos = -1;
+    size_t foundPos = string::npos;
     
-    for (int i = 0; i < (int)s2.size(); i++) {
+    for (size_t i = 0; i < s2.size(); ++i) {
         // 加入新字符
-        count2[s2[i] - 'a']++;
+        ++count2[byteIndex(s2[i])];
         
         // 移除超出窗口的字符
         if (i >= windowSize) {
-            count2[s2[i - windowSize] - 'a']--;
+            --count2[byteIndex(s2[i - windowSize])];
         }
         
         // 检查是否匹配
-        if (i >= windowSize - 1) {
+        if (i + 1U >= windowSize) {
             if (count1 == count2) {
                 found = true;
-                foundPos = i - windowSize + 1;
+                foundPos = i + 1U - windowSize;
                 break;
             }
         }

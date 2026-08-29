@@ -3,11 +3,16 @@
 
 #include <vector>
 
+namespace lc496 {
+
 class Solution {
 public:
-    std::vector<int> nextGreaterElement(std::vector<int>& nums1, std::vector<int>& nums2);
+    std::vector<int> nextGreaterElement(const std::vector<int>& nums1,
+                                        const std::vector<int>& nums2);
 };
 
-void testNextGreaterElement();
+bool testNextGreaterElement();
+
+}  // namespace lc496
 
 #endif // SOLUTION_496_H

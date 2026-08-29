@@ -25,6 +25,33 @@
 #include <vector>
 #include <unordered_map>
 #include <iostream>
+#include <limits>
+#include <stdexcept>
+
+namespace leetcode::lc0001 {
+
+namespace {
+
+int toProblemIndex(std::size_t index) {
+    if (index > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        throw std::overflow_error("数组下标超出题目 int 返回类型的范围");
+    }
+    return static_cast<int>(index);
+}
+
+bool fitsProblemInteger(long long value) {
+    return value >= std::numeric_limits<int>::min() &&
+           value <= std::numeric_limits<int>::max();
+}
+
+std::size_t toContainerIndex(int index) {
+    if (index < 0) {
+        throw std::out_of_range("题目下标不能为负数");
+    }
+    return static_cast<std::size_t>(index);
+}
+
+} // namespace
 
 class Solution {
 public:
@@ -42,18 +69,21 @@ public:
      * 当我们遍历到位置 j 时，如果存在 i < j 使得 nums[i] + nums[j] = target，
      * 那么 nums[i] 一定已经被存入哈希表，我们可以找到它。
      */
-    std::vector<int> twoSum(std::vector<int>& nums, int target) {
+    std::vector<int> twoSum(const std::vector<int>& nums, int target) {
         // 哈希表：值 -> 索引
-        std::unordered_map<int, int> seen;
+        std::unordered_map<int, std::size_t> seen;
         
-        for (int i = 0; i < static_cast<int>(nums.size()); ++i) {
-            int complement = target - nums[i];
+        for (std::size_t i = 0; i < nums.size(); ++i) {
+            const long long wideComplement =
+                static_cast<long long>(target) - nums[i];
             
             // 查找补数是否已经在哈希表中
-            auto it = seen.find(complement);
-            if (it != seen.end()) {
-                // 找到了！返回两个索引
-                return {it->second, i};
+            if (fitsProblemInteger(wideComplement)) {
+                const auto it = seen.find(static_cast<int>(wideComplement));
+                if (it != seen.end()) {
+                    // 找到了！返回两个索引
+                    return {toProblemIndex(it->second), toProblemIndex(i)};
+                }
             }
             
             // 没找到，将当前元素存入哈希表
@@ -70,11 +100,11 @@ public:
      * 用于对比理解：
      * 双重循环检查所有配对
      */
-    std::vector<int> twoSumBruteForce(std::vector<int>& nums, int target) {
-        for (int i = 0; i < static_cast<int>(nums.size()); ++i) {
-            for (int j = i + 1; j < static_cast<int>(nums.size()); ++j) {
-                if (nums[i] + nums[j] == target) {
-                    return {i, j};
+    std::vector<int> twoSumBruteForce(const std::vector<int>& nums, int target) {
+        for (std::size_t i = 0; i < nums.size(); ++i) {
+            for (std::size_t j = i + 1; j < nums.size(); ++j) {
+                if (static_cast<long long>(nums[i]) + nums[j] == target) {
+                    return {toProblemIndex(i), toProblemIndex(j)};
                 }
             }
         }
@@ -94,37 +124,43 @@ void testTwoSum() {
     std::vector<int> nums1 = {2, 7, 11, 15};
     int target1 = 9;
     auto result1 = sol.twoSum(nums1, target1);
+    const std::size_t result1First = toContainerIndex(result1.at(0));
+    const std::size_t result1Second = toContainerIndex(result1.at(1));
     std::cout << "测试1: nums = [2, 7, 11, 15], target = 9\n";
     std::cout << "结果: [" << result1[0] << ", " << result1[1] << "]\n";
     std::cout << "验证: nums[" << result1[0] << "] + nums[" << result1[1] << "] = "
-              << nums1[result1[0]] << " + " << nums1[result1[1]] << " = "
-              << nums1[result1[0]] + nums1[result1[1]] << "\n\n";
+              << nums1.at(result1First) << " + " << nums1.at(result1Second) << " = "
+              << nums1.at(result1First) + nums1.at(result1Second) << "\n\n";
     
     // 测试用例 2
     std::vector<int> nums2 = {3, 2, 4};
     int target2 = 6;
     auto result2 = sol.twoSum(nums2, target2);
+    const std::size_t result2First = toContainerIndex(result2.at(0));
+    const std::size_t result2Second = toContainerIndex(result2.at(1));
     std::cout << "测试2: nums = [3, 2, 4], target = 6\n";
     std::cout << "结果: [" << result2[0] << ", " << result2[1] << "]\n";
     std::cout << "验证: nums[" << result2[0] << "] + nums[" << result2[1] << "] = "
-              << nums2[result2[0]] << " + " << nums2[result2[1]] << " = "
-              << nums2[result2[0]] + nums2[result2[1]] << "\n\n";
+              << nums2.at(result2First) << " + " << nums2.at(result2Second) << " = "
+              << nums2.at(result2First) + nums2.at(result2Second) << "\n\n";
     
     // 测试用例 3
     std::vector<int> nums3 = {3, 3};
     int target3 = 6;
     auto result3 = sol.twoSum(nums3, target3);
+    const std::size_t result3First = toContainerIndex(result3.at(0));
+    const std::size_t result3Second = toContainerIndex(result3.at(1));
     std::cout << "测试3: nums = [3, 3], target = 6\n";
     std::cout << "结果: [" << result3[0] << ", " << result3[1] << "]\n";
     std::cout << "验证: nums[" << result3[0] << "] + nums[" << result3[1] << "] = "
-              << nums3[result3[0]] << " + " << nums3[result3[1]] << " = "
-              << nums3[result3[0]] + nums3[result3[1]] << "\n\n";
+              << nums3.at(result3First) << " + " << nums3.at(result3Second) << " = "
+              << nums3.at(result3First) + nums3.at(result3Second) << "\n\n";
     
     // 性能对比
     std::cout << "=== 算法复杂度对比 ===\n";
     std::cout << "暴力解法: O(n²) 时间, O(1) 空间\n";
     std::cout << "哈希表解法: O(n) 时间, O(n) 空间\n";
-    std::cout << "\n哈希表通过空间换时间，将查找从 O(n) 降到 O(1)！\n";
+    std::cout << "\n哈希表通过空间换时间，将单次查找从 O(n) 降到平均 O(1)；最坏仍可退化！\n";
 }
 
 /**
@@ -136,23 +172,27 @@ void visualizeHashMap() {
     std::vector<int> nums = {2, 7, 11, 15};
     int target = 9;
     
-    std::unordered_map<int, int> seen;
+    std::unordered_map<int, std::size_t> seen;
     
     std::cout << "目标: 找到两个数，和为 " << target << "\n\n";
     
-    for (int i = 0; i < static_cast<int>(nums.size()); ++i) {
-        int complement = target - nums[i];
+    for (std::size_t i = 0; i < nums.size(); ++i) {
+        const long long wideComplement =
+            static_cast<long long>(target) - nums[i];
         
         std::cout << "步骤 " << i + 1 << ": 当前元素 = " << nums[i] << "\n";
-        std::cout << "  需要找的补数 = " << target << " - " << nums[i] << " = " << complement << "\n";
+        std::cout << "  需要找的补数 = " << target << " - " << nums[i]
+                  << " = " << wideComplement << "\n";
         
-        auto it = seen.find(complement);
+        const auto it = fitsProblemInteger(wideComplement)
+            ? seen.find(static_cast<int>(wideComplement))
+            : seen.end();
         if (it != seen.end()) {
-            std::cout << "  在哈希表中找到 " << complement << "! 索引为 " << it->second << "\n";
+            std::cout << "  在哈希表中找到 " << wideComplement << "! 索引为 " << it->second << "\n";
             std::cout << "  答案: [" << it->second << ", " << i << "]\n";
             break;
         } else {
-            std::cout << "  哈希表中没有 " << complement << "\n";
+            std::cout << "  哈希表中没有 " << wideComplement << "\n";
             seen[nums[i]] = i;
             std::cout << "  将 " << nums[i] << " 存入哈希表 (索引 " << i << ")\n";
         }
@@ -160,8 +200,25 @@ void visualizeHashMap() {
     }
 }
 
+} // namespace leetcode::lc0001
+
+bool verify_lc0001_integer_boundary_contract() {
+    leetcode::lc0001::Solution solution;
+    const std::vector<int> validExtremes{
+        std::numeric_limits<int>::min(),
+        std::numeric_limits<int>::max()};
+    const std::vector<int> noSolutionWithoutOverflow{
+        std::numeric_limits<int>::min(), -1,
+        std::numeric_limits<int>::max()};
+
+    const auto pair = solution.twoSum(validExtremes, -1);
+    return pair == std::vector<int>({0, 1}) &&
+           solution.twoSum(noSolutionWithoutOverflow,
+                           std::numeric_limits<int>::max()).empty();
+}
+
 // 导出测试函数供 main.cpp 调用
 void run_two_sum_test() {
-    testTwoSum();
-    visualizeHashMap();
+    leetcode::lc0001::testTwoSum();
+    leetcode::lc0001::visualizeHashMap();
 }

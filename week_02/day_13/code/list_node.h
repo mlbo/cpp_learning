@@ -3,11 +3,14 @@
  * @brief 链表节点定义和辅助函数（公共头文件）
  */
 
-#ifndef LIST_NODE_H
-#define LIST_NODE_H
+#ifndef WEEK_02_DAY_13_LIST_NODE_H
+#define WEEK_02_DAY_13_LIST_NODE_H
 
-#include <vector>
+#include <memory>
 #include <string>
+#include <vector>
+
+namespace day13_lists {
 
 // 链表节点定义
 struct ListNode {
@@ -20,13 +23,22 @@ struct ListNode {
 // 辅助函数：创建链表
 inline ListNode* createList(const std::vector<int>& values) {
     if (values.empty()) return nullptr;
-    ListNode* head = new ListNode(values[0]);
-    ListNode* cur = head;
-    for (size_t i = 1; i < values.size(); ++i) {
-        cur->next = new ListNode(values[i]);
+    const auto delete_chain = [](ListNode* node) {
+        while (node) {
+            ListNode* next_node = node->next;
+            delete node;
+            node = next_node;
+        }
+    };
+    std::unique_ptr<ListNode, decltype(delete_chain)> owner(
+        new ListNode(values[0]), delete_chain);
+    ListNode* cur = owner.get();
+    for (std::size_t i = 1; i < values.size(); ++i) {
+        auto node = std::make_unique<ListNode>(values[i]);
+        cur->next = node.release();
         cur = cur->next;
     }
-    return head;
+    return owner.release();
 }
 
 // 辅助函数：打印链表
@@ -58,4 +70,6 @@ inline void deleteListUntil(ListNode* head, ListNode* stop) {
     }
 }
 
-#endif // LIST_NODE_H
+} // namespace day13_lists
+
+#endif // WEEK_02_DAY_13_LIST_NODE_H

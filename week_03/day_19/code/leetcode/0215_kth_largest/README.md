@@ -1,5 +1,7 @@
 # LeetCode 215. 数组中的第K个最大元素
 
+> **文档职责**：堆的数组表示、`priority_queue` 底层容器和严格弱序要求以 [Day 19 主文](../../../README.md#day19-priority-queue-contract) 为准。本文专注“容量 K 的小顶堆为什么保留前 K 大”这条不变量。
+
 ## 题目描述
 
 给定整数数组 `nums` 和整数 `k`，请返回数组中第 `k` 个最大的元素。
@@ -201,6 +203,8 @@ int quickSelect(vector<int>& nums, int left, int right, int k) {
 3. **快速选择的随机化**
    - 随机选择pivot可以避免最坏情况
 
+LeetCode 保证 `1 <= k <= nums.size()`，所以题解中可直接返回堆顶。普通库函数若没有这项输入契约，必须在第一次 `top()` 前拒绝空数组、`k == 0` 或 `k > n`，否则不是复杂度问题，而是调用了空容器的无效接口。另外，“快速选择平均 O(n)”需要随机化或较好的 pivot 策略；固定极端 pivot 仍可退化为 O(n²)。
+
 ---
 
 ## 相关题目
@@ -214,6 +218,8 @@ int quickSelect(vector<int>& nums, int left, int right, int k) {
 ## 运行测试
 
 ```bash
-cd build
-./test_leetcode215
+# 在 week_03/day_19 目录执行
+cmake -S . -B /tmp/day19-build -DCMAKE_BUILD_TYPE=Release
+cmake --build /tmp/day19-build --target day19_test_lc215
+ctest --test-dir /tmp/day19-build -R Day19KthLargest --output-on-failure
 ```

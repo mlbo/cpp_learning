@@ -1,98 +1,128 @@
 /**
- * EMC++ Item 11-16 演示
+ * Effective Modern C++ Item 11-16：用可执行检查展示机制与边界。
  */
 
-#include <iostream>
-#include <vector>
 #include <algorithm>
+#include <iostream>
 #include <mutex>
+#include <thread>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
-// Item 11: 优先使用 = delete
-class NonCopyable {
+#include "joining_thread_group.h"
+
+// Item 11：删除函数在重载决议时仍会被选中，随后产生清晰的编译错误。
+class NonCopyable final {
 public:
     NonCopyable() = default;
     NonCopyable(const NonCopyable&) = delete;
     NonCopyable& operator=(const NonCopyable&) = delete;
 };
 
-// Item 12: 使用 override
+static_assert(!std::is_copy_constructible_v<NonCopyable>);
+static_assert(!std::is_copy_assignable_v<NonCopyable>);
+
+// Item 12：override 会检查 const、引用限定和 noexcept 等是否与基类契约匹配。
 class Base {
 public:
-    virtual void foo() { std::cout << "Base::foo" << std::endl; }
+    virtual ~Base() = default;
+    virtual int id() const noexcept {
+        return 1;
+    }
 };
 
-class Derived : public Base {
+class Derived final : public Base {
 public:
-    void foo() override { std::cout << "Derived::foo" << std::endl; }
+    int id() const noexcept override {
+        return 2;
+    }
 };
 
-// Item 14: noexcept
-void safeSwap(int& a, int& b) noexcept {
-    int temp = a;
-    a = b;
-    b = temp;
+// Item 14：只有真实满足“不抛出”保证时才写 noexcept。
+void safeSwap(int& left, int& right) noexcept {
+    const int temporary = left;
+    left = right;
+    right = temporary;
 }
 
-// Item 15: constexpr
-constexpr int square(int x) { return x * x; }
+// Item 15：constexpr 函数既可以参与常量求值，也可以在运行期调用。
+constexpr int square(int value) noexcept {
+    return value * value;
+}
 
-// Item 16: const成员函数线程安全
-class ThreadSafeValue {
+// Item 16：const 只限制通过 this 修改普通成员，不自动提供并发同步。
+class ThreadSafeCounter final {
 public:
-    int getValue() const {
-        std::lock_guard<std::mutex> lock(mtx_);
-        return value_;
+    void increment() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        ++value_;
     }
-    
-    void setValue(int v) {
-        std::lock_guard<std::mutex> lock(mtx_);
-        value_ = v;
+
+    int value() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return value_;
     }
 
 private:
-    mutable std::mutex mtx_;
-    int value_ = 0;
+    mutable std::mutex mutex_;
+    int value_{0};
 };
 
-void emcppDemo() {
-    std::cout << "=== EMC++ Item 11-16 演示 ===" << std::endl;
-    
-    // Item 11
-    std::cout << "\nItem 11: NonCopyable 使用 = delete" << std::endl;
-    NonCopyable n1;
-    // NonCopyable n2 = n1;  // 编译错误
-    
-    // Item 12
-    std::cout << "\nItem 12: override 关键字" << std::endl;
-    Base* b = new Derived();
-    b->foo();
-    delete b;
-    
-    // Item 13
-    std::cout << "\nItem 13: const_iterator" << std::endl;
-    std::vector<int> v = {1, 2, 3, 4, 5};
-    auto it = std::find(v.cbegin(), v.cend(), 3);
-    if (it != v.cend()) std::cout << "找到元素: " << *it << std::endl;
-    
-    // Item 14
-    std::cout << "\nItem 14: noexcept 函数" << std::endl;
-    int x = 1, y = 2;
-    safeSwap(x, y);
-    std::cout << "交换后: x=" << x << ", y=" << y << std::endl;
-    
-    // Item 15
-    std::cout << "\nItem 15: constexpr" << std::endl;
-    constexpr int result = square(5);
-    std::cout << "square(5) = " << result << " (编译期计算)" << std::endl;
-    
-    // Item 16
-    std::cout << "\nItem 16: const成员函数线程安全" << std::endl;
-    ThreadSafeValue tsv;
-    tsv.setValue(42);
-    std::cout << "getValue(): " << tsv.getValue() << std::endl;
-}
-
 int main() {
-    emcppDemo();
+    Derived derived;
+    const Base& base = derived;
+    if (base.id() != 2) {
+        std::cerr << "Item 12 override 测试失败\n";
+        return 1;
+    }
+
+    std::vector<int> values{1, 2, 3, 4, 5};
+    const auto position = std::find(values.cbegin(), values.cend(), 3);
+    if (position == values.cend()) {
+        std::cerr << "Item 13 const_iterator 查找失败\n";
+        return 1;
+    }
+    values.erase(position); // C++11 起 erase 接受 const_iterator。
+    if (values != std::vector<int>({1, 2, 4, 5})) {
+        std::cerr << "Item 13 const_iterator 修改位置测试失败\n";
+        return 1;
+    }
+
+    static_assert(noexcept(safeSwap(std::declval<int&>(), std::declval<int&>())));
+    int left = 1;
+    int right = 2;
+    safeSwap(left, right);
+    if (left != 2 || right != 1) {
+        std::cerr << "Item 14 noexcept swap 测试失败\n";
+        return 1;
+    }
+
+    constexpr int compile_time_result = square(5);
+    static_assert(compile_time_result == 25);
+    const int runtime_input = left + right;
+    if (square(runtime_input) != 9) {
+        std::cerr << "Item 15 constexpr 运行期调用测试失败\n";
+        return 1;
+    }
+
+    ThreadSafeCounter counter;
+    week5::JoiningThreadGroup threads;
+    threads.reserve(4U);
+    for (int worker = 0; worker < 4; ++worker) {
+        static_cast<void>(worker);
+        threads.start([&counter] {
+            for (int iteration = 0; iteration < 1'000; ++iteration) {
+                counter.increment();
+            }
+        });
+    }
+    threads.join_all();
+    if (counter.value() != 4'000) {
+        std::cerr << "Item 16 const 成员并发同步测试失败\n";
+        return 1;
+    }
+
+    std::cout << "EMC++ Item 11-16 测试通过\n";
     return 0;
 }

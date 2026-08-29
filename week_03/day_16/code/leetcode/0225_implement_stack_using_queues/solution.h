@@ -12,9 +12,9 @@ public:
     void push(int x);
     int pop();
     int top();
-    bool empty();
+    bool empty() const noexcept;
 };
 
-void testMyStack();
+bool testMyStack();
 
 #endif // SOLUTION_225_H

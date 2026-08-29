@@ -1,683 +1,331 @@
-# C++ 新特性超详细入门手册（给小白）
+# 现代 C++ 特性学习地图与迁移手册
 
-> 目标：你不用背语法，先把“为什么有这个特性、它解决了什么痛点、旧写法怎么对应”真正弄懂。
+> 本手册不再重复讲一遍基础语法。它帮助你回答三个工程问题：某个写法从哪个标准开始可用、它改变了什么语义、在本仓库应该去哪里深入学习。
 
----
+仓库统一使用 C++17 构建。C++11/14/17 标签表示特性的首次标准版本，不表示需要分别维护三套业务代码。
 
-## 0. 先说人话：什么是“新特性”？
+## 1. 这份手册与其他教程怎样分工
 
-你可以把 C++ 语言想成一套“工具箱”：
+| 你现在需要什么 | 首选文档 |
+|---|---|
+| 第一次学习变量、引用、类、容器和现代语法 | [C++ 基础学习教程](tutorials/CPP基础学习教程.md) |
+| 理解类型推导、智能指针、移动、Lambda 的工程边界 | [Effective Modern C++ 教程](tutorials/Effective_Modern_CPP教程.md) |
+| 学习线程、同步、内存模型和关闭协议 | [C++ 并发编程教程](tutorials/CPP并发编程教程.md) |
+| 把知识放回 Day 1-35 的顺序 | [35 天学习规划](CPP_35天科学学习规划_最终版.md) |
+| 从需求、接口、所有权和测试组织项目 | [C++ 项目组织与设计教程](tutorials/C++项目组织与设计教程.md) |
+| 快速判断版本、选型、迁移路径和仓库落点 | 本手册 |
 
-- C++11：第一次大升级，加入了智能指针、`auto`、`nullptr`、lambda 等
-- C++14：在 C++11 上优化易用性（比如 `make_unique`、`decltype(auto)`）
-- C++17：继续提升可读性（比如结构化绑定、`if constexpr`、`_v/_t`）
+遇到一个概念时，按“本手册定位 → 主教程学习机制 → 当日 README 完成练习”的顺序使用，避免在多份文档间重复通读同一段内容。
 
-**重点理解**：  
-很多新特性不是“能做全新事情”，而是“更安全、更不容易写错、更好读”。
+## 2. C++11、C++14、C++17 各自解决什么问题
 
----
+| 标准 | 本课程关注的代表能力 | 主要价值 |
+|---|---|---|
+| C++11 | `auto`、`decltype`、右值引用、移动语义、Lambda、智能指针、`nullptr`、`constexpr`、标准线程库 | 建立现代类型、所有权和并发基础 |
+| C++14 | `std::make_unique`、`decltype(auto)`、初始化捕获、泛型 Lambda、`std::exchange`、`_t` 别名 | 补齐易用性和泛型表达能力 |
+| C++17 | 结构化绑定、`if constexpr`、`_v` 变量模板、`std::optional`、`std::variant`、`std::string_view`、并行算法等 | 减少模板样板，改善接口和数据表达 |
 
-## 1. 学习路线（建议顺序）
+“新”不等于“总是更好”。选型顺序应是：
 
-如果你是小白，按这个顺序最稳：
+1. 先明确值、引用、所有权和生命周期。
+2. 再选择最能暴露这些语义的写法。
+3. 最后考虑减少样板、兼容标准和性能。
+4. 用编译器、`static_assert`、测试或基准验证，不靠语法外观猜测。
 
-1. `auto`（类型推导）
-2. `decltype` / `decltype(auto)`（精确类型）
-3. `make_unique`（智能指针安全构造）
-4. 结构化绑定（拆 pair/tuple）
-5. `if constexpr`（模板编译期分支）
-6. `_v/_t`（语法糖）
-7. `std::exchange`（移动语义常用）
+## 3. 四条必须先打通的语义主线
 
----
+### 3.1 类型推导主线
 
-## 2. `auto`：让编译器帮你写类型
+`auto`、模板参数推导、`decltype` 和 `decltype(auto)` 共享部分规则，但不是同一套语法糖。
 
-## 2.1 你会遇到的痛点
-
-老写法经常很长：
-
-```cpp
-std::vector<std::pair<std::string, int>>::iterator it = v.begin();
+```text
+调用表达式
+  → 表达式的类型和值类别
+  → 模板参数或 auto 占位符推导
+  → 引用折叠、cv 限定调整
+  → 最终声明类型
 ```
 
-新写法：
+分析时分开写：
 
-```cpp
-auto it = v.begin();
+- 表达式本身的类型和值类别。
+- 被推导的模板参数 `T`。
+- 把 `T` 代回后得到的最终变量或形参类型。
+- 结果是复制值、绑定引用，还是返回可能悬空的引用。
+
+不要用“编译器会自动推成我想要的类型”替代规则。
+
+### 3.2 所有权主线
+
+先画所有者，再选择智能指针：
+
+```text
+唯一所有者 ──移动──> 新的唯一所有者       → unique_ptr
+多个长期所有者 ──共享控制块──> 最后一个释放 → shared_ptr
+只观察、不延长寿命 ──lock 检查──> 临时共享  → weak_ptr
+不拥有资源，只在调用期间使用               → 引用或观察指针
 ```
 
-更短、更清晰。
+`std::make_unique` 的核心价值不是少写 `new`，而是把对象构造和所有权建立放进一个清晰表达式。`shared_ptr` 的控制块操作可在线程间协调，不等于所指对象自动线程安全。
 
-## 2.2 `auto` 的核心规则（最重要）
+### 3.3 值类别与移动主线
 
-`auto` 会“推导类型”，但有几个坑：
+`std::move(x)` 不移动任何字节；它把表达式转换成可匹配右值重载的形式。是否真的发生移动，取决于：
 
-1. 会丢掉顶层 `const`
-2. 会丢掉引用（除非你写 `auto&`）
-3. 花括号时可能推成 `initializer_list`
+- 目标类型是否有可用的移动操作。
+- 源表达式的 `const` 限定是否允许匹配该操作。
+- 重载决议最终选择了移动还是复制。
+- 类型的移动实现是否真的比复制便宜。
 
-### 例子
+移动后的对象仍可析构和重新赋值；除此之外能做什么要看具体类型契约。不要统一写成“必然为空”，也不要在没有契约时读取并依赖旧值。
 
-```cpp
-int x = 10;
-const int cx = x;
-int& rx = x;
+### 3.4 编译期分派主线
 
-auto a = cx;   // a 是 int，不是 const int
-auto b = rx;   // b 是 int，不是 int&
-auto& c = rx;  // c 是 int&
+`if constexpr` 适合在同一模板结构内按编译期条件选择实现；重载、约束和标签分派仍然有独立价值。
+
+```text
+调用者面对的是不同接口吗？
+  ├─ 是：优先重载或独立函数
+  └─ 否：同一算法内部是否按类型选择有效语句？
+       ├─ 是：C++17 可考虑 if constexpr
+       └─ 否：普通 if 或普通函数通常更清楚
 ```
 
-## 2.3 小白版建议
+未选中的 `if constexpr` 分支会被丢弃，但它仍必须满足模板外层可解析等规则；“不实例化”不等于可以写任意无效文本。
 
-- 你想“保留引用”，就写 `auto&`
-- 你想“保留常量引用”，就写 `const auto&`
-- 避免 `auto x = {1,2,3}` 这种容易误解的写法
+## 4. 高频特性的选型卡
 
----
+本节代码是用于突出类型与接口决策的上下文片段，不重复主教程中的完整程序；所需头文件、示例类型和可运行验证请沿每节“仓库落点”进入对应教程。阅读片段时先判断值、引用和所有权，不要把它们直接拼成一个翻译单元。
 
-## 3. `decltype` 和 `decltype(auto)`：比 `auto` 更精确
-
-## 3.1 `decltype` 是干嘛的
-
-一句话：**拿到表达式“真实类型”**。
+### 4.1 `auto`：减少重复类型，不隐藏业务语义
 
 ```cpp
-int x = 0;
-decltype(x) a = 1;   // int
-decltype((x)) b = x; // int&（注意双括号）
-```
+const std::vector<int> values{1, 2, 3};
 
-为什么会这样？  
-因为 `decltype((x))` 看的是“表达式”，`(x)` 是左值表达式，所以得到引用。
-
-## 3.2 `decltype(auto)`（C++14）
-
-它可以让函数返回值“自动但精确”：
-
-```cpp
-template<typename C, typename I>
-decltype(auto) get(C&& c, I i) {
-    return std::forward<C>(c)[i];
+auto count = values.size();          // 值
+const auto& view = values;           // 只读别名，不复制容器
+for (const auto& value : values) {   // 元素只读引用
+    // 使用 value
 }
 ```
 
-如果 `operator[]` 返回引用，它就返回引用；返回值类型不会被误改。
+检查清单：
 
-## 3.3 C++11 对照写法
+- 需要修改原对象吗？用 `auto&`。
+- 只读且对象较大吗？考虑 `const auto&`。
+- 需要把值独立保存吗？使用按值 `auto`。
+- 类型本身是否表达单位、范围或所有权？若是，显式类型可能更清楚。
+- 花括号初始化是否触发了与预期不同的推导？不要凭外观猜。
+
+详见基础教程的“类型推导”和 EMC++ Item 1-6。
+
+### 4.2 `decltype` 与 `decltype(auto)`：精确保留表达式类型
 
 ```cpp
-template<typename C, typename I>
-auto get(C&& c, I i) -> decltype(std::forward<C>(c)[i]) {
-    return std::forward<C>(c)[i];
+template <typename Container>
+decltype(auto) first(Container& container) {
+    return container[0];
 }
 ```
 
----
+这里使用 `Container&` 是生命周期约束：如果允许临时容器，返回的元素引用可能在完整表达式结束后悬空。
 
-## 4. `std::make_unique`（C++14）：`unique_ptr` 推荐写法
+关键区别：
 
-## 4.1 先理解 `unique_ptr`
+- `decltype(name)` 对未加括号的名字使用声明类型规则。
+- `decltype((name))` 按表达式值类别推导，左值通常得到左值引用。
+- `decltype(auto)` 适合确实需要保留表达式引用性的返回或变量，不是“更高级的 auto”。
+- 返回局部变量引用、临时对象内部引用或已失效容器元素都可能悬空；精确推导不会自动修复生命周期。
 
-`unique_ptr<T>` 表示“独占拥有一个对象”，离开作用域自动释放，防止内存泄漏。
+仓库落点：[Day 2](week_01/day_02/README.md) 和 [EMC++ Item 3](tutorials/Effective_Modern_CPP教程.md#item-3-理解-decltype)。
 
-## 4.2 为什么推荐 `make_unique`
+### 4.3 `std::make_unique`：建立独占所有权
 
 ```cpp
-auto p = std::make_unique<Foo>(1, 2, 3);
+auto node = std::make_unique<Node>(42);
 ```
 
-优点：
+优先使用它是因为所有权立即明确，并避免裸 `new` 在复杂表达式中暴露资源。以下情况仍需单独判断：
 
-1. 不手写 `new`
-2. 异常安全更好
-3. 可读性高
+- 数组与自定义删除器的接口是否匹配。
+- 返回给调用者的是所有权，还是仅供观察。
+- 是否需要多态删除；通过基类指针删除派生对象时，基类析构契约必须正确。
+- 是否真的需要共享所有权；“以后也许会共享”不是先用 `shared_ptr` 的充分理由。
 
-## 4.3 C++11 对照写法
+仓库落点：[Day 8](week_02/day_08/README.md) 至 [Day 12](week_02/day_12/README.md)。
+
+### 4.4 结构化绑定：给组成部分起业务名字
 
 ```cpp
-std::unique_ptr<Foo> p(new Foo(1, 2, 3));
+const auto [iterator, inserted] = table.insert({key, value});
 ```
 
-这两者本质一样，`make_unique` 是更现代更稳的外壳。
+先判断绑定方式：
 
----
+- `auto [a, b] = object`：通常创建一个承载对象并按值绑定，可能发生复制或移动。
+- `auto& [a, b] = object`：绑定可修改左值，生命周期由原对象决定。
+- `const auto& [a, b] = object`：只读引用，可避免大对象复制，并可按引用延长某些临时对象的生命周期。
+- 容器元素重分配、擦除或对象销毁后，引用绑定同样可能失效。
 
-## 5. 结构化绑定（C++17）：把 `first/second` 拆成可读变量
+结构化绑定改善名字，不改变底层对象的所有权、失效规则或线程安全。
 
-## 5.1 没有结构化绑定时
-
-```cpp
-auto cur = q.front();
-TreeNode* node = cur.first;
-std::string path = cur.second;
-```
-
-## 5.2 有结构化绑定时
+### 4.5 `if constexpr`、`_v` 和 `_t`：减少模板样板
 
 ```cpp
-auto [node, path] = q.front();
-```
-
-更直观，一眼就知道变量意义。
-
-## 5.3 你要注意的点
-
-- 默认是“拷贝绑定”
-- 如果对象很大，可能想用引用（`auto& [a,b] = obj;`）
-
----
-
-## 6. `if constexpr`（C++17）：模板里真正好用的“编译期 if”
-
-## 6.1 普通 `if` 为什么不够
-
-模板代码里，普通 `if` 的两边很多时候都会被编译检查。  
-即使某条分支永远不会运行，也可能编译报错。
-
-## 6.2 `if constexpr` 的核心价值
-
-未选中的分支会在编译期丢弃，不参与实例化。
-
-```cpp
-template<typename T>
-void f(T x) {
+template <typename T>
+void print(const T& value) {
     if constexpr (std::is_pointer_v<T>) {
-        std::cout << *x << "\n";
+        if (value != nullptr) {
+            std::cout << *value;
+        }
     } else {
-        std::cout << x << "\n";
+        std::cout << value;
     }
 }
 ```
 
-## 6.3 C++11 对照思路
+`std::is_pointer_v<T>` 是 `std::is_pointer<T>::value` 的 C++17 简写；`std::remove_reference_t<T>` 是 `typename std::remove_reference<T>::type` 的 C++14 简写。简写不改变 trait 的含义。
 
-用函数重载 + `std::enable_if`（SFINAE）做类型分派。  
-能做到同样效果，但代码更绕。
+如果两个分支代表不同接口、需要独立文档或不同错误信息，重载往往比在一个巨大 `if constexpr` 中堆分支更清楚。
 
----
-
-## 7. `_v` 和 `_t` 到底是什么？
-
-你常见这些：
-
-- `std::is_same_v<A, B>`
-- `std::remove_reference_t<T>`
-- `std::enable_if_t<cond, T>`
-
-它们只是“更短写法”：
-
-- `is_same_v<A, B>` = `is_same<A, B>::value`
-- `remove_reference_t<T>` = `typename remove_reference<T>::type`
-- `enable_if_t<...>` = `typename enable_if<...>::type`
-
-**本质没有变，只是少敲字。**
-
----
-
-## 8. `std::exchange`（C++14）：移动语义常用小工具
-
-常见于移动构造/移动赋值：
+### 4.6 `std::exchange`：取旧值并写入新值
 
 ```cpp
-ptr_ = std::exchange(other.ptr_, nullptr);
+Resource(Resource&& other) noexcept
+    : handle_(std::exchange(other.handle_, invalid_handle)) {}
 ```
 
-含义是：
-
-1. 先拿到 `other.ptr_` 旧值
-2. 再把 `other.ptr_` 设为 `nullptr`
-
-## 8.1 C++11 对照写法
-
-```cpp
-ptr_ = other.ptr_;
-other.ptr_ = nullptr;
-```
-
----
-
-## 9. 最常见报错怎么读（新手友好）
-
-## 9.1 “no member named make_unique in namespace std”
-
-原因：你在 C++11 编译器下用了 C++14 特性。  
-解决：升级标准到 C++14+，或改 C++11 写法 `unique_ptr(new T(...))`。
-
-## 9.2 “is_same_v / remove_reference_t not found”
-
-原因：这些是 C++14/17 语法糖。  
-解决：用旧写法 `::value` / `::type`。
-
-## 9.3 “if constexpr is a C++17 extension”
-
-原因：编译标准低于 C++17。  
-解决：改 CMake 标准，或改为 SFINAE/重载分派。
-
-## 9.4 “auto [a,b] requires C++17”
-
-原因：结构化绑定仅 C++17+。  
-解决：回退为 `.first/.second`。
-
----
-
-## 10. 你现在项目里的实践建议
-
-因为你当前决定“整体按 C++17”：
-
-1. 主业务和练习代码用 C++17 写法（可读性好）
-2. 在关键位置保留 C++11 注释对照（你正在做的事情）
-3. 新手训练时可先看注释版，再看现代版
-
----
-
-## 11. 一组“从旧到新”的对照清单
-
-| 场景 | 现代写法 | C++11 对照 |
-|---|---|---|
-| 独占智能指针 | `auto p = std::make_unique<T>(...)` | `std::unique_ptr<T> p(new T(...))` |
-| pair 拆包 | `auto [a, b] = p;` | `auto tmp = p; a=tmp.first; b=tmp.second;` |
-| 模板类型分支 | `if constexpr (cond)` | `enable_if + overload` |
-| traits 值 | `is_same_v<A,B>` | `is_same<A,B>::value` |
-| traits 类型 | `remove_reference_t<T>` | `typename remove_reference<T>::type` |
-| 精确返回 | `decltype(auto)` | `auto -> decltype(expr)` |
-| 移交并置空 | `exchange(x, nv)` | `tmp=x; x=nv; return tmp;` |
-
----
-
-## 12. 新手练习（强烈建议）
-
-每个题目都做两版：现代版 + C++11 对照版。
-
-1. 写一个函数返回 `vector` 第 `i` 个元素：先 `auto`，再 `decltype(auto)`。
-2. 用 `queue<pair<Node*, string>>` 做 BFS：先 `.first/.second`，再结构化绑定。
-3. 写一个模板 `printValue(T)`：先 `if constexpr`，再改 SFINAE。
-4. 写一个小类实现移动构造：先 `std::exchange`，再手动三行版本。
-5. 把 `make_unique` 全部替换成 C++11 写法，再替换回来，体会可读性差异。
-
----
-
-## 13. 你真正要记住的 5 句话
-
-1. 新特性大多数是“减少出错成本”，不是“炫技”。
-2. 先理解旧写法，再用新写法，理解会更深。
-3. 模板代码里 `if constexpr` 是生产力工具。
-4. `_v/_t` 只是语法糖，本质是 `::value / ::type`。
-5. 写代码优先“团队可读性”，不是“语法越新越好”。
-
----
-
-如果你希望，我下一步可以在这份文档后面再加一章：  
-“把你仓库中的 10 个真实文件逐行讲解（现代写法 vs C++11 对照）”，直接对应你现在改过的那些文件，学习效果会更好。
-
----
-
-## 14. 真实项目逐文件讲解（你仓库里的例子）
-
-下面这些都是你仓库里真实存在的代码场景，我用“小白视角”解释。
-
-## 14.1 `week_01/day_01/code/cpp11_features/auto_demo.cpp`
-
-场景：智能指针示例中用到 `std::make_unique`。
-
-现代写法：
-
-```cpp
-auto uptr = std::make_unique<int>(42);
-```
-
-对应旧写法（你已经在代码里加了注释版）：
-
-```cpp
-std::unique_ptr<int> uptr(new int(42));
-```
-
-你要真正理解的是：
-
-1. 都是在堆上创建 `int`
-2. 都让 `unique_ptr` 独占管理
-3. 差别是现代写法更安全更简洁
-
----
-
-## 14.2 `week_01/day_01/code/leetcode/0001_two_sum/solution.cpp`
-
-场景：`unordered_map::insert` 返回 pair，被结构化绑定拆开。
-
-现代写法：
-
-```cpp
-auto [it, inserted] = map.insert(...);
-```
-
-小白常见困惑：
-
-- `it` 是什么？  
-  答：插入位置的迭代器。
-- `inserted` 是什么？  
-  答：是否真的插入成功（键是否重复）。
-
-旧写法：
-
-```cpp
-auto ret = map.insert(...);
-auto it = ret.first;
-bool inserted = ret.second;
-```
-
----
-
-## 14.3 `week_01/day_01/code/emcpp/type_deduction_items.cpp`
-
-场景：`decltype(auto)` + 完美转发。
-
-这块最容易“看懂但不会用”。
-
-最重要一句话：  
-**当你写“转发包装器函数”时，返回类型不能乱写，否则会丢引用语义。**
-
-所以现代写法用 `decltype(auto)`；  
-C++11 则用尾置返回类型 `auto -> decltype(...)`。
-
----
-
-## 14.4 `week_01/day_02/code/cpp11_features/decltype_demo.cpp`
-
-场景：大量 `is_xxx_v`、`remove_reference_t`。
-
-这些都只是简写：
-
-- `is_xxx_v<T>` 等价 `is_xxx<T>::value`
-- `remove_reference_t<T>` 等价 `typename remove_reference<T>::type`
-
-你如果记不住，先全部手动写回旧写法，理解后再缩回新写法。
-
----
-
-## 14.5 `week_01/day_04/code/cpp11_features/nullptr_overload.cpp`
-
-场景：模板可变参数里 `if constexpr` 分支处理不同类型。
-
-为什么用 `if constexpr`？  
-因为模板里不同类型行为不同，不想写一堆重载。
-
-什么时候不用 `if constexpr`？  
-如果逻辑很简单，直接重载函数可能更清晰。
-
----
-
-## 14.6 `week_01/day_07/code/project/dynamic_array.cpp/.h`
-
-场景 A：`std::exchange` 用于移动构造/移动赋值。  
-场景 B：`enable_if_t` + `is_convertible_v` 限制模板构造。
-
-这两个点都偏“工程型 C++”，你可以先记套路：
-
-1. 移动构造要“接管资源 + 把源对象置空”
-2. 模板构造要“限制合法类型，防止误匹配”
-
----
-
-## 14.7 `week_05/day_33/code/leetcode/0257_binary_tree_paths/solution.cpp`
-
-场景：BFS 里 `auto [node, path] = q.front();`
-
-初学者建议：
-
-1. 先写 `.first/.second` 版跑通
-2. 再换成结构化绑定
-3. 看可读性变化
-
----
-
-## 14.8 `week_05/day_35/code/main.cpp`
-
-场景：综合示例里 `make_unique`。
-
-这里是非常典型的“教学代码现代化”：
-
-- 你保留注释版 C++11 写法
-- 运行用 C++17 写法
-
-这是非常好的学习方式。
-
----
-
-## 15. 一张脑图：你该怎么想“新写法 vs 旧写法”
+`exchange` 做两件事：保存旧值，再把对象赋成新值。它常用于句柄转移，但不是移动构造模板：
+
+- 新状态必须满足源对象的不变量。
+- 被交换成员的赋值可能抛异常，`noexcept` 要按真实表达式判断。
+- 一个类有多个相互约束的成员时，逐个 `exchange` 可能在异常中留下破坏的不变量。
+- Rule of Zero 通常优于手写资源管理；只有直接拥有底层资源时才需要实现完整特殊成员语义。
+
+仓库落点：[Day 23](week_04/day_23/README.md) 至 [Day 25](week_04/day_25/README.md)。
+
+## 5. 按仓库真实路径学习
+
+| 阶段 | 先读 | 再做 | 要回答的问题 |
+|---|---|---|---|
+| 类型推导 | [基础教程](tutorials/CPP基础学习教程.md#2-类型推导auto-与-decltype) | [Day 1](week_01/day_01/README.md)、[Day 2](week_01/day_02/README.md) | 发生复制还是引用绑定？ |
+| 初始化与空值 | [基础教程](tutorials/CPP基础学习教程.md#6-统一初始化与-initializer_list) | [Day 3](week_01/day_03/README.md)、[Day 4](week_01/day_04/README.md) | 选中了哪个构造或重载？ |
+| 所有权 | [基础教程](tutorials/CPP基础学习教程.md#3-智能指针现代内存管理) | [Week 2](week_02/README.md) | 谁负责销毁？观察者如何知道失效？ |
+| Lambda | [EMC++ Item 31-34](tutorials/Effective_Modern_CPP教程.md#6-lambda-表达式) | [Week 3](week_03/README.md) | 闭包保存了值、引用还是 `this`？ |
+| 移动与转发 | [EMC++ Item 23-30](tutorials/Effective_Modern_CPP教程.md#5-右值引用与移动语义) | [Week 4](week_04/README.md) | 是否有类型推导？最终选中哪个重载？ |
+| 并发 | [并发教程](tutorials/CPP并发编程教程.md) | [Week 5](week_05/README.md) | 共享状态、同步边和关闭协议是什么？ |
+
+学习真实文件时不要把“换成新语法”当目标。每处修改前写出：
+
+1. 原代码表达的类型、所有权和生命周期。
+2. 新写法是否保持相同行为。
+3. 错误信息、可读性或异常安全具体改善了什么。
+4. 哪些调用者可能受到影响。
+5. 用什么构建或测试证明没有改变可观察行为。
+
+## 6. 迁移旧写法的固定流程
 
 ```mermaid
 flowchart TD
-    A["先写出能跑的C++11版"] --> B["确认语义: 所有权/引用/类型"]
-    B --> C["改成C++14/17写法"]
-    C --> D["对比可读性和错误率"]
-    D --> E["保留C++11注释对照"]
-    E --> F["复盘: 新写法到底简化了什么"]
+    A[确定项目标准和真实需求] --> B[写出值/引用/所有权/生命周期]
+    B --> C{旧写法存在明确问题吗}
+    C -- 否 --> D[保留更清楚的写法]
+    C -- 是 --> E[选择最小现代替代]
+    E --> F[检查重载、失效、异常和 ABI 边界]
+    F --> G[编译、测试或 static_assert]
+    G --> H{行为与契约一致吗}
+    H -- 否 --> B
+    H -- 是 --> I[记录版本要求和取舍]
 ```
 
----
+不要机械执行“全部改成 `auto`”“全部改成 `emplace`”或“全部改成智能指针”。现代 C++ 的目标是让契约更清楚，而不是让关键词更新。
 
-## 16. 小白常见误解清单（非常重要）
+## 7. 常见诊断如何定位
 
-## 16.1 误解：`auto` 会“自动推对我想要的类型”
-
-现实：`auto` 按规则推导，不按你的“意图”推导。  
-你要主动用 `auto&` / `const auto&` 控制语义。
-
-## 16.2 误解：`decltype(auto)` 比 `auto` 高级，所以都用它
-
-现实：`decltype(auto)` 更敏感，容易带来引用语义，滥用会让代码变难读。
-
-## 16.3 误解：`if constexpr` 一定比重载高级
-
-现实：简单逻辑用重载更清楚；复杂模板分支才用 `if constexpr`。
-
-## 16.4 误解：`make_unique` 只是少打字
-
-现实：它同时提升了异常安全和一致性，不只是“省几字符”。
-
-## 16.5 误解：结构化绑定没有成本
-
-现实：默认是拷贝绑定；对象大时要考虑 `auto& [a,b]`。
-
----
-
-## 17. 分阶段训练计划（7天）
-
-## Day 1：只练 `auto`
-
-- 把 20 个显式类型改为 `auto`
-- 再把不该用 `auto` 的改回显式类型
-
-目标：理解“什么时候该用，什么时候不该用”。
-
-## Day 2：练 `decltype` / `decltype(auto)`
-
-- 写 5 个返回引用的函数包装器
-- 验证有没有误拷贝
-
-目标：搞清“值 vs 引用”。
-
-## Day 3：练智能指针
-
-- 同一逻辑写两版：`new + unique_ptr` vs `make_unique`
-
-目标：理解所有权转移和异常安全。
-
-## Day 4：练结构化绑定
-
-- 把 10 个 `.first/.second` 改成 `auto [a,b]`
-- 对大对象改成 `auto& [a,b]`
-
-目标：掌握可读性与性能平衡。
-
-## Day 5：练 `if constexpr`
-
-- 写模板分支：整数/浮点/指针三种路径
-- 再用 SFINAE 重写一遍
-
-目标：理解编译期分派。
-
-## Day 6：练 `_v/_t`
-
-- 把 `_v/_t` 全改回旧写法，再改回来
-
-目标：彻底吃透“语法糖本质”。
-
-## Day 7：项目实战复盘
-
-- 随机选你仓库 10 处新特性点
-- 每处说清楚：语义、替代、风险
-
-目标：形成“解释能力”，而不是只会照抄。
-
----
-
-## 18. 一页速背（面试/复盘用）
-
-1. `auto`：简洁，但会丢顶层 const 和引用。
-2. `decltype((x))`：常得到引用类型。
-3. `decltype(auto)`：适合包装器返回，别滥用。
-4. `make_unique`：`unique_ptr(new T)` 的现代安全版。
-5. 结构化绑定：提高可读性，注意拷贝/引用。
-6. `if constexpr`：模板里按类型分支，未选分支不实例化。
-7. `_v/_t`：只是 `::value / ::type` 的简写。
-8. `exchange`：拿旧值并重置，移动语义常用。
-
----
-
-如果你继续，我可以再给你做一个文件：  
-`Modern_CPP_Features_Quiz.md`（30道带答案的练习，按你仓库代码出题）。  
-你每天做 10 题，理解会非常扎实。
-
----
-
-## 19. 配图版：学习流程图
-
-## 19.1 总学习路径图
-
-```mermaid
-flowchart LR
-    A["先会C++11基础"] --> B["理解旧写法: new/::value/::type/.first"]
-    B --> C["学习C++14过渡特性: make_unique/decltype(auto)"]
-    C --> D["学习C++17可读性特性: 结构化绑定/if constexpr/_v/_t"]
-    D --> E["能双向切换: 现代写法 <-> C++11对照写法"]
-    E --> F["形成工程判断: 易读性/性能/可维护性"]
-```
-
-## 19.2 代码迁移流程图（写代码时照着走）
-
-```mermaid
-flowchart TD
-    A["需求: 写功能"] --> B["先写能跑版本"]
-    B --> C{"类型/所有权语义是否清晰?"}
-    C -- "否" --> B1["先改成显式类型/显式所有权"]
-    B1 --> C
-    C -- "是" --> D["再换现代写法(auto/结构化绑定/if constexpr)"]
-    D --> E["补C++11注释对照"]
-    E --> F["编译+测试"]
-    F --> G{"可读性更好且无行为变化?"}
-    G -- "否" --> H["回退到更清晰版本"]
-    G -- "是" --> I["保留提交"]
-```
-
-## 19.3 `auto` 推导决策图
-
-```mermaid
-flowchart TD
-    A["准备写 auto"] --> B{"你是否需要引用语义?"}
-    B -- "是" --> C["用 auto& 或 const auto&"]
-    B -- "否" --> D{"是否需要保留const?"}
-    D -- "是" --> E["用 const auto 或 const auto&"]
-    D -- "否" --> F{"是否是花括号初始化?"}
-    F -- "是" --> G["警惕 initializer_list 推导"]
-    F -- "否" --> H["直接用 auto"]
-```
-
-## 19.4 模板分派选择图（`if constexpr` vs SFINAE）
-
-```mermaid
-flowchart TD
-    A["模板中按类型分支"] --> B{"项目标准 >= C++17?"}
-    B -- "是" --> C["优先 if constexpr（可读性高）"]
-    B -- "否" --> D["用 enable_if + 重载（C++11方案）"]
-    C --> E{"逻辑是否很简单?"}
-    E -- "是" --> F["也可直接重载，避免过度模板化"]
-    E -- "否" --> G["保留 if constexpr 分支"]
-```
-
----
-
-## 20. 配图版：记忆表（高频速查）
-
-## 20.1 特性速查总表
-
-| 特性 | 关键词 | 解决的痛点 | 版本 | 记忆口诀 |
-|---|---|---|---|---|
-| `auto` | 类型推导 | 类型太长、重复书写 | C++11 | “能看懂就 auto，看不懂就显式” |
-| `decltype` | 精确类型 | 获取表达式真实类型 | C++11 | “双括号更容易出引用” |
-| `decltype(auto)` | 精确自动返回 | 包装函数不丢引用 | C++14 | “转发返回用它，不要乱用” |
-| `make_unique` | 智能构造 | 手写 `new` 易错 | C++14 | “独占资源先想到 make_unique” |
-| 结构化绑定 | `auto [a,b]` | `.first/.second` 难读 | C++17 | “先拆名字，再读语义” |
-| `if constexpr` | 编译期分支 | 模板分支难写且易报错 | C++17 | “模板分支优先它” |
-| `_v/_t` | 语法糖 | `::value/::type` 太啰嗦 | C++14/17 | “只是短写，不是新能力” |
-| `std::exchange` | 取旧赋新 | 移动构造写法冗余 | C++14 | “接管资源+源对象置空” |
-
-## 20.2 C++17 到 C++11 对照记忆表
-
-| C++17/14 写法 | C++11 对照 | 本质差异 |
+| 诊断关键词 | 先检查 | C++17 主线的处理 |
 |---|---|---|
-| `std::is_same_v<A,B>` | `std::is_same<A,B>::value` | 无能力差异，仅语法糖 |
-| `std::remove_reference_t<T>` | `typename std::remove_reference<T>::type` | 同上 |
-| `std::enable_if_t<C, T>` | `typename std::enable_if<C, T>::type` | 同上 |
-| `auto [x,y] = p;` | `auto t=p; x=t.first; y=t.second;` | 结构化绑定更可读 |
-| `if constexpr (cond)` | `enable_if + overload` | C++17 更直观 |
-| `std::make_unique<T>(...)` | `std::unique_ptr<T>(new T(...))` | 现代写法更安全 |
-| `std::exchange(x, nv)` | `tmp=x; x=nv;` | 现代写法更简洁 |
-| `decltype(auto) f()` | `auto f()->decltype(expr)` | C++14 语法更简短 |
+| `make_unique` 不存在 | 编译标准、`<memory>` | 启用 C++14+；本仓库应为 C++17 |
+| `is_same_v` 不存在 | 编译标准、`<type_traits>` | C++17 使用 `_v`；低版本写 `::value` |
+| `remove_reference_t` 不存在 | 编译标准、`<type_traits>` | C++14+ 使用 `_t` |
+| structured bindings require C++17 | 编译标准 | 本仓库检查 CMake 的 C++17 要求 |
+| 返回引用后出现 ASan 报错 | 被引用对象寿命、容器失效 | 不要只改返回类型，先修生命周期契约 |
+| “use of deleted function” | 特殊成员生成、成员可复制/移动性 | 画出资源所有权并检查 Rule of Zero/Five |
+| `std::function` 拒绝闭包 | C++17 目标必须可复制 | move-only 任务使用合适的 move-only 边界 |
+| `const T` 无法移动 | 移动构造通常需要修改源对象 | 检查是否只能复制，不要强制 cast away const |
 
-## 20.3 报错 -> 定位 -> 修复 记忆表
+诊断是证据，不是结论。模板错误通常要从“第一个与自己代码相关的位置”开始读，再沿实例化链定位。
 
-| 报错关键词 | 可能原因 | 快速修复 |
+## 8. 分层练习
+
+### 基础层：预测类型
+
+为下列表达式先写出类型和值类别，再用 `static_assert` 或编译器验证：
+
+- `auto`、`auto&`、`const auto&` 接收同一个 `const int`。
+- `decltype(x)` 与 `decltype((x))`。
+- 模板 `T&`、`const T&`、`T&&` 接收左值和右值。
+- 结构化绑定按值、按引用、按 const 引用。
+
+### 所有权层：画对象图
+
+对 `unique_ptr` 移动、`shared_ptr` 复制、`weak_ptr::lock` 和 Pimpl 分别画：
+
+- 对象在哪里。
+- 谁是所有者。
+- 控制块或删除器在哪里。
+- 哪一步销毁对象。
+- 哪些观察句柄会失效。
+
+### 迁移层：只改变一种语义
+
+从仓库选择一处真实代码，每次只做一种对照：
+
+1. 显式迭代器类型与 `auto`。
+2. `.first/.second` 与结构化绑定。
+3. 重载与 `if constexpr`。
+4. 手动句柄转移与 `std::exchange`。
+5. `unique_ptr(new T)` 与 `make_unique`。
+
+每次记录“原判断—编译/测试证据—修正规则”，不要只记录最终代码。
+
+## 9. 阶段验收
+
+学完本手册后，应能准确回答：
+
+1. C++17 构建基线与特性首次标准版本有什么区别？
+2. `auto` 为什么可能复制，而 `auto&` 可能悬空？
+3. `decltype((x))` 为什么常得到引用？
+4. `std::move` 为什么可能调用复制？
+5. 移动后对象有哪些标准级最低保证，哪些要查具体类型？
+6. `shared_ptr` 的线程安全边界在哪里？
+7. 结构化绑定按值和按引用分别影响什么？
+8. `if constexpr`、重载和 SFINAE 各自适合什么接口形态？
+9. `std::exchange` 为什么不能替代类不变量设计？
+10. 怎样证明一次“现代化改写”没有改变可观察行为？
+
+如果只能背出关键词，但不能说明生命周期、前提和验证方式，应回到对应主教程，而不是继续收集更多速查表。
+
+## 10. 参考资料与阅读对应
+
+| 本手册主题 | 标准草案定位 | 教材式深化 |
 |---|---|---|
-| `no member named make_unique` | 标准低于 C++14 | 升级标准或改 `unique_ptr(new ...)` |
-| `is_same_v not found` | 标准低于 C++17 | 改 `is_same<...>::value` |
-| `remove_reference_t not found` | 标准低于 C++14 | 改 `typename remove_reference<...>::type` |
-| `if constexpr is a C++17 extension` | 标准低于 C++17 | 用 `enable_if + overload` |
-| `auto [a,b] requires C++17` | 结构化绑定仅 C++17 | 改 `.first/.second` |
-| `decltype(auto) not allowed` | 标准低于 C++14 | 用尾置返回类型 |
+| `auto` 占位类型推导 | [`[dcl.spec.auto]`](https://eel.is/c++draft/dcl.spec.auto) | *C++ Primer* 的类型与声明；EMC++ Item 1-6 |
+| `decltype` | [`[dcl.type.decltype]`](https://eel.is/c++draft/dcl.type.decltype) | EMC++ Item 3 |
+| 结构化绑定 | [`[dcl.struct.bind]`](https://eel.is/c++draft/dcl.struct.bind) | *A Tour of C++* 的 C++17 语言概览 |
+| `if constexpr` | [`[stmt.if]`](https://eel.is/c++draft/stmt.if) | 泛型编程章节与 EMC++ 的类型推导主线 |
+| `unique_ptr` | [`[unique.ptr]`](https://eel.is/c++draft/unique.ptr) | *C++ Primer* 智能指针；EMC++ Item 18、21 |
+| `std::exchange` | [`[utility.exchange]`](https://eel.is/c++draft/utility.exchange) | 结合 Rule of Zero/Five 与类不变量学习 |
+| 数据竞争与 happens-before | [`[intro.races]`](https://eel.is/c++draft/intro.races) | *C++ Concurrency in Action* |
 
-## 20.4 选型记忆表（实战）
+条款链接用于定位规范定义，正文中的直觉模型和练习来自对教材组织方式的消化，不是规范原文的翻译。
 
-| 你现在遇到的场景 | 优先写法（C++17项目） | 何时退回旧写法 |
-|---|---|---|
-| 容器迭代、lambda | `auto` / `const auto&` | 类型本身表达业务语义时 |
-| 拆 `pair/tuple` | 结构化绑定 | 需要兼容 C++11 时 |
-| 模板里按类型分支 | `if constexpr` | 标准受限或逻辑很简单 |
-| 独占资源创建 | `make_unique` | 教学演示 C++11 对照 |
-| 移动构造实现 | `std::exchange` | 想显式展示每步动作时 |
+- C++ working draft：<https://eel.is/c++draft/>
+- cppreference language：<https://en.cppreference.com/w/cpp/language>
+- cppreference utilities：<https://en.cppreference.com/w/cpp/utility>
+- ISO C++ Core Guidelines：<https://isocpp.github.io/CppCoreGuidelines/>
+- Bjarne Stroustrup, *A Tour of C++*：建立现代 C++ 全局地图。
+- Stanley B. Lippman 等，*C++ Primer*：补语言规则、类和标准库基础。
+- Scott Meyers, *Effective Modern C++*：深化类型推导、所有权、移动、Lambda 和并发 API。
+- Anthony Williams, *C++ Concurrency in Action*：深化 C++ 内存模型与同步设计。
 
-## 20.5 “一句话记忆卡”
-
-| 特性 | 一句话记忆 |
-|---|---|
-| `auto` | 少写类型，但别丢语义 |
-| `decltype` | 表达式类型照妖镜 |
-| `decltype(auto)` | 包装返回不丢引用 |
-| `make_unique` | 独占资源最推荐入口 |
-| 结构化绑定 | 给 `.first/.second` 起真名 |
-| `if constexpr` | 模板分支编译期裁剪 |
-| `_v/_t` | `::value/::type` 的短名 |
-| `exchange` | 拿旧值并顺手重置 |
-
----
-
-## 21. 可打印记忆页（复习用）
-
-建议你把这一节单独截图/打印，代码前看 1 分钟：
-
-1. “我这段代码的核心语义是什么（值、引用、所有权）？”
-2. “现代写法有没有隐藏语义？”
-3. “如果同事只懂 C++11，他能不能看懂我写的注释对照？”
-4. “我是否给关键高版本语法写了 C++11 注释版？”
-5. “改完后是否已跑构建+测试？”
+阅读参考资料时区分三类陈述：标准必须保证、某个标准库实现的行为、作者基于经验给出的设计建议。三者都可能有价值，但不能互相替代。

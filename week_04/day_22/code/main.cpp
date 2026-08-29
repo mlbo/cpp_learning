@@ -7,9 +7,8 @@
 #include "data_structure/hash_table_demo.h"
 #include "cpp11_features/rvalue_reference_demo.h"
 #include "emcpp/item09_type_alias.h"
-
-void testValidAnagram();
-void testRansomNote();
+#include "leetcode/0242_valid_anagram/solution.h"
+#include "leetcode/0383_ransom_note/solution.h"
 
 int main() {
     std::cout << "========================================" << std::endl;

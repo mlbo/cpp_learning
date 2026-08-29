@@ -7,7 +7,9 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <cctype>
 #include <sstream>
+#include <utility>
 
 using namespace std;
 
@@ -44,9 +46,11 @@ void demoInitialization() {
     string s6(s2.begin(), s2.begin() + 3);
     cout << "string s6(s2.begin(), s2.begin()+3); -> \"" << s6 << "\"" << endl;
     
-    // 方式7：移动构造（C++11）
-    string s7 = string("Moved");
-    cout << "string s7 = string(\"Moved\"); -> \"" << s7 << "\"" << endl;
+    // 方式7：从一个仍在作用域内的对象显式移动构造
+    string moveSource = "Moved";
+    string s7 = std::move(moveSource);
+    cout << "string s7 = std::move(moveSource); -> \"" << s7 << "\"" << endl;
+    cout << "moveSource 仍有效但状态未指定；本例不把偶然观察到的内容当成保证" << endl;
 }
 
 // 演示容量操作
@@ -257,10 +261,14 @@ void demoConversion() {
     cout << "\n大小写转换:" << endl;
     cout << "原始: \"" << s << "\"" << endl;
     
-    transform(s.begin(), s.end(), s.begin(), ::toupper);
+    transform(s.begin(), s.end(), s.begin(), [](unsigned char byte) {
+        return static_cast<char>(std::toupper(byte));
+    });
     cout << "转大写: \"" << s << "\"" << endl;
     
-    transform(s.begin(), s.end(), s.begin(), ::tolower);
+    transform(s.begin(), s.end(), s.begin(), [](unsigned char byte) {
+        return static_cast<char>(std::tolower(byte));
+    });
     cout << "转小写: \"" << s << "\"" << endl;
 }
 
@@ -325,7 +333,9 @@ void demoIteration() {
     cout << "\n方式4：范围for + 引用（可修改）" << endl;
     string s2 = s;
     for (char& c : s2) {
-        c = toupper(c);  // 转大写
+        // cctype 要求传入 EOF 或 unsigned char 可表示的值；返回 int 后再显式收窄。
+        const auto byte = static_cast<unsigned char>(c);
+        c = static_cast<char>(toupper(byte));  // 转大写
     }
     cout << "修改后: \"" << s2 << "\"" << endl;
 }

@@ -9,8 +9,9 @@
  */
 
 #include <iostream>
+#include <sstream>
 #include <string>
-#include <cstring>
+#include <string_view>
 
 // C++11 特性演示
 extern void run_move_semantics_demo();
@@ -99,21 +100,42 @@ void runAllDemos() {
 /**
  * @brief 处理命令行参数
  */
-bool handleCommandLineArgs(int argc, char* argv[]) {
+enum class CommandLineResult {
+    Interactive,
+    Handled,
+    Error
+};
+
+CommandLineResult handleCommandLineArgs(int argc, char* argv[]) {
     for (int i = 1; i < argc; ++i) {
-        if (strcmp(argv[i], "--all") == 0 || strcmp(argv[i], "-a") == 0) {
+        const std::string_view argument(argv[i]);
+        if (argument == "--all" || argument == "-a") {
             runAllDemos();
-            return true;
+            return CommandLineResult::Handled;
         }
-        else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            std::cout << "用法: day_23_demo [选项]\n\n";
+        if (argument == "--help" || argument == "-h") {
+            std::cout << "用法: " << argv[0] << " [选项]\n\n";
             std::cout << "选项:\n";
             std::cout << "  --all, -a    运行所有演示\n";
             std::cout << "  --help, -h   显示帮助信息\n";
-            return true;
+            return CommandLineResult::Handled;
         }
+
+        std::cerr << "未知选项: " << argument << '\n';
+        std::cerr << "请使用 --help 查看可用选项。\n";
+        return CommandLineResult::Error;
     }
-    return false;
+    return CommandLineResult::Interactive;
+}
+
+bool parseChoice(const std::string& line, int& choice) {
+    std::istringstream input(line);
+    input >> std::ws;
+    if (!(input >> choice)) {
+        return false;
+    }
+    input >> std::ws;
+    return input.eof();
 }
 
 /**
@@ -121,8 +143,12 @@ bool handleCommandLineArgs(int argc, char* argv[]) {
  */
 int main(int argc, char* argv[]) {
     // 处理命令行参数
-    if (handleCommandLineArgs(argc, argv)) {
+    const CommandLineResult commandLineResult = handleCommandLineArgs(argc, argv);
+    if (commandLineResult == CommandLineResult::Handled) {
         return 0;
+    }
+    if (commandLineResult == CommandLineResult::Error) {
+        return 1;
     }
     
     printWelcome();
@@ -130,9 +156,18 @@ int main(int argc, char* argv[]) {
     // 交互式菜单
     while (true) {
         printMenu();
-        
-        int choice;
-        std::cin >> choice;
+
+        std::string line;
+        if (!std::getline(std::cin, line)) {
+            std::cout << "\n输入结束，退出交互模式。\n";
+            return 0;
+        }
+
+        int choice = -1;
+        if (!parseChoice(line, choice)) {
+            std::cout << "\n无效输入，请输入 0 到 8 之间的整数。\n";
+            continue;
+        }
         
         std::cout << "\n";
         
@@ -175,12 +210,13 @@ int main(int argc, char* argv[]) {
                 
             default:
                 std::cout << "无效选择，请重新输入。\n";
+                continue;
         }
-        
+
         std::cout << "\n按 Enter 键继续...";
-        std::cin.ignore();
-        std::cin.get();
+        if (!std::getline(std::cin, line)) {
+            std::cout << "\n输入结束，退出交互模式。\n";
+            return 0;
+        }
     }
-    
-    return 0;
 }

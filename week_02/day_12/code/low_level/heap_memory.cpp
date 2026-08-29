@@ -13,6 +13,11 @@
 #include <cstdlib>
 #include <new>
 #include <cstring>
+#include <stdexcept>
+#include <type_traits>
+#include <utility>
+
+#include "../../../common/noexcept_output.h"
 
 // ============================================
 // 辅助打印
@@ -23,15 +28,20 @@
 // 自定义 new/delete 追踪（演示用）
 // 注意：实际项目中应使用 Valgrind 或 AddressSanitizer
 
-void* tracked_new(size_t size) {
+void* tracked_allocate(size_t size) {
     void* p = std::malloc(size);
-    std::cout << "  [分配] " << size << " 字节 @ " << p << "\n";
+    if (!p) {
+        throw std::bad_alloc();
+    }
+    week2_support::write_noexcept([size, p] {
+        std::cout << "  [分配] " << size << " 字节 @ " << p << "\n";
+    });
     return p;
 }
 
-void tracked_delete(void* p) {
-    std::cout << "  [释放] @ " << p << "\n";
+void tracked_delete(void* p) noexcept {
     std::free(p);
+    week2_support::write_noexcept([p] { std::cout << "  [释放] @ " << p << "\n"; });
 }
 
 // ============================================
@@ -41,11 +51,15 @@ void tracked_delete(void* p) {
 class DemoClass {
 public:
     DemoClass(int v) : value(v) {
-        std::cout << "  DemoClass(" << value << ") 构造函数\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  DemoClass(" << value << ") 构造函数\n";
+        });
     }
     
     ~DemoClass() {
-        std::cout << "  DemoClass(" << value << ") 析构函数\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  DemoClass(" << value << ") 析构函数\n";
+        });
     }
     
     int getValue() const { return value; }
@@ -60,17 +74,20 @@ void demo_new_vs_malloc() {
     // 1.1 malloc/free - 仅分配内存
     std::cout << "\n--- 1.1 malloc/free ---\n";
     {
-        DemoClass* p = (DemoClass*)std::malloc(sizeof(DemoClass));
+        void* storage = std::malloc(sizeof(DemoClass));
+        if (!storage) {
+            throw std::bad_alloc();
+        }
         std::cout << "  malloc 分配内存，但未调用构造函数\n";
-        std::cout << "  value 值未初始化（随机）: " << p->getValue() << "\n";  // 未定义行为
+        std::cout << "  此时DemoClass对象的生命周期尚未开始，不能访问成员\n";
         
         // 需要手动调用构造函数（placement new）
-        new(p) DemoClass(42);  // 调用构造函数
+        DemoClass* p = new(storage) DemoClass(42);  // 调用构造函数并开始对象生命周期
         std::cout << "  手动构造后 value: " << p->getValue() << "\n";
         
         // 需要手动调用析构函数
         p->~DemoClass();
-        std::free(p);
+        std::free(storage);
         std::cout << "  手动析构并释放内存\n";
     }
     
@@ -174,6 +191,69 @@ struct AlignedStruct {
     char c;     // 1 byte + 3 bytes padding
 };
 
+namespace {
+
+// 简单内存池独占一块原始存储。池内返回的地址都依赖这同一块存储，
+// 因此浅拷贝没有合理语义：明确禁止复制，只允许转移整个池的所有权。
+class MemoryPool {
+public:
+    explicit MemoryPool(size_t capacity)
+        : buffer_(capacity == 0U ? nullptr : new char[capacity]),
+          capacity_(capacity),
+          used_(0U) {}
+
+    ~MemoryPool() { delete[] buffer_; }
+
+    MemoryPool(const MemoryPool&) = delete;
+    MemoryPool& operator=(const MemoryPool&) = delete;
+
+    MemoryPool(MemoryPool&& other) noexcept
+        : buffer_(std::exchange(other.buffer_, nullptr)),
+          capacity_(std::exchange(other.capacity_, 0U)),
+          used_(std::exchange(other.used_, 0U)) {}
+
+    MemoryPool& operator=(MemoryPool&& other) noexcept {
+        if (this != &other) {
+            delete[] buffer_;
+            buffer_ = std::exchange(other.buffer_, nullptr);
+            capacity_ = std::exchange(other.capacity_, 0U);
+            used_ = std::exchange(other.used_, 0U);
+        }
+        return *this;
+    }
+
+    void* allocate(size_t size) noexcept {
+        if (size == 0U || size > capacity_ - used_) {
+            return nullptr;
+        }
+        void* result = buffer_ + used_;
+        used_ += size;
+        return result;
+    }
+
+    size_t capacity() const noexcept { return capacity_; }
+    size_t used() const noexcept { return used_; }
+
+private:
+    char* buffer_;
+    size_t capacity_;
+    size_t used_;
+};
+
+static_assert(!std::is_copy_constructible_v<MemoryPool>);
+static_assert(!std::is_copy_assignable_v<MemoryPool>);
+static_assert(std::is_nothrow_move_constructible_v<MemoryPool>);
+static_assert(std::is_nothrow_move_assignable_v<MemoryPool>);
+
+class ThrowingPoolObject {
+public:
+    ThrowingPoolObject() {
+        throw std::runtime_error("injected pool object construction failure");
+    }
+};
+
+} // namespace
+
 void demo_memory_alignment() {
     PRINT_SECTION("3. 内存对齐");
     
@@ -247,27 +327,14 @@ void demo_placement_new() {
     // 4.3 简单内存池示例
     std::cout << "\n--- 4.3 简单内存池示例 ---\n";
     {
-        class MemoryPool {
-        public:
-            MemoryPool(size_t size) : buffer_(new char[size]), used_(0) {}
-            ~MemoryPool() { delete[] buffer_; }
-            
-            void* allocate(size_t size) {
-                if (used_ + size > 1024) return nullptr;
-                void* p = buffer_ + used_;
-                used_ += size;
-                return p;
-            }
-            
-        private:
-            char* buffer_;
-            size_t used_;
-        };
-        
         MemoryPool pool(1024);
+        std::cout << "  内存池独占底层缓冲区：不可复制，可整体移动\n";
         
         // 在内存池中构造对象
         void* mem = pool.allocate(sizeof(DemoClass));
+        if (!mem) {
+            throw std::bad_alloc();
+        }
         DemoClass* obj = new(mem) DemoClass(777);
         
         std::cout << "  在内存池中构造对象 value=" << obj->getValue() << "\n";
@@ -285,7 +352,8 @@ void demo_placement_new() {
 /*
 void* operator new(size_t size) {
     std::cout << "  [全局 new] 分配 " << size << " 字节\n";
-    return std::malloc(size);
+    if (void* p = std::malloc(size)) return p;
+    throw std::bad_alloc();
 }
 
 void operator delete(void* p) noexcept {
@@ -357,4 +425,48 @@ void run_heap_memory() {
     std::cout << "\n========================================\n";
     std::cout << "  堆内存管理演示完毕\n";
     std::cout << "========================================\n";
+}
+
+bool run_memory_pool_contract_tests() {
+    bool ok = true;
+
+    MemoryPool empty(0U);
+    ok = ok && empty.capacity() == 0U && empty.used() == 0U;
+    ok = ok && empty.allocate(0U) == nullptr;
+    ok = ok && empty.allocate(1U) == nullptr;
+
+    MemoryPool original(64U);
+    ok = ok && original.allocate(0U) == nullptr && original.used() == 0U;
+    ok = ok && original.allocate(8U) != nullptr && original.used() == 8U;
+
+    MemoryPool moved(std::move(original));
+    ok = ok && original.capacity() == 0U && original.used() == 0U;
+    ok = ok && original.allocate(1U) == nullptr;
+    ok = ok && moved.capacity() == 64U && moved.used() == 8U;
+    ok = ok && moved.allocate(56U) != nullptr && moved.used() == 64U;
+    ok = ok && moved.allocate(1U) == nullptr;
+
+    MemoryPool assigned(16U);
+    ok = ok && assigned.allocate(16U) != nullptr && assigned.used() == 16U;
+    assigned = std::move(moved);
+    ok = ok && moved.capacity() == 0U && moved.used() == 0U;
+    ok = ok && assigned.capacity() == 64U && assigned.used() == 64U;
+    assigned = std::move(assigned);
+    ok = ok && assigned.capacity() == 64U && assigned.used() == 64U;
+
+    bool construction_failure_caught = false;
+    MemoryPool exception_pool(sizeof(ThrowingPoolObject));
+    try {
+        void* storage = exception_pool.allocate(sizeof(ThrowingPoolObject));
+        if (!storage) {
+            return false;
+        }
+        (void)new(storage) ThrowingPoolObject();
+    } catch (const std::runtime_error&) {
+        construction_failure_caught = true;
+    }
+    ok = ok && exception_pool.used() == sizeof(ThrowingPoolObject);
+    ok = ok && exception_pool.allocate(1U) == nullptr;
+
+    return ok && construction_failure_caught;
 }

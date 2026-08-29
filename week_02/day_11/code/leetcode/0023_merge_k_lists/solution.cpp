@@ -4,8 +4,10 @@
  */
 
 #include "solution.h"
-#include <iostream>
 #include <algorithm>
+#include <iostream>
+#include <memory>
+#include <utility>
 
 namespace leetcode_0023 {
 
@@ -15,10 +17,12 @@ ListNode* Solution::mergeKLists(std::vector<ListNode*>& lists) {
     if (lists.empty()) {
         return nullptr;
     }
-    return merge(lists, 0, static_cast<int>(lists.size()) - 1);
+    return merge(lists, 0U, lists.size() - 1U);
 }
 
-ListNode* Solution::merge(std::vector<ListNode*>& lists, int left, int right) {
+ListNode* Solution::merge(std::vector<ListNode*>& lists,
+                          std::size_t left,
+                          std::size_t right) {
     // 基础情况
     if (left > right) {
         return nullptr;
@@ -28,11 +32,11 @@ ListNode* Solution::merge(std::vector<ListNode*>& lists, int left, int right) {
     }
 
     // 分治：分成两半
-    int mid = left + (right - left) / 2;
+    const std::size_t mid = left + (right - left) / 2U;
 
     // 递归合并每一半
     ListNode* l1 = merge(lists, left, mid);
-    ListNode* l2 = merge(lists, mid + 1, right);
+    ListNode* l2 = merge(lists, mid + 1U, right);
 
     // 合并两个有序链表
     return mergeTwoLists(l1, l2);
@@ -68,12 +72,17 @@ ListNode* Solution::mergeKListsPriorityQueue(std::vector<ListNode*>& lists) {
     }
 
     // 自定义比较器（最小堆）
-    auto cmp = [](ListNode* a, ListNode* b) {
+    auto cmp = [](ListNode* a, ListNode* b) noexcept {
         return a->val > b->val;  // 小的优先级高
     };
 
-    // 优先队列（最小堆）
-    std::priority_queue<ListNode*, std::vector<ListNode*>, decltype(cmp)> pq(cmp);
+    // 先为最多K个堆元素准备容量。reserve是本算法唯一可能发生的堆分配，
+    // 且发生在任何next重连之前；之后每次pop后至多push一个后继，堆大小
+    // 永远不超过初始容量，指针移动和noexcept比较器都不会抛出。
+    std::vector<ListNode*> storage;
+    storage.reserve(lists.size());
+    std::priority_queue<ListNode*, std::vector<ListNode*>, decltype(cmp)> pq(
+        cmp, std::move(storage));
 
     // 将所有链表的头节点放入堆
     for (ListNode* list : lists) {
@@ -128,15 +137,18 @@ ListNode* createList(const std::vector<int>& values) {
         return nullptr;
     }
 
-    ListNode* head = new ListNode(values[0]);
-    ListNode* tail = head;
+    const auto delete_chain = [](ListNode* node) { deleteList(node); };
+    std::unique_ptr<ListNode, decltype(delete_chain)> owner(
+        new ListNode(values[0]), delete_chain);
+    ListNode* tail = owner.get();
 
-    for (size_t i = 1; i < values.size(); ++i) {
-        tail->next = new ListNode(values[i]);
+    for (std::size_t i = 1; i < values.size(); ++i) {
+        auto node = std::make_unique<ListNode>(values[i]);
+        tail->next = node.release();
         tail = tail->next;
     }
 
-    return head;
+    return owner.release();
 }
 
 std::vector<int> listToVector(ListNode* head) {

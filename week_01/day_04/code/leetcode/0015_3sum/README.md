@@ -2,7 +2,7 @@
 
 ## 问题描述
 
-给定一个整数数组 `nums`，判断是否存在三元组 `[nums[i], nums[j], nums[k]]` 满足 `i != j != k` 且 `nums[i] + nums[j] + nums[k] == 0`。
+给定一个整数数组 `nums`，寻找下标两两不同的三元组 `[nums[i], nums[j], nums[k]]`，使 `nums[i] + nums[j] + nums[k] == 0`。
 
 返回所有不重复的三元组。
 
@@ -38,33 +38,37 @@ i=2: -1, 与i=1相同，跳过（去重）
 ```cpp
 vector<vector<int>> threeSum(vector<int>& nums) {
     vector<vector<int>> result;
+    const size_t n = nums.size();
+    if (n < 3) return result;
     sort(nums.begin(), nums.end());
     
-    for (int i = 0; i < nums.size() - 2; i++) {
+    for (size_t i = 0; i + 2 < n; ++i) {
         // 去重1: 跳过相同的第一个数
-        if (i > 0 && nums[i] == nums[i-1]) continue;
+        if (i > 0 && nums[i] == nums[i - 1]) continue;
         
         // 剪枝
         if (nums[i] > 0) break;
         
-        int left = i + 1, right = nums.size() - 1;
+        size_t left = i + 1;
+        size_t right = n - 1;
         while (left < right) {
-            int sum = nums[i] + nums[left] + nums[right];
+            const int64_t sum = static_cast<int64_t>(nums[i]) +
+                                nums[left] + nums[right];
             
             if (sum == 0) {
                 result.push_back({nums[i], nums[left], nums[right]});
                 
                 // 去重2: 跳过相同的第二个数
-                while (left < right && nums[left] == nums[left+1]) left++;
+                while (left < right && nums[left] == nums[left + 1]) ++left;
                 // 去重3: 跳过相同的第三个数
-                while (left < right && nums[right] == nums[right-1]) right--;
+                while (left < right && nums[right] == nums[right - 1]) --right;
                 
-                left++;
-                right--;
+                ++left;
+                --right;
             } else if (sum < 0) {
-                left++;
+                ++left;
             } else {
-                right--;
+                --right;
             }
         }
     }
@@ -114,7 +118,7 @@ vector<vector<int>> threeSum(vector<int>& nums) {
 | 内层双指针 | O(n) |
 | **总计** | **O(n²)** |
 
-空间复杂度: O(1)（不考虑输出）
+额外空间通常记为 `O(log n)`（不考虑输出），来源是常见 `std::sort` 实现的递归/显式栈；C++ 标准主要约束比较次数，并不把某一种排序实现写死。双指针扫描本身只使用 `O(1)` 额外状态。
 
 ## 常见错误
 
@@ -145,8 +149,8 @@ if (nums.size() < 3) return {};
 // ❌ 可能溢出
 int sum = nums[i] + nums[left] + nums[right];
 
-// ✅ 使用更大的类型
-long long sum = (long long)nums[i] + nums[left] + nums[right];
+// ✅ 在第一次加法前提升类型；不能等 int 加法完成后再转换
+const int64_t sum = static_cast<int64_t>(nums[i]) + nums[left] + nums[right];
 ```
 
 ## 相关题目

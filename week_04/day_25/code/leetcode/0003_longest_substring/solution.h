@@ -19,6 +19,8 @@
 #include <vector>
 #include <algorithm>
 
+namespace leetcode::lc0003 {
+
 class Solution {
 public:
     /**
@@ -49,5 +51,11 @@ public:
      */
     int lengthOfLongestSubstringArray(std::string s);
 };
+
+} // namespace leetcode::lc0003
+
+namespace leetcode {
+void lc0003Demo();
+}
 
 #endif // LEETCODE_0003_LONGEST_SUBSTRING_H

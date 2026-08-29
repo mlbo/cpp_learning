@@ -46,9 +46,11 @@ void lambdaSummary() {
     std::cout << "\n  捕获规则：" << std::endl;
     std::cout << "    [x]     值捕获x" << std::endl;
     std::cout << "    [&x]    引用捕获x" << std::endl;
-    std::cout << "    [=]     值捕获所有（不推荐）" << std::endl;
-    std::cout << "    [&]     引用捕获所有（不推荐）" << std::endl;
-    std::cout << "    [=, &x] 值捕获所有，x引用捕获" << std::endl;
+    std::cout << "    [=]     隐式值捕获Lambda体实际使用的自动变量（不推荐）" << std::endl;
+    std::cout << "    [&]     隐式引用捕获Lambda体实际使用的自动变量（不推荐）" << std::endl;
+    std::cout << "    [=, &x] 默认按值捕获实际使用的自动变量，x按引用捕获" << std::endl;
+    std::cout << "    未使用的局部变量不会被捕获；全局/静态对象也不是捕获成员" << std::endl;
+    std::cout << "    C++17成员访问通常捕获this指针，不等于复制整个对象" << std::endl;
     
     // ========== C++14特性 ==========
     std::cout << "\n--- C++14特性 ---" << std::endl;

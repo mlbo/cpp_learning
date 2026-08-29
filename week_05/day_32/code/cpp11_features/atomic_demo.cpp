@@ -1,47 +1,58 @@
-/**
- * atomic原子操作演示
- */
-
-#include <iostream>
 #include <atomic>
+#include <iostream>
 #include <thread>
 #include <vector>
 
-void atomicDemo() {
-    std::cout << "=== std::atomic 原子操作演示 ===" << std::endl;
-    
-    // 1. 基本原子操作
-    std::atomic<int> counter(0);
-    
-    std::cout << "\n--- 1. 多线程原子递增 ---" << std::endl;
-    std::vector<std::thread> threads;
-    for (int i = 0; i < 10; ++i) {
-        threads.emplace_back([&counter]() {
-            for (int j = 0; j < 1000; ++j) {
+#include "joining_thread_group.h"
+
+int main() {
+    int failures = 0;
+    const auto expect = [&failures](bool condition, const char* message) {
+        if (!condition) {
+            std::cerr << "FAIL: " << message << '\n';
+            ++failures;
+        }
+    };
+
+    std::atomic<int> counter{0};
+    week5::JoiningThreadGroup workers;
+    for (int worker = 0; worker < 8; ++worker) {
+        static_cast<void>(worker);
+        workers.start([&counter] {
+            for (int iteration = 0; iteration < 1000; ++iteration) {
                 counter.fetch_add(1, std::memory_order_relaxed);
             }
         });
     }
-    
-    for (auto& t : threads) t.join();
-    std::cout << "预期结果: 10000, 实际结果: " << counter.load() << std::endl;
-    
-    // 2. CAS操作
-    std::cout << "\n--- 2. CAS操作 ---" << std::endl;
-    int expected = 10000;
-    bool success = counter.compare_exchange_strong(expected, 0);
-    std::cout << "CAS结果: " << (success ? "成功" : "失败") << std::endl;
-    std::cout << "counter重置为: " << counter.load() << std::endl;
-    
-    // 3. 内存序
-    std::cout << "\n--- 3. 内存序说明 ---" << std::endl;
-    std::cout << "memory_order_relaxed: 只保证原子性" << std::endl;
-    std::cout << "memory_order_acquire: 获取语义" << std::endl;
-    std::cout << "memory_order_release: 释放语义" << std::endl;
-    std::cout << "memory_order_seq_cst: 默认，最强约束" << std::endl;
-}
+    workers.join_all();
+    expect(counter.load(std::memory_order_relaxed) == 8000,
+           "relaxed fetch_add 应保证计数操作本身不丢失");
 
-int main() {
-    atomicDemo();
-    return 0;
+    int payload = 0;
+    int observed = 0;
+    std::atomic<bool> ready{false};
+    week5::JoiningThreadGroup publication;
+    publication.start([&payload, &observed, &ready] {
+        while (!ready.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+        observed = payload;
+    });
+    publication.start([&payload, &ready] {
+        payload = 42;
+        ready.store(true, std::memory_order_release);
+    });
+    publication.join_all();
+    expect(observed == 42, "release/acquire 应发布此前写入的普通数据");
+
+    std::atomic<int> state{1};
+    int expected = 1;
+    expect(state.compare_exchange_strong(expected, 2), "CAS 应在 expected 匹配时更新状态");
+    expected = 1;
+    expect(!state.compare_exchange_strong(expected, 3) && expected == 2,
+           "CAS 失败时应把实际值写回 expected");
+
+    std::cout << "atomic<int> lock-free on this platform: " << std::boolalpha
+              << counter.is_lock_free() << '\n';
+    return failures == 0 ? 0 : 1;
 }

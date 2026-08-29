@@ -13,6 +13,9 @@
  * 解题思路：
  * 1. 哈希表法：将排序后的字符串作为键
  * 2. 计数法：统计每个字母出现的次数作为键
+ *
+ * 输入契约：两种公开解法都只接受空串或 'a'..'z'；任一字符串含
+ * 其他字节时抛出 std::invalid_argument，并且不会返回部分分组结果。
  */
 
 #pragma once
@@ -21,6 +24,8 @@
 #include <string>
 #include <unordered_map>
 #include <algorithm>
+
+namespace day24::lc49 {
 
 class Solution {
 public:
@@ -42,7 +47,7 @@ public:
         std::vector<std::string>& strs);
     
     /**
-     * @brief 方法二：计数哈希法
+     * @brief 方法二：小写字母计数哈希法
      * 
      * 核心思想：
      * 字母异位词中每个字母出现的次数相同，可以用计数作为键。
@@ -57,6 +62,8 @@ public:
     std::vector<std::vector<std::string>> groupAnagramsCount(
         std::vector<std::string>& strs);
 };
+
+} // namespace day24::lc49
 
 // 测试函数
 void testGroupAnagrams();

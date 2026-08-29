@@ -2,10 +2,9 @@
  * LeetCode 567: 字符串的排列 - 测试文件
  */
 
-#include "solution.cpp"
+#include "leetcode/0567_permutation_in_string/solution.h"
 #include <iostream>
 #include <vector>
-#include <cassert>
 
 using namespace std;
 
@@ -18,8 +17,8 @@ struct TestCase {
 };
 
 // 运行测试用例
-void runTest(const TestCase& tc, int testNum) {
-    Solution sol;
+void runTest(const TestCase& tc, size_t testNum) {
+    day27::lc0567::Solution sol;
     bool result = sol.checkInclusion(tc.s1, tc.s2);
     
     bool passed = (result == tc.expected);
@@ -104,15 +103,34 @@ int main() {
             "dinitrophenylhydrazinetrinitrophenylmethylnitramine",
             true,
             "长字符串测试"
+        },
+        {
+            "",
+            "anything",
+            true,
+            "空模式按数学约定匹配空窗口"
+        },
+        {
+            "Ab",
+            "xxbAyy",
+            true,
+            "大小写敏感且支持一般字节"
+        },
+        {
+            string("\xFF\x01", 2),
+            string("z\x01\xFFz", 4),
+            true,
+            "高位字节不会形成负下标"
         }
     };
 
-    int passed = 0;
+    size_t passed = 0;
     for (size_t i = 0; i < testCases.size(); i++) {
-        Solution sol;
+        day27::lc0567::Solution sol;
         bool result = sol.checkInclusion(testCases[i].s1, testCases[i].s2);
-        if (result == testCases[i].expected) {
-            passed++;
+        bool optimized = sol.checkInclusionOptimized(testCases[i].s1, testCases[i].s2);
+        if (result == testCases[i].expected && optimized == testCases[i].expected) {
+            ++passed;
         }
         runTest(testCases[i], i + 1);
     }
@@ -122,17 +140,20 @@ int main() {
     
     // 测试优化版本
     cout << "\n========== 测试优化版本 ==========" << endl;
-    Solution sol;
+    day27::lc0567::Solution sol;
     bool optimizedResult = sol.checkInclusionOptimized("ab", "eidbaooo");
     cout << "checkInclusionOptimized(\"ab\", \"eidbaooo\") = " 
          << (optimizedResult ? "true" : "false") << endl;
     
     // 演示算法执行过程
     cout << "\n========== 算法执行演示 ==========" << endl;
-    demonstratePermutationAlgorithm("ab", "eidbaooo");
+    day27::lc0567::demonstratePermutationAlgorithm("ab", "eidbaooo");
     
     cout << "\n========== 演示不匹配情况 ==========" << endl;
-    demonstratePermutationAlgorithm("ab", "eidboaoo");
+    day27::lc0567::demonstratePermutationAlgorithm("ab", "eidboaoo");
+    day27::lc0567::demonstratePermutationAlgorithm("", "anything");
+    day27::lc0567::demonstratePermutationAlgorithm(
+        string("\xFF\x01", 2), string("z\x01\xFFz", 4));
 
-    return passed == (int)testCases.size() ? 0 : 1;
+    return passed == testCases.size() ? 0 : 1;
 }

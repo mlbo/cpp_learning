@@ -3,11 +3,15 @@
 
 #include <vector>
 
+namespace lc739 {
+
 class Solution {
 public:
-    std::vector<int> dailyTemperatures(std::vector<int>& temperatures);
+    std::vector<int> dailyTemperatures(const std::vector<int>& temperatures);
 };
 
-void testDailyTemperatures();
+bool testDailyTemperatures();
+
+}  // namespace lc739
 
 #endif // SOLUTION_739_H

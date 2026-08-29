@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 
+namespace leetcode::lc0438 {
+
 class Solution {
 public:
     /**
@@ -31,6 +33,11 @@ public:
      * @param s 源字符串
      * @param p 目标模式字符串
      * @return std::vector<int> 异位词起始索引列表
+     * @throws std::invalid_argument s 或 p 含有 'a' 到 'z' 之外的字节
+     * @throws std::overflow_error 结果下标无法用题目要求的 int 表示
+     *
+     * 公开契约：s 与 p 只接受小写英文字母；空 p 没有窗口语义，返回空结果。
+     * 输入校验先于长度早退，因此越界字符不会因 s 较短而被静默忽略。
      * 
      * 时间复杂度：O(n)
      * 空间复杂度：O(1)，固定大小的计数数组
@@ -47,6 +54,10 @@ public:
      * @param s 源字符串
      * @param p 目标模式字符串
      * @return std::vector<int> 异位词起始索引列表
+     * @throws std::invalid_argument s 或 p 含有 'a' 到 'z' 之外的字节
+     * @throws std::overflow_error 结果下标无法用题目要求的 int 表示
+     *
+     * 边界与基础版本相同：空 p 返回空结果，其他输入必须全部为小写英文字母。
      * 
      * 时间复杂度：O(n)
      * 空间复杂度：O(1)
@@ -59,7 +70,13 @@ private:
      * @param count 计数数组
      * @return true 如果全为0
      */
-    bool allZero(const std::vector<int>& count);
+    bool allZero(const std::vector<int>& count) const;
 };
+
+} // namespace leetcode::lc0438
+
+namespace leetcode {
+void lc0438Demo();
+}
 
 #endif // LEETCODE_0438_FIND_ANAGRAMS_H

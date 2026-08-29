@@ -25,32 +25,37 @@
 
 ## 解法分析
 
+本课程的公开接口要求高度非负，输入长度和最终水量必须能用 `int` 表示；违反时抛出异常。下面代码中的 `validate_heights` 完成输入检查，`add_water` 在每次累加前检查 `int` 结果边界，避免“先溢出、最后才检查”。
+
 ### 解法一：双指针法 ⭐推荐
 
 **核心思想**：从两端向中间遍历，维护左右两侧的最大高度。
 
 ```cpp
 int trap(vector<int>& height) {
-    int left = 0, right = height.size() - 1;
+    validate_heights(height);
+    if (height.empty()) return 0;
+    size_t left = 0;
+    size_t right = height.size() - 1;
     int left_max = 0, right_max = 0;
-    int water = 0;
+    int64_t water = 0;
     
     while (left < right) {
         if (height[left] < height[right]) {
             if (height[left] >= left_max)
                 left_max = height[left];
             else
-                water += left_max - height[left];
+                add_water(water, left_max - height[left]);
             ++left;
         } else {
             if (height[right] >= right_max)
                 right_max = height[right];
             else
-                water += right_max - height[right];
+                add_water(water, right_max - height[right]);
             --right;
         }
     }
-    return water;
+    return week01::checked_result(water);
 }
 ```
 
@@ -58,8 +63,8 @@ int trap(vector<int>& height) {
 
 关键洞察：对于位置 `i`，它能接的水量取决于 `min(left_max, right_max) - height[i]`。
 
-- 如果 `height[left] < height[right]`，那么 `left_max < right_max`（或者至少 `left_max <= right_max`）
-- 这意味着位置 `left` 处的储水量只取决于 `left_max`（因为右边有更高的柱子）
+- 如果 `height[left] < height[right]`，当前右柱已经为左位置提供了一根更高的右边界
+- 结合算法始终先处理较矮端的不变量，位置 `left` 的水量此时可由 `left_max` 确定
 - 同理，如果 `height[right] <= height[left]`，位置 `right` 的储水量只取决于 `right_max`
 
 **复杂度**：
@@ -74,22 +79,24 @@ int trap(vector<int>& height) {
 
 ```cpp
 int trap(vector<int>& height) {
-    int n = height.size();
+    validate_heights(height);
+    const size_t n = height.size();
+    if (n == 0) return 0;
     vector<int> left_max(n), right_max(n);
     
     left_max[0] = height[0];
-    for (int i = 1; i < n; ++i)
+    for (size_t i = 1; i < n; ++i)
         left_max[i] = max(left_max[i-1], height[i]);
     
     right_max[n-1] = height[n-1];
-    for (int i = n-2; i >= 0; --i)
-        right_max[i] = max(right_max[i+1], height[i]);
+    for (size_t i = n - 1; i > 0; --i)
+        right_max[i - 1] = max(right_max[i], height[i - 1]);
     
-    int water = 0;
-    for (int i = 0; i < n; ++i)
-        water += min(left_max[i], right_max[i]) - height[i];
+    int64_t water = 0;
+    for (size_t i = 0; i < n; ++i)
+        add_water(water, min(left_max[i], right_max[i]) - height[i]);
     
-    return water;
+    return week01::checked_result(water);
 }
 ```
 
@@ -105,23 +112,24 @@ int trap(vector<int>& height) {
 
 ```cpp
 int trap(vector<int>& height) {
-    stack<int> st;
-    int water = 0;
+    validate_heights(height);
+    stack<size_t> st;
+    int64_t water = 0;
     
-    for (int i = 0; i < height.size(); ++i) {
+    for (size_t i = 0; i < height.size(); ++i) {
         while (!st.empty() && height[i] > height[st.top()]) {
-            int bottom = st.top();
+            const size_t bottom = st.top();
             st.pop();
             
             if (st.empty()) break;
             
-            int distance = i - st.top() - 1;
-            int bounded_height = min(height[i], height[st.top()]) - height[bottom];
-            water += distance * bounded_height;
+            const int64_t distance = static_cast<int64_t>(i - st.top() - 1);
+            const int bounded_height = min(height[i], height[st.top()]) - height[bottom];
+            add_water(water, distance * bounded_height);
         }
         st.push(i);
     }
-    return water;
+    return week01::checked_result(water);
 }
 ```
 
@@ -167,11 +175,8 @@ int trap(vector<int>& height) {
 ## 运行测试
 
 ```bash
-# 编译
-g++ -std=c++17 -O2 test.cpp -o test_42
-
-# 运行
-./test_42
+cd week_01/day_07
+./build_and_run.sh
 ```
 
 ---

@@ -13,6 +13,8 @@
 #include <memory>
 #include <vector>
 
+#include "../../../common/noexcept_output.h"
+
 // ============================================================
 // 问题演示：循环引用导致内存泄漏
 // ============================================================
@@ -24,7 +26,9 @@ public:
     }
     
     ~NodeWithProblem() {
-        std::cout << "  [析构] Node " << value << "\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  [析构] Node " << value << "\n";
+        });
     }
     
     int value;
@@ -55,11 +59,13 @@ void demoCircularReferenceProblem() {
         std::cout << "  node2.use_count = " << node2.use_count() 
                   << " (node2本身 + node1->next)\n";
         
-        std::cout << "\n离开作用域...\n";
-        std::cout << "（注意：析构函数不会被调用！）\n";
+        std::cout << "\n如果现在直接离开作用域，析构函数不会被调用。\n";
+        std::cout << "为让测试可重复且不故意泄漏，演示结束前手动打断强引用环。\n";
+        node1->next.reset();
+        node2->prev.reset();
     }
     
-    std::cout << "\n  结果：内存泄漏！析构函数从未被调用\n";
+    std::cout << "\n  若不手动打断，上述两个强引用会造成内存泄漏。\n";
     
     std::cout << "\n原因分析:\n";
     std::cout << "  1. node1 离开作用域 → 引用计数从2变为1\n";
@@ -80,7 +86,9 @@ public:
     }
     
     ~NodeFixed() {
-        std::cout << "  [析构] Node " << value << "\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  [析构] Node " << value << "\n";
+        });
     }
     
     int value;
@@ -204,7 +212,7 @@ void demoCircularReference() {
     std::cout << "║           循环引用问题预览                                 ║\n";
     std::cout << "╚══════════════════════════════════════════════════════════╝\n\n";
     
-    std::cout << "⚠️  警告：接下来的演示会导致内存泄漏（仅用于教学目的）\n\n";
+    std::cout << "⚠️  接下来展示泄漏形成机制，但会在演示末尾手动打断环。\n\n";
     
     demoCircularReferenceProblem();
     demoCircularReferenceFixed();

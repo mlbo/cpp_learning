@@ -317,11 +317,11 @@ void demo_auto_deduction() {
     auto list2 = {1.0, 2.0, 3.0};
     std::cout << "auto list2 = {1.0,2.0,3.0}: initializer_list<double>, size=" << list2.size() << "\n";
 
-    // 混合类型推导为 common_type
+    // 显式指定元素类型后，int 元素可以转换为 double；这不是 auto 推导 common_type
     std::initializer_list<double> list3 = {1, 2.0, 3};  // double
-    std::cout << "auto list3 = {1, 2.0, 3}: initializer_list<double>, size=" << list3.size() << "\n";
+    std::cout << "显式 initializer_list<double>{1, 2.0, 3}: size=" << list3.size() << "\n";
 
-    // 注意：单个元素推导为值类型，不是 initializer_list
+    // 等号加花括号仍推导为 initializer_list，即使只有一个元素
     auto x = {42};  // initializer_list<int>，只有一个元素
     // auto y = 42;   // int，不是 initializer_list！
     std::cout << "auto x = {42}: size=" << x.size() << "\n";

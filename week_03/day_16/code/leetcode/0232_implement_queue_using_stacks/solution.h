@@ -15,9 +15,9 @@ public:
     void push(int x);
     int pop();
     int peek();
-    bool empty();
+    bool empty() const noexcept;
 };
 
-void testMyQueue();
+bool testMyQueue();
 
 #endif // SOLUTION_232_H

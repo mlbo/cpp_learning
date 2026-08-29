@@ -7,8 +7,11 @@
 #include "solution.h"
 #include <iostream>
 #include <queue>
+#include <stdexcept>
 #include <unordered_map>
 #include <utility>
+
+namespace leetcode_0347 {
 
 std::vector<int> Solution::topKFrequent(std::vector<int>& nums, int k) {
     // 1. 统计频率
@@ -16,17 +19,23 @@ std::vector<int> Solution::topKFrequent(std::vector<int>& nums, int k) {
     for (int num : nums) {
         freq[num]++;
     }
+
+    if (k <= 0 || static_cast<std::size_t>(k) > freq.size()) {
+        throw std::invalid_argument("k必须位于[1, 不同元素个数]范围内");
+    }
     
     // 2. 小顶堆，按频率排序
     auto cmp = [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
-        return a.second > b.second;  // 频率小的排后面
+        // priority_queue把“比较结果为false、优先级更高”的元素放在top。
+        // a频率更大时返回true，表示a应排在b之后，因此最小频率位于堆顶。
+        return a.second > b.second;
     };
     std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, decltype(cmp)> minHeap(cmp);
     
     // 3. 维护前K个高频元素
     for (auto& [num, count] : freq) {
         minHeap.push({num, count});
-        if (minHeap.size() > k) {
+        if (minHeap.size() > static_cast<std::size_t>(k)) {
             minHeap.pop();
         }
     }
@@ -41,8 +50,10 @@ std::vector<int> Solution::topKFrequent(std::vector<int>& nums, int k) {
     return result;
 }
 
+} // namespace leetcode_0347
+
 void testTopKFrequent() {
-    Solution sol;
+    leetcode_0347::Solution sol;
     
     std::cout << "LeetCode 347. 前K个高频元素 测试结果：" << std::endl;
     
@@ -51,7 +62,7 @@ void testTopKFrequent() {
     auto result1 = sol.topKFrequent(nums1, 2);
     std::cout << "  输入: [1,1,1,2,2,3], k = 2" << std::endl;
     std::cout << "  输出: [";
-    for (int i = 0; i < result1.size(); ++i) {
+    for (std::size_t i = 0; i < result1.size(); ++i) {
         std::cout << result1[i];
         if (i < result1.size() - 1) std::cout << ", ";
     }
@@ -62,7 +73,7 @@ void testTopKFrequent() {
     auto result2 = sol.topKFrequent(nums2, 1);
     std::cout << "\n  输入: [1], k = 1" << std::endl;
     std::cout << "  输出: [";
-    for (int i = 0; i < result2.size(); ++i) {
+    for (std::size_t i = 0; i < result2.size(); ++i) {
         std::cout << result2[i];
         if (i < result2.size() - 1) std::cout << ", ";
     }

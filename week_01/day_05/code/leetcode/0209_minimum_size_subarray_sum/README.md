@@ -54,9 +54,9 @@
 
 **滑动窗口正确性证明：**
 
-1. **单调性**：由于数组元素全为正数，窗口扩展时sum增大，收缩时sum减小
-2. **完备性**：所有可能的子数组都会被遍历到
-3. **最优性**：每次收缩都保证了最小长度
+1. **单调性**：由于数组元素全为正数，窗口扩展时 `sum` 增大，收缩时 `sum` 减小。
+2. **候选覆盖**：对每个右端点，循环会依次移除仍能满足条件的左端元素，因此不会漏掉以该右端点结尾的最短可行窗口；算法不需要枚举所有子数组。
+3. **全局答案**：把每个右端点产生的可行长度都与当前最小值比较，最终得到全局最短长度。
 
 ### 方法二：前缀和 + 二分查找
 
@@ -80,21 +80,29 @@
 ## 代码实现
 
 ```cpp
-int minSubArrayLen(int target, vector<int>& nums) {
-    int left = 0, sum = 0, minLen = INT_MAX;
+int minSubArrayLen(int target, const vector<int>& nums) {
+    validate_input(target, nums);
+    size_t left = 0;
+    int64_t sum = 0;
+    size_t min_len = nums.size();
+    bool found = false;
     
-    for (int right = 0; right < nums.size(); ++right) {
+    for (size_t right = 0; right < nums.size(); ++right) {
         sum += nums[right];  // 扩展窗口
         
-        while (sum >= target) {  // 收缩条件
-            minLen = min(minLen, right - left + 1);
-            sum -= nums[left++];
+        while (sum >= static_cast<int64_t>(target)) {  // 收缩条件
+            min_len = min(min_len, right - left + 1);
+            found = true;
+            sum -= nums[left];
+            ++left;
         }
     }
     
-    return minLen == INT_MAX ? 0 : minLen;
+    return found ? week01::checked_index(min_len) : 0;
 }
 ```
+
+`validate_input` 明确要求 `target > 0`、所有元素都为正数，并检查公开 `int` 长度接口的范围。正数契约是滑动窗口单调性的前提；若允许 0 或负数，收缩规则不再有这份证明，应该改用适合新契约的算法。窗口和使用 `int64_t`，避免多个大 `int` 相加时在中途发生溢出。
 
 ## 复杂度分析
 
@@ -117,7 +125,7 @@ int minSubArrayLen(int target, vector<int>& nums) {
    - 空数组
 
 3. **优化技巧**：
-   - 使用 `INT_MAX` 初始化最小值
+   - 用 `found` 区分“尚未找到”与真实长度，避免依赖整数哨兵
    - 及时收缩窗口，避免漏解
 
 ## 相关题目

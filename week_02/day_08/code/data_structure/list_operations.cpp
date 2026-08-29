@@ -15,16 +15,20 @@ namespace list_ops {
 
 ListNode* createList(const std::vector<int>& values) {
     if (values.empty()) return nullptr;
+
+    // 构造尚未完成时由临时所有者负责整条链。任何一次new失败，
+    // 已创建节点都会被释放；只有全部成功后才把所有权交给调用者。
+    std::unique_ptr<ListNode, void (*)(ListNode*)> owner(
+        new ListNode(values[0]), &deleteList);
+    ListNode* curr = owner.get();
     
-    ListNode* head = new ListNode(values[0]);
-    ListNode* curr = head;
-    
-    for (size_t i = 1; i < values.size(); ++i) {
-        curr->next = new ListNode(values[i]);
+    for (std::size_t i = 1; i < values.size(); ++i) {
+        auto new_node = std::make_unique<ListNode>(values[i]);
+        curr->next = new_node.release();
         curr = curr->next;
     }
-    
-    return head;
+
+    return owner.release();
 }
 
 ListNode* createList(std::initializer_list<int> values) {
@@ -32,13 +36,13 @@ ListNode* createList(std::initializer_list<int> values) {
 }
 
 ListNode* createListWithDummy(const std::vector<int>& values) {
-    ListNode* dummy = new ListNode(0);  // 虚拟头节点
+    auto dummy = std::make_unique<ListNode>(0);  // 虚拟头节点
     
     if (!values.empty()) {
         dummy->next = createList(values);
     }
     
-    return dummy;
+    return dummy.release();
 }
 
 void deleteList(ListNode* head) {
@@ -51,18 +55,20 @@ void deleteList(ListNode* head) {
 
 ListNode* copyList(const ListNode* head) {
     if (!head) return nullptr;
-    
-    ListNode* newHead = new ListNode(head->val);
-    ListNode* curr = newHead;
+
+    std::unique_ptr<ListNode, void (*)(ListNode*)> owner(
+        new ListNode(head->val), &deleteList);
+    ListNode* curr = owner.get();
     head = head->next;
     
     while (head) {
-        curr->next = new ListNode(head->val);
+        auto new_node = std::make_unique<ListNode>(head->val);
+        curr->next = new_node.release();
         curr = curr->next;
         head = head->next;
     }
     
-    return newHead;
+    return owner.release();
 }
 
 // ==================== 遍历与访问 ====================

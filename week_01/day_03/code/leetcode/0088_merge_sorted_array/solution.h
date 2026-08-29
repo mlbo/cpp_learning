@@ -13,8 +13,8 @@
  * 要求：时间复杂度 O(m+n)，空间复杂度 O(1)
  */
 
-#ifndef SOLUTION_H
-#define SOLUTION_H
+#ifndef WEEK01_DAY03_LEETCODE_0088_SOLUTION_H
+#define WEEK01_DAY03_LEETCODE_0088_SOLUTION_H
 
 #include <vector>
 
@@ -31,6 +31,8 @@ public:
      * @param m nums1 的有效元素个数
      * @param nums2 第二个数组
      * @param n nums2 的元素个数
+     * @throws std::invalid_argument 当 m 或 n 为负数
+     * @throws std::length_error 当有效长度与缓冲区大小不匹配
      */
     void merge(std::vector<int>& nums1, int m,
                const std::vector<int>& nums2, int n);
@@ -46,4 +48,4 @@ public:
 
 } // namespace leetcode_0088
 
-#endif // SOLUTION_H
+#endif // WEEK01_DAY03_LEETCODE_0088_SOLUTION_H

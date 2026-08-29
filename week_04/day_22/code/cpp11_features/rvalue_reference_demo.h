@@ -6,9 +6,8 @@
 #ifndef RVALUE_REFERENCE_DEMO_H
 #define RVALUE_REFERENCE_DEMO_H
 
-#include <iostream>
+#include <cstddef>
 #include <string>
-#include <utility>
 
 /**
  * 右值引用演示函数
@@ -49,14 +48,16 @@ public:
     MyString& operator=(MyString&& other) noexcept;
     
     // 获取字符串
-    const char* c_str() const { return data_; }
+    const char* c_str() const noexcept { return data_ ? data_ : ""; }
     
     // 获取大小
-    size_t size() const { return size_; }
+    std::size_t size() const noexcept { return size_; }
+
+    void swap(MyString& other) noexcept;
 
 private:
     char* data_;
-    size_t size_;
+    std::size_t size_;
 };
 
 /**

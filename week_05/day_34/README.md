@@ -1,5 +1,11 @@
 # Day 34：并发编程综合
 
+> **学习定位**：本日把线程、锁、条件变量、future 和 atomic 放进同一张选择图，并通过树的综合题复盘递归。重点是同步边界和失效场景，不是追求“无锁一定更快”。
+
+> **共性入口**：LCA 与重建树的手算见 [形象化指南的 Day 34](../树与并发专题形象化题解指南.md#day34-visual)；并发 API 的完整主讲见 [C++ 并发编程教程](../../tutorials/CPP并发编程教程.md)；Item 35–40 主讲见 [Effective Modern C++ 教程](../../tutorials/Effective_Modern_CPP教程.md)。本日只做选型、组合、关闭协议和验证证据的综合训练。
+
+> **前后关系**：上一日 [Day 33](../day_33/README.md) 固定线程池的 reject-drain-join；下一日 [Day 35](../day_35/README.md) 用序列化、树形 DP、自测分层和项目契约完成阶段验收。
+
 ## 📅 学习目标
 
 - [ ] 深入理解进程与线程的区别与联系
@@ -11,437 +17,111 @@
 
 ---
 
-## 📖 知识点一：进程线程模型
+## 📖 知识点一：把并发组件放进同一张正确性地图
 
-### 进程与线程的概念
+本日不再逐项重讲 API。线程创建、共享数据、条件变量、future、atomic 和线程池的完整机制统一阅读 [C++ 并发编程教程](../../tutorials/CPP并发编程教程.md)，Item 35–40 的动机、反例和边界统一阅读 [Effective Modern C++ 教程](../../tutorials/Effective_Modern_CPP教程.md)。这里的新增任务是：面对一个真实接口时，能选择同步边界、写出关闭协议，并说明测试为什么不依赖调度运气。
 
-进程（Process）是操作系统资源分配的基本单位，每个进程都有独立的地址空间、文件描述符、环境变量等资源。线程（Thread）是CPU调度的基本单位，同一进程内的多个线程共享进程的资源，但拥有独立的栈空间和寄存器状态。理解进程和线程的区别是并发编程的基础，也是系统设计和性能优化的重要依据。
+### 进程与线程：只保留本日需要的边界
 
-从操作系统角度来看，进程是一个正在运行的程序实例，它包含了程序的代码、数据和运行时状态。线程则是在进程内部执行的一个控制流，多个线程可以并发执行同一程序的不同部分。进程创建开销大（需要复制父进程的资源），线程创建开销小（共享进程资源）。进程间通信需要IPC机制，而线程间可以直接读写共享变量。
+进程通常是资源与故障隔离边界，线程是进程内的一条执行流；同一进程内的线程通常共享地址空间和打开的资源，但各自拥有执行状态。创建、切换和通信成本取决于平台与负载，C++ 标准不保证“线程一定比进程便宜”之类的固定比例。本周真正要解决的不是背操作系统定义，而是共享地址空间带来的四类责任：
 
-### 进程与线程的对比
+| 责任 | 必须回答的问题 | 典型失败 |
+|---|---|---|
+| 所有权 | 线程、任务、参数、结果和共享对象由谁拥有，活到何时？ | 分离线程访问已经销毁的局部对象 |
+| 冲突访问 | 哪些线程会读写同一内存位置，哪条同步边建立 happens-before？ | data race 导致未定义行为 |
+| 业务不变量 | 哪些字段必须作为一个整体观察和更新？ | 每个字段都合法，但账户总额或队列状态已经破坏 |
+| 完成协议 | 谁停止接受，已接受工作排空还是取消，谁唤醒并 join？ | 析构永久等待、任务丢失或 self-join |
 
-| 特性 | 进程 | 线程 |
-|------|------|------|
-| 资源分配 | 独立地址空间 | 共享地址空间 |
-| 创建开销 | 大（需要复制资源） | 小（共享资源） |
-| 通信方式 | IPC（管道、消息队列等） | 共享内存 |
-| 切换开销 | 大（需要切换地址空间） | 小（同一地址空间） |
-| 健壮性 | 高（进程崩溃不影响其他进程） | 低（线程崩溃可能影响整个进程） |
-| 适用场景 | 隔离性要求高的任务 | 需要频繁通信的任务 |
+精确定义 data race 时不能只说“两个线程同时写”：两个可能并发的冲突访问作用于同一内存位置、至少一个访问会修改、至少一个访问不是原子操作，并且两者之间没有 happens-before，程序行为就是未定义。互斥正确也不等于程序必然完成；死锁、活锁、饥饿和忘记唤醒属于活性问题，必须另写停止与等待协议。
 
-```mermaid
-graph TB
-    subgraph "进程结构"
-        P1["进程 Process"]
-        P1 --> A["代码段 Code"]
-        P1 --> B["数据段 Data"]
-        P1 --> C["堆 Heap"]
-        P1 --> D["文件描述符"]
-        P1 --> E["环境变量"]
-        
-        subgraph "线程共享资源"
-            T1["线程1<br/>独立栈"]
-            T2["线程2<br/>独立栈"]
-            T3["线程3<br/>独立栈"]
-        end
-    end
-    
-    C --> T1
-    C --> T2
-    C --> T3
-```
+### 同步机制选择矩阵
 
-### 线程安全
+| 需求 | 首选入口 | 本日要验证的边界 |
+|---|---|---|
+| 一个作用域拥有一条执行线程 | <code>std::thread</code> + RAII join | 每条退出路径都 non-joinable，任务能有限完成或响应停止 |
+| 一次计算返回值或异常 | 任务 + <code>future</code> | 保存并观察结果句柄；<code>async</code> 策略符合接口需要 |
+| 多个字段组成一个不变量 | <code>mutex</code> + 具名 RAII 锁 | 所有相关读写使用同一协议，未知回调不在锁内执行 |
+| 等待共享状态变化 | <code>condition_variable</code> + 受锁谓词 | 使用谓词重载，处理虚假唤醒和关闭 |
+| 独立计数或经过证明的状态机 | <code>atomic</code> | 单对象原子性不冒充跨字段事务，内存序有证明 |
+| 长寿命 worker、队列和背压 | 线程池或执行器 | 接受、拒绝、排空、停止、唤醒、join 全部显式 |
 
-线程安全（Thread Safety）是指多线程环境下，代码能够正确处理多个线程同时访问共享资源的情况，不会出现数据竞争或不确定的行为。实现线程安全的核心挑战在于保证操作的原子性和可见性，即一个操作要么完全执行，要么完全不执行，且一个线程对共享变量的修改能够被其他线程及时看到。
+<code>recursive_mutex</code> 不是一般性的死锁修复，它常会掩盖重入设计；读写锁也只有在读多写少且测量证明受益时才值得增加复杂度。先选最容易证明正确的接口，再讨论性能。
 
-线程安全问题通常出现在以下场景：多个线程同时读写共享变量、操作非线程安全的容器、调用非线程安全的函数等。解决线程安全问题的基本策略包括：互斥锁保护临界区、使用原子操作、使用线程本地存储（Thread Local Storage）、避免共享状态等。其中，互斥锁是最常用的同步机制，通过加锁保证同一时刻只有一个线程能够访问临界区。
+### 三条常见 happens-before 证明链
 
-```mermaid
-graph LR
-    subgraph "线程安全问题"
-        A["多个线程"] --> B["同时访问"]
-        B --> C["共享资源"]
-        C --> D{"数据竞争?"}
-        D -->|"是"| E["数据不一致<br/>程序崩溃<br/>死锁"]
-        D -->|"否"| F["正确执行"]
-    end
-    
-    subgraph "解决方案"
-        G["互斥锁 Mutex"]
-        H["原子操作 Atomic"]
-        I["线程本地存储 TLS"]
-        J["无锁数据结构"]
-    end
-    
-    E -.-> G
-    E -.-> H
-    E -.-> I
-    E -.-> J
-```
+1. **mutex 链**：线程 A 在同一把 mutex 保护下修改共享状态并解锁；线程 B 随后成功锁住该 mutex，再读取状态。解锁与后续加锁建立同步，A 在解锁前的写入 happens-before B 在加锁后的读取。
+2. **条件变量链**：通知者先在 mutex 保护下改变谓词，再通知；等待者通过 <code>wait(lock, predicate)</code> 原子地释放锁并等待，返回前重新加锁并再次确认谓词。通知只是促使重查，状态可见性仍来自受锁状态和 mutex 同步。
+3. **release/acquire 链**：发布者先写普通 payload，再对原子标志做 release store；消费者的 acquire load 必须实际读到该发布值，之后才能安全读取 payload。两端都改成 relaxed 会失去这条发布证明。
 
-### 同步机制详解
-
-#### 互斥锁（Mutex）
-
-互斥锁是最基本的同步原语，用于保护临界区。C++11提供了`std::mutex`及其变体`std::recursive_mutex`、`std::timed_mutex`等。使用互斥锁时需要注意死锁问题：当两个或多个线程互相等待对方释放锁时，程序将无限等待下去。
-
-```cpp
-// 基本互斥锁使用
-std::mutex mtx;
-int shared_counter = 0;
-
-void increment() {
-    std::lock_guard<std::mutex> lock(mtx);  // RAII风格加锁
-    ++shared_counter;
-    // 离开作用域自动解锁
-}
-
-// 避免死锁：使用std::lock同时锁定多个互斥量
-std::mutex mtx1, mtx2;
-void safeOperation() {
-    std::lock(mtx1, mtx2);  // 原子地锁定两个互斥量
-    std::lock_guard<std::mutex> lg1(mtx1, std::adopt_lock);
-    std::lock_guard<std::mutex> lg2(mtx2, std::adopt_lock);
-    // 临界区操作
-}
-```
-
-#### 条件变量（Condition Variable）
-
-条件变量用于线程间的通知机制，允许一个线程等待某个条件成立，另一个线程通知条件已满足。条件变量必须与互斥锁配合使用，以避免竞态条件。
-
-```cpp
-std::mutex mtx;
-std::condition_variable cv;
-bool ready = false;
-
-// 等待线程
-void waitForReady() {
-    std::unique_lock<std::mutex> lock(mtx);
-    cv.wait(lock, []{ return ready; });  // 等待条件成立
-    // 条件成立后继续执行
-}
-
-// 通知线程
-void setReady() {
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        ready = true;
-    }
-    cv.notify_one();  // 或 notify_all()
-}
-```
-
-#### 原子操作（Atomic）
-
-原子操作是不可分割的操作，在执行过程中不会被中断。C++11提供了`std::atomic`模板类，支持对基本类型的原子操作。原子操作比互斥锁更轻量，适用于简单的计数器、标志位等场景。
-
-```cpp
-std::atomic<int> counter(0);
-std::atomic<bool> flag(false);
-
-// 原子递增
-counter.fetch_add(1);  // 或 counter++
-
-// 原子交换
-int expected = 0;
-bool success = counter.compare_exchange_strong(expected, 1);
-
-// 内存序
-counter.load(std::memory_order_acquire);
-counter.store(1, std::memory_order_release);
-```
-
-### 同步机制对比
-
-| 同步机制 | 适用场景 | 性能开销 | 特点 |
-|---------|---------|---------|------|
-| mutex | 保护复杂临界区 | 较高 | 使用简单，但可能死锁 |
-| recursive_mutex | 递归调用场景 | 较高 | 允许同一线程多次加锁 |
-| condition_variable | 线程间通知 | 中等 | 需配合mutex使用 |
-| atomic | 简单变量操作 | 低 | 无锁，但功能有限 |
-| 读写锁 | 读多写少 | 中等 | 允许并发读 |
+<code>future::get()</code>、成功等待已就绪共享状态和 <code>join()</code> 也能形成完成点，但它们解决的所有权与结果问题不同，不能只因为都“会阻塞”就混为同一种 API。
 
 ---
 
-## 📖 知识点二：C++并发编程综合
+## 📖 知识点二：可关闭通道的完整协议
 
-### std::thread 线程管理
+Day 31 已学习条件变量谓词，Day 33 已学习线程池。本日把两者合并到 <code>IntChannel</code>：通道内部的队列和 <code>closed</code> 状态由同一把 mutex 保护，外部只通过 send、receive 和 close 观察协议。
 
-C++11的`std::thread`是并发编程的基础组件，用于创建和管理线程。每个`std::thread`对象代表一个执行线程，可以通过构造函数传递参数启动线程。使用线程时需要特别注意资源管理：线程对象必须在销毁前调用`join()`或`detach()`，否则程序会调用`std::terminate()`终止。
+### 接口契约
 
-```cpp
-#include <thread>
-#include <iostream>
+| 操作 | Running 状态 | Closed 但队列非空 | Closed 且队列为空 |
+|---|---|---|---|
+| send(value) | 在锁内入队后返回成功 | 拒绝且不修改队列 | 拒绝且不修改队列 |
+| receive() | 有值则取一个；无值则等待 | 继续排空已接受值 | 返回结束标记 |
+| close() | 锁内关门，随后唤醒全部等待者 | 幂等，不丢弃已有值 | 幂等 |
 
-void worker(int id) {
-    std::cout << "Worker " << id << " running\n";
-}
+send 与 close 使用同一把锁决定线性化顺序：send 先完成入队，该值就属于必须排空的已接受工作；close 先关门，send 就必须失败，不能处于“也许入队了一半”的状态。receive 的谓词是“已关闭或队列非空”，不能只等“队列非空”，否则最后一个生产者退出后消费者可能永久睡眠。
 
-int main() {
-    std::thread t1(worker, 1);  // 创建并启动线程
-    std::thread t2(worker, 2);
-    
-    t1.join();  // 等待线程结束
-    t2.join();
-    
-    return 0;
-}
-```
+### 关闭顺序
 
-线程管理的关键实践包括：使用RAII包装器管理线程生命周期（如`std::jthread`，C++20）、避免异常导致的资源泄漏、合理设置线程数量（通常与CPU核心数相关）、使用线程池避免频繁创建销毁线程的开销。
+1. **接受**：Running 时，提交在锁内进入队列才算成功。
+2. **拒绝**：close 在锁内把状态改为不再接受；此后的 send 明确失败。
+3. **排空**：消费者继续处理关闭前已成功入队的数据。
+4. **停止与唤醒**：close 调用 <code>notify_all()</code>，所有等待者重新检查谓词。
+5. **退出**：队列空且已关闭时，receive 返回结束标记，worker 离开循环。
+6. **join**：通道或线程组的外部 owner 等待 worker；worker 不回收包含自身的线程组。
 
-### std::mutex 互斥量家族
+“立即取消待处理数据”也是可能的设计，但必须是另一份明确契约：被取消任务的 future 获得什么结果、资源怎样释放、调用者如何区分取消与执行失败。本日采用 drain，不能把取消悄悄混入实现。
 
-互斥量家族提供了多种锁机制，满足不同场景的需求：
+### atomic 的适用边界
 
-- `std::mutex`：基本互斥量，不可递归加锁
-- `std::recursive_mutex`：递归互斥量，同一线程可多次加锁
-- `std::timed_mutex`：定时互斥量，支持超时尝试加锁
-- `std::shared_mutex`（C++17）：读写锁，允许多读单写
-
-```cpp
-// RAII风格的锁管理
-std::mutex mtx;
-
-void safeOperation() {
-    // lock_guard: 最简单，自动加锁解锁
-    {
-        std::lock_guard<std::mutex> lg(mtx);
-        // 临界区
-    }
-    
-    // unique_lock: 更灵活，支持延迟加锁、提前解锁
-    {
-        std::scoped_lock<std::mutex> ul(mtx);  // C++17
-        // 临界区
-    }
-}
-```
-
-### std::condition_variable 条件变量
-
-条件变量实现了线程间的等待/通知机制，是生产者-消费者模式、线程池等并发结构的核心组件。使用条件变量时需要遵循固定模式：在循环中检查条件（防止虚假唤醒），使用`std::unique_lock`管理锁。
-
-```cpp
-#include <condition_variable>
-#include <queue>
-#include <thread>
-
-template<typename T>
-class ThreadSafeQueue {
-private:
-    std::queue<T> queue_;
-    mutable std::mutex mtx_;
-    std::condition_variable cv_;
-    
-public:
-    void push(T value) {
-        {
-            std::lock_guard<std::mutex> lg(mtx_);
-            queue_.push(std::move(value));
-        }
-        cv_.notify_one();
-    }
-    
-    T pop() {
-        std::unique_lock<std::mutex> ul(mtx_);
-        cv_.wait(ul, [this]{ return !queue_.empty(); });
-        T value = std::move(queue_.front());
-        queue_.pop();
-        return value;
-    }
-};
-```
-
-### std::atomic 原子操作
-
-原子操作是无锁编程的基础，C++11提供了丰富的原子类型和操作。原子操作不仅保证操作的原子性，还通过内存序（Memory Order）控制不同线程间的可见性。
-
-```cpp
-#include <atomic>
-
-// 常用原子操作
-std::atomic<int> counter(0);
-std::atomic<bool> flag(false);
-std::atomic<int*> ptr(nullptr);
-
-// 原子操作示例
-void atomicDemo() {
-    // 加载和存储
-    int val = counter.load();  // 原子读取
-    counter.store(10);         // 原子写入
-    
-    // 交换
-    int old = counter.exchange(20);  // 原子交换并返回旧值
-    
-    // 比较并交换（CAS）
-    int expected = 20;
-    bool success = counter.compare_exchange_strong(expected, 30);
-    
-    // 原子算术
-    counter.fetch_add(1);  // 原子加
-    counter.fetch_sub(1);  // 原子减
-}
-
-// 内存序详解
-void memoryOrderDemo() {
-    // memory_order_relaxed: 只保证原子性，不保证顺序
-    counter.fetch_add(1, std::memory_order_relaxed);
-    
-    // memory_order_acquire: 获取语义，后续读写不能重排到此操作之前
-    int val = counter.load(std::memory_order_acquire);
-    
-    // memory_order_release: 释放语义，之前的读写不能重排到此操作之后
-    counter.store(10, std::memory_order_release);
-    
-    // memory_order_seq_cst: 默认，最强约束，全局顺序一致
-    counter.store(10, std::memory_order_seq_cst);
-}
-```
-
-### 并发编程综合示例
-
-```mermaid
-graph TB
-    subgraph "C++并发组件关系"
-        A["std::thread<br/>线程创建"] --> B["std::mutex<br/>互斥保护"]
-        B --> C["std::condition_variable<br/>线程协调"]
-        A --> D["std::atomic<br/>无锁同步"]
-        
-        E[RAII锁管理] --> F["lock_guard<br/>简单场景"]
-        E --> G["unique_lock<br/>灵活场景"]
-        E --> H["scoped_lock<br/>多锁场景"]
-    end
-```
+本日默认从 <code>memory_order_seq_cst</code> 开始，因为它最容易推理。独立统计计数可在不发布其他数据时考虑 relaxed；发布 payload 才讨论 release/acquire；多个字段需要一起验证时优先回到 mutex。标准不保证任意 <code>atomic&lt;T&gt;</code> lock-free，也不保证无锁比锁更快；<code>is_lock_free()</code> 只能描述当前实现性质，不能替代算法正确性证明。
 
 ---
 
-## 📖 知识点三：EMC++ Item 35-40 复习
+## 📖 知识点三：EMC++ Item 35–40 的本日连接
 
-### Item 35: Prefer task-based programming to thread-based
+下表只记录 Day 34 的综合判断，完整条款不在这里复制。
 
-基于任务（task-based）的编程比基于线程（thread-based）的编程更优。使用`std::async`可以避免手动管理线程，让运行时决定最佳执行策略（同步或异步），同时提供异常安全的返回值传递。
+| Item | 主问题 | Day 34 的落点 |
+|---|---|---|
+| 35 | 任务还是线程 | 有返回值或异常的一次计算优先任务；长期 worker 和有界队列需要执行器协议 |
+| 36 | 是否必须异步 | 若线程身份或并发执行是契约，显式选择 <code>std::launch::async</code>；默认策略允许 deferred |
+| 37 | thread 如何离开作用域 | RAII 让每条正常/异常路径都 join；detach 需要独立寿命证明 |
+| 38 | 句柄析构做什么 | joinable thread 析构终止；future 是否可能等待取决于共享状态来源 |
+| 39 | 一次性事件怎样通知 | <code>promise&lt;void&gt;</code>/<code>future&lt;void&gt;</code> 记住就绪状态；重复事件仍用状态 + 条件变量 |
+| 40 | atomic 与 volatile | atomic 用于并发同步；volatile 不建立 happens-before，只用于实现/平台定义的特殊访问 |
 
-```cpp
-// 不推荐：手动管理线程
-int result;
-std::thread t([&result]{ result = compute(); });
-t.join();
+### 线程生命周期的统一检查
 
-// 推荐：使用async
-auto future = std::async(std::launch::async, compute);
-int result = future.get();  // 自动处理异常
-```
+- <code>std::thread</code> 构造成功后即可开始执行，参数按值保存还是显式借用必须清楚。
+- 句柄析构前若仍 joinable，程序调用 <code>std::terminate()</code>；线程函数已经返回并不会自动令句柄 non-joinable。
+- <code>std::async</code> 默认策略允许 async 或 deferred；需要异步时显式指定策略并处理资源不足异常。
+- 来自 async、promise、packaged_task 的 future 共享状态来源不同，不能把析构行为背成统一规则。
+- 线程池析构前必须停止接受、排空、唤醒、退出并由外部 owner join；任务捕获的引用必须活到 future 就绪。
 
-**核心要点**：
-- `std::thread`不提供返回值机制，异常会导致程序终止
-- `std::async`返回`std::future`，可以获取返回值和异常
-- 默认启动策略允许运行时优化调度决策
+### 不依赖时序的验证方法
 
-### Item 36: Specify std::launch::async if asynchronicity is essential
+并发测试要证明协议，而不是“制造看起来像并发的输出”：
 
-当异步执行至关重要时，必须显式指定`std::launch::async`启动策略。默认启动策略不保证异步执行，运行时可能选择延迟执行（在调用get()时同步执行）。
+| 要验证的性质 | 稳定手段 | 不应使用 |
+|---|---|---|
+| 任务已经开始并停在指定阶段 | promise/future 或 mutex + 谓词门控 | 睡眠若干毫秒后猜测 |
+| 已接受任务全部完成 | 保存 future 并 get，或 shutdown 返回后检查最终集合 | 日志行数或完成顺序 |
+| close 后提交被拒绝 | 先通过同步门确认 close 线性化，再调用 send/submit | 两个线程同时启动后碰运气 |
+| 没有丢失或重复 | 比较最终多重集合、计数和业务不变量 | 假定 FIFO 之外的调度顺序 |
+| worker 已退出 | 外部 owner join | 轮询线程 ID 或固定超时 |
 
-```cpp
-// 默认策略：可能异步，可能延迟
-auto f1 = std::async(func);
-
-// 强制异步执行
-auto f2 = std::async(std::launch::async, func);
-
-// 强制延迟执行
-auto f3 = std::async(std::launch::deferred, func);
-```
-
-**核心要点**：
-- 默认策略是`async | deferred`，运行时决定
-- 需要真正并行时使用`std::launch::async`
-- 延迟执行适用于负载均衡场景
-
-### Item 37: Make std::threads unjoinable on all paths
-
-确保所有路径下`std::thread`都是不可连接状态（joined或detached）。未处理的线程会在析构时调用`std::terminate()`导致程序崩溃。
-
-```cpp
-// RAII包装器
-class ThreadGuard {
-    std::thread& t_;
-public:
-    explicit ThreadGuard(std::thread& t) : t_(t) {}
-    ~ThreadGuard() {
-        if (t_.joinable()) {
-            t_.join();
-        }
-    }
-    ThreadGuard(const ThreadGuard&) = delete;
-    ThreadGuard& operator=(const ThreadGuard&) = delete;
-};
-
-// C++20: 使用std::jthread自动join
-std::jthread t(func);  // 析构时自动join
-```
-
-### Item 38: Be aware of varying thread handle destructor behavior
-
-不同并发句柄的析构行为不同：`std::thread`会终止程序，`std::future`会阻塞等待共享状态，了解这些行为对于正确管理资源至关重要。
-
-```cpp
-// thread析构：程序终止（如果joinable）
-std::thread t(func);
-// t析构时若joinable()为true -> std::terminate()
-
-// future析构：等待共享状态就绪
-auto f = std::async(func);
-// f析构时会阻塞直到异步操作完成
-```
-
-### Item 39: Consider void futures for one-shot event communication
-
-对于一次性事件通信，考虑使用`std::promise<void>`和`std::future<void>`组合，这比条件变量更简洁且不易出错。
-
-```cpp
-// 使用promise/future进行一次性通知
-std::promise<void> readyPromise;
-std::future<void> readyFuture = readyPromise.get_future();
-
-// 等待线程
-readyFuture.wait();  // 阻塞直到被通知
-
-// 通知线程
-readyPromise.set_value();  // 发送通知
-```
-
-### Item 40: Use std::atomic for concurrency, volatile for special memory
-
-`std::atomic`用于并发编程，`volatile`用于特殊内存（如内存映射I/O）。两者用途完全不同，不能混用。
-
-```cpp
-// atomic: 用于并发访问
-std::atomic<int> counter(0);
-counter++;  // 原子递增，线程安全
-
-// volatile: 用于特殊内存，告诉编译器不要优化
-volatile int* hardwareReg = reinterpret_cast<volatile int*>(0xFFFF0000);
-*hardwareReg = 0x01;  // 每次都要写入，不能被优化掉
-
-// 错误用法：volatile不保证原子性
-volatile int x = 0;
-x++;  // 非原子操作，不线程安全！
-```
-
-**总结对比**：
-
-| 特性 | std::atomic | volatile |
-|------|-------------|----------|
-| 原子性 | 保证 | 不保证 |
-| 可见性 | 保证（通过内存序） | 不保证 |
-| 线程安全 | 是 | 否 |
-| 用途 | 并发编程 | 特殊内存访问 |
-
----
+测试仍可设置有限超时作为“测试框架不能永久挂死”的保险丝，但超时不是正确性的主要证据；主要证据必须来自协议事件和最终不变量。
 
 ## 🎯 LeetCode 刷题
 
@@ -483,7 +163,7 @@ x++;  // 非原子操作，不线程安全！
 **最近公共祖先（LCA, Lowest Common Ancestor）**：在所有公共祖先中，离P和Q最近的那一个。LCA是树论中的经典问题，广泛应用于计算生物学、地理信息系统等领域。
 
 **LCA问题的特点**：
-1. **唯一性**：对于任意两个节点，LCA存在且唯一
+1. **唯一性**：当两个目标都属于同一棵有根树时，LCA存在且唯一
 2. **包含性**：节点可以是自己的祖先
 3. **传递性**：LCA(P, Q)必在P到根和Q到根的路径交点上
 
@@ -492,8 +172,10 @@ x++;  // 非原子操作，不线程安全！
 |------|-----------|-----------|------|
 | 递归DFS | O(n) | O(h) | 简洁直观 |
 | 存储路径 | O(n) | O(n) | 思路简单 |
-| Tarjan算法 | O(n) | O(n) | 离线查询最优 |
+| Tarjan 离线算法 | O((n+q) α(n)) | O(n+q) | 一次处理 q 个已知查询，复杂度近线性 |
 | 倍增法 | O(nlogn)预处理，O(logn)查询 | O(nlogn) | 在线查询高效 |
+
+这里 `n` 是节点数、`q` 是查询数、`α(n)` 是反 Ackermann 函数。单次查询时递归 DFS 已是 O(n)；Tarjan 的优势在于批量离线查询，不应脱离 `q` 直接写成“O(n) 最优”。
 
 #### 解题思路
 
@@ -529,52 +211,32 @@ graph TB
 #### 代码实现
 
 ```cpp
-// 文件位置：code/leetcode/0236_lca/solution.h
+#include <memory>
 
-#ifndef SOLUTION_H
-#define SOLUTION_H
-
-// 二叉树节点定义
 struct TreeNode {
-    int val;
-    TreeNode* left;
-    TreeNode* right;
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+    int value;
+    std::unique_ptr<TreeNode> left;
+    std::unique_ptr<TreeNode> right;
 };
 
-class Solution {
-public:
-    TreeNode* lowestCommonAncestor(TreeNode* root, TreeNode* p, TreeNode* q);
-};
-
-#endif // SOLUTION_H
-```
-
-```cpp
-// 文件位置：code/leetcode/0236_lca/solution.cpp
-
-#include "solution.h"
-
-TreeNode* Solution::lowestCommonAncestor(TreeNode* root, TreeNode* p, TreeNode* q) {
-    // 基本情况：到达空节点或找到p/q
+const TreeNode* lca_unchecked(
+    const TreeNode* root,
+    const TreeNode* p,
+    const TreeNode* q) {
     if (root == nullptr || root == p || root == q) {
         return root;
     }
-    
-    // 递归左右子树
-    TreeNode* left = lowestCommonAncestor(root->left, p, q);
-    TreeNode* right = lowestCommonAncestor(root->right, p, q);
-    
-    // 如果左右子树都找到了，说明p和q分别在root两侧
+
+    const TreeNode* left = lca_unchecked(root->left.get(), p, q);
+    const TreeNode* right = lca_unchecked(root->right.get(), p, q);
     if (left != nullptr && right != nullptr) {
-        return root;  // root就是LCA
+        return root;
     }
-    
-    // 如果只有一边找到了，返回那一侧的结果
-    // 如果两边都没找到，返回nullptr
     return left != nullptr ? left : right;
 }
 ```
+
+仓库实现由 `unique_ptr` 表达树的独占所有权，算法参数和返回值是只观察节点的裸指针，不负责释放。LeetCode 原题保证 `p` 和 `q` 在树中；通用接口不能偷偷依赖这个前提，因此外层先验证两个观察者都属于 `root`，缺失或空指针返回 `nullptr`。这会多做常数次 O(n) 遍历，但换来了清晰、可测试的接口契约；需要大量查询时应改用预处理方案，而不是反复扫描。
 
 #### 复杂度分析
 
@@ -620,6 +282,8 @@ TreeNode* Solution::lowestCommonAncestor(TreeNode* root, TreeNode* p, TreeNode* 
 
 **中序遍历（Inorder）**：左 → 根 → 右，根节点将序列分为左子树和右子树两部分。
 
+本题实现以“节点值唯一”为输入契约；若存在重复值，单凭值无法在中序序列中唯一定位根，需要额外身份信息或不同编码。两个序列还必须长度相等、包含相同节点身份，并且每次递归切分都落在合法范围内。
+
 **为什么这两种遍历可以确定一棵树？**
 1. 前序遍历确定了根节点的位置（第一个元素）
 2. 中序遍历确定了左右子树的范围（根节点左侧是左子树，右侧是右子树）
@@ -641,6 +305,7 @@ TreeNode* Solution::lowestCommonAncestor(TreeNode* root, TreeNode* p, TreeNode* 
 - 空数组：返回空树
 - 单元素：叶子节点
 - 前序和中序长度必须相等
+- 两个序列包含不同值或子树范围矛盾时抛出 `std::invalid_argument`
 
 #### 解题思路
 
@@ -665,118 +330,69 @@ graph TB
     end
 ```
 
-**优化技巧**：使用哈希表存储中序值到索引的映射，避免重复查找。
+**优化技巧**：使用哈希表存储中序值到索引的映射，避免重复查找。`unordered_map` 的查找是平均 O(1)，不是最坏情况承诺。
 
 #### 代码实现
 
+下块是与实际四区间算法一致的局部核心，**不可单独编译**；省略 `<cstddef>`、`<memory>`、`<vector>`，`TreeNode` 的其余工程接口，以及使用预建 `unordered_map` 且验证根落在 `[in_begin, in_end)` 内的 `checked_inorder_position`。
+
 ```cpp
-// 文件位置：code/leetcode/0105_construct_tree/solution.h
-
-#ifndef SOLUTION_H
-#define SOLUTION_H
-
-#include <vector>
-#include <unordered_map>
-
 struct TreeNode {
-    int val;
-    TreeNode* left;
-    TreeNode* right;
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+    explicit TreeNode(int node_value) : value{node_value} {}
+
+    int value;
+    std::unique_ptr<TreeNode> left;
+    std::unique_ptr<TreeNode> right;
 };
 
-class Solution {
-private:
-    std::unordered_map<int, int> inorderMap_;
-    
-    TreeNode* buildTreeHelper(
-        const std::vector<int>& preorder,
-        int preStart, int preEnd,
-        int inStart, int inEnd
-    );
-
-public:
-    TreeNode* buildTree(std::vector<int>& preorder, std::vector<int>& inorder);
-};
-
-#endif // SOLUTION_H
-```
-
-```cpp
-// 文件位置：code/leetcode/0105_construct_tree/solution.cpp
-
-#include "solution.h"
-
-TreeNode* Solution::buildTreeHelper(
+std::unique_ptr<TreeNode> build_range(
     const std::vector<int>& preorder,
-    int preStart, int preEnd,
-    int inStart, int inEnd
-) {
-    // 递归终止条件
-    if (preStart > preEnd || inStart > inEnd) {
+    std::size_t pre_begin, std::size_t pre_end,
+    std::size_t in_begin, std::size_t in_end) {
+    // 半开区间 [begin, end) 避免空数组上的 size() - 1 下溢
+    if (pre_begin == pre_end) {
         return nullptr;
     }
-    
-    // 前序首元素是根节点
-    int rootVal = preorder[preStart];
-    TreeNode* root = new TreeNode(rootVal);
-    
-    // 在中序中找到根节点的位置
-    int rootPos = inorderMap_[rootVal];
-    
-    // 计算左子树的大小
-    int leftSize = rootPos - inStart;
-    
-    // 递归构造左子树
-    // 前序: [preStart+1, preStart+leftSize]
-    // 中序: [inStart, rootPos-1]
-    root->left = buildTreeHelper(
-        preorder,
-        preStart + 1, preStart + leftSize,
-        inStart, rootPos - 1
-    );
-    
-    // 递归构造右子树
-    // 前序: [preStart+leftSize+1, preEnd]
-    // 中序: [rootPos+1, inEnd]
-    root->right = buildTreeHelper(
-        preorder,
-        preStart + leftSize + 1, preEnd,
-        rootPos + 1, inEnd
-    );
-    
+
+    const int root_value = preorder[pre_begin];
+    const std::size_t root_pos = checked_inorder_position(root_value, in_begin, in_end);
+    const std::size_t left_size = root_pos - in_begin;
+    auto root = std::make_unique<TreeNode>(root_value);
+    root->left = build_range(
+        preorder, pre_begin + 1, pre_begin + 1 + left_size, in_begin, root_pos);
+    root->right = build_range(
+        preorder, pre_begin + 1 + left_size, pre_end, root_pos + 1, in_end);
     return root;
 }
-
-TreeNode* Solution::buildTree(std::vector<int>& preorder, std::vector<int>& inorder) {
-    // 建立中序值到索引的映射
-    for (int i = 0; i < inorder.size(); ++i) {
-        inorderMap_[inorder[i]] = i;
-    }
-    
-    return buildTreeHelper(preorder, 0, preorder.size() - 1, 0, inorder.size() - 1);
-}
 ```
+
+完整版本见 `code/leetcode/0105_construct_tree/solution.h`：它使用 `size_t` 半开区间避免空序列下溢，用 `unique_ptr` 保证递归中途抛异常时已经创建的节点仍会自动释放，并通过重复值、长度和值域测试固定输入契约。构造后测试会重新生成前序和中序序列与输入比较，而不是只断言根值，因为错误的子树切分也可能得到同一个根。
 
 #### 复杂度分析
 
-- 时间复杂度：O(n)，每个节点处理一次
-- 空间复杂度：O(n)，哈希表存储和递归栈
+- 平均时间复杂度：O(n)，前提是 `unordered_map` 操作平均 O(1)；哈希退化时最坏可到 O(n²)
+- 空间复杂度：O(n) 索引表 + O(h) 递归栈，总计 O(n)
 
 ---
 
 ## 🚀 运行代码
 
 ```bash
-# 编译并运行当天所有代码
+# 在仓库根目录执行；脚本会删除本日旧 build，再以 Release + 严格警告构建并运行全部 CTest
+cd week_05/day_34
 ./build_and_run.sh
 
-# 或者手动编译
-mkdir build && cd build
-cmake ..
-make
-./day_34_main
+# 或在本日目录下用独立的全新构建目录手动验证
+cmake -E remove_directory build-manual
+cmake -S . -B build-manual -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Werror"
+cmake --build build-manual --parallel
+ctest --test-dir build-manual --output-on-failure
 ```
+
+### 今日工程动作：固定一个可关闭通道的接口契约
+
+运行 `ctest -R day34_project_action --test-dir build-manual --output-on-failure`，再阅读 `code/main.cpp`。请给 `IntChannel` 增加 `size()` 时先写出契约：它只是某一瞬间的观察值，不能作为“随后 pop 一定成功”的依据；然后添加测试证明 `close()` 后已接收数据会排空、新数据会被拒绝、消费者不会永久等待。不要用 `sleep_for` 猜测线程已经运行到某处，完成关系必须来自 `join`、条件变量谓词或 future。
 
 ---
 
@@ -784,12 +400,12 @@ make
 
 | 术语 | 英文 | 定义 |
 |------|------|------|
-| 进程 | Process | 操作系统资源分配的基本单位 |
-| 线程 | Thread | CPU调度的基本单位 |
-| 线程安全 | Thread Safety | 多线程环境下正确处理共享资源的能力 |
+| 进程 | Process | 常见的资源与故障隔离边界，具体模型由操作系统决定 |
+| 线程 | Thread | 进程内的一条执行流，通常由操作系统调度 |
+| 线程安全 | Thread Safety | 在接口允许的并发调用方式下仍满足契约与不变量 |
 | 互斥锁 | Mutex | 保护临界区的同步原语 |
 | 条件变量 | Condition Variable | 线程间通知机制的同步原语 |
-| 原子操作 | Atomic Operation | 不可分割的操作 |
+| 原子操作 | Atomic Operation | 按标准规定原子地参与对象修改顺序的操作 |
 | 死锁 | Deadlock | 多线程互相等待导致无限阻塞 |
 | 竞态条件 | Race Condition | 执行结果依赖线程执行顺序 |
 | 内存序 | Memory Order | 原子操作的可见性约束 |
@@ -805,7 +421,7 @@ make
 1. **并发编程学习建议**：理解进程线程模型是并发编程的基础。建议通过调试工具观察多线程程序的执行过程，体会竞态条件和同步机制的作用。动手实现一个线程安全的队列或计数器，加深对mutex和condition_variable的理解。
 
 2. **同步机制选择指南**：
-   - 简单计数器/标志位：使用`std::atomic`
+   - 独立计数器或经过证明的单对象状态机：考虑 `std::atomic`
    - 保护复杂数据结构：使用`std::mutex`配合`std::lock_guard`
    - 线程间等待/通知：使用`std::condition_variable`
    - 一次性事件：使用`std::promise/std::future`
@@ -824,11 +440,23 @@ make
 
 ## 🔗 参考资料
 
-1. [cppreference - std::thread](https://en.cppreference.com/w/cpp/thread/thread)
-2. [cppreference - std::mutex](https://en.cppreference.com/w/cpp/thread/mutex)
-3. [cppreference - std::condition_variable](https://en.cppreference.com/w/cpp/thread/condition_variable)
-4. [cppreference - std::atomic](https://en.cppreference.com/w/cpp/atomic/atomic)
-5. [Effective Modern C++ - Item 35-40](https://www.aristeia.com/EMC++.html)
-6. [LeetCode 236 - 二叉树的最近公共祖先](https://leetcode.cn/problems/lowest-common-ancestor-of-a-binary-tree/)
-7. [LeetCode 105 - 从前序与中序遍历序列构造二叉树](https://leetcode.cn/problems/construct-binary-tree-from-preorder-and-inorder-traversal/)
-8. [C++ Concurrency In Action](https://www.manning.com/books/c-plus-plus-concurrency-in-action)
+1. [C++ working draft：并发支持库](https://eel.is/c++draft/thread)
+2. [cppreference：Thread support library](https://en.cppreference.com/w/cpp/thread.html)
+3. [cppreference：C++ memory model](https://en.cppreference.com/w/cpp/language/multithread.html)
+4. [C++ Core Guidelines：Concurrency](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#S-concurrency)
+5. [LeetCode 236 - 二叉树的最近公共祖先](https://leetcode.cn/problems/lowest-common-ancestor-of-a-binary-tree/)
+6. [LeetCode 105 - 从前序与中序遍历序列构造二叉树](https://leetcode.cn/problems/construct-binary-tree-from-preorder-and-inorder-traversal/)
+7. Anthony Williams, *C++ Concurrency in Action*（共享数据、同步操作、内存模型和线程池）
+8. Scott Meyers, *Effective Modern C++*, Item 35–40
+9. [仓库并发编程教程](../../tutorials/CPP并发编程教程.md)
+10. [仓库 Effective Modern C++ 教程](../../tutorials/Effective_Modern_CPP教程.md)
+
+---
+
+## 五句复盘（恰好五句）
+
+1. 线程共享地址空间带来低成本通信，也把数据竞争、对象寿命和停止顺序交给接口设计者负责。
+2. mutex 保护跨字段不变量，condition_variable 等待受锁保护的谓词，atomic 只解决其规定操作的原子性与内存序。
+3. task、thread 和 future 的选择取决于结果、异常、调度与生命周期契约，而不是某个 API 看起来更短。
+4. LCA 与重建树都必须声明输入前提和所有权，不能把在线评测保证悄悄当成通用库契约。
+5. 并发测试应断言最终状态和同步关系，不应断言线程输出顺序或依靠睡眠碰运气。

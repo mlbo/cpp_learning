@@ -10,7 +10,13 @@
  */
 
 #include <iostream>
+#include <memory>
 #include "list_node.h"
+
+using day13_lists::ListNode;
+using day13_lists::createList;
+using day13_lists::deleteList;
+using day13_lists::listToString;
 
 // ============================================
 // 技巧一：链表分区（快排思想）
@@ -92,6 +98,17 @@ ListNode* reorderList(ListNode* head) {
 
 bool isPalindrome(ListNode* head) {
     if (!head || !head->next) return true;
+
+    const auto reverse_half = [](ListNode* first_node) {
+        ListNode* previous = nullptr;
+        while (first_node) {
+            ListNode* next_node = first_node->next;
+            first_node->next = previous;
+            previous = first_node;
+            first_node = next_node;
+        }
+        return previous;
+    };
     
     // 方法一：使用栈（O(n)空间）
     // 方法二：反转后半部分（O(1)空间）
@@ -105,27 +122,25 @@ bool isPalindrome(ListNode* head) {
     }
     
     // 反转后半部分
-    ListNode* second = slow->next;
-    ListNode* pprev = nullptr;
-    while (second) {
-        ListNode* next = second->next;
-        second->next = pprev;
-        pprev = second;
-        second = next;
-    }
-    second = pprev;
+    ListNode* second = reverse_half(slow->next);
+    slow->next = second;
     
     // 比较前后两部分
     ListNode* first = head;
-    while (second) {
-        if (first->val != second->val) {
-            return false;
+    bool result = true;
+    ListNode* compare = second;
+    while (compare) {
+        if (first->val != compare->val) {
+            result = false;
+            break;
         }
         first = first->next;
-        second = second->next;
+        compare = compare->next;
     }
-    
-    return true;
+
+    // 查询接口约定不改变输入拓扑；即使比较失败，也必须恢复后半部分。
+    slow->next = reverse_half(second);
+    return result;
 }
 
 // ============================================
@@ -133,8 +148,9 @@ bool isPalindrome(ListNode* head) {
 // ============================================
 
 ListNode* addTwoNumbers(ListNode* l1, ListNode* l2) {
-    ListNode dummy(0);
-    ListNode* curr = &dummy;
+    const auto delete_chain = [](ListNode* node) { deleteList(node); };
+    std::unique_ptr<ListNode, decltype(delete_chain)> owner(nullptr, delete_chain);
+    ListNode* curr = nullptr;
     int carry = 0;
     
     while (l1 || l2 || carry) {
@@ -149,11 +165,17 @@ ListNode* addTwoNumbers(ListNode* l1, ListNode* l2) {
         }
         
         carry = sum / 10;
-        curr->next = new ListNode(sum % 10);
-        curr = curr->next;
+        auto node = std::make_unique<ListNode>(sum % 10);
+        if (!owner) {
+            owner.reset(node.release());
+            curr = owner.get();
+        } else {
+            curr->next = node.release();
+            curr = curr->next;
+        }
     }
-    
-    return dummy.next;
+
+    return owner.release();
 }
 
 // ============================================
@@ -161,7 +183,7 @@ ListNode* addTwoNumbers(ListNode* l1, ListNode* l2) {
 // ============================================
 
 ListNode* rotateRight(ListNode* head, int k) {
-    if (!head || !head->next || k == 0) return head;
+    if (!head || !head->next || k <= 0) return head;
     
     // 计算链表长度
     int length = 1;
@@ -195,6 +217,10 @@ ListNode* rotateRight(ListNode* head, int k) {
 // ============================================
 
 ListNode* reverseKGroup(ListNode* head, int k) {
+    if (k <= 1) {
+        return head;
+    }
+
     // 检查剩余节点是否足够k个
     ListNode* check = head;
     for (int i = 0; i < k; ++i) {

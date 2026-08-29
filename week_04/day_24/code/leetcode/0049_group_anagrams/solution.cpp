@@ -6,6 +6,29 @@
 #include "solution.h"
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
+
+namespace {
+
+std::size_t lowercaseIndex(char character) {
+    const auto byte = static_cast<unsigned char>(character);
+    const auto first = static_cast<unsigned char>('a');
+    const auto last = static_cast<unsigned char>('z');
+    if (byte < first || byte > last) {
+        throw std::invalid_argument("LC49 只接受小写英文字母");
+    }
+    return static_cast<std::size_t>(byte - first);
+}
+
+void validateLowercaseWords(const std::vector<std::string>& words) {
+    for (const std::string& word : words) {
+        for (char character : word) {
+            static_cast<void>(lowercaseIndex(character));
+        }
+    }
+}
+
+} // namespace
 
 /**
  * @brief 方法一：排序哈希法
@@ -16,8 +39,9 @@
  * 3. 将原字符串加入对应的分组
  * 4. 收集所有分组
  */
-std::vector<std::vector<std::string>> Solution::groupAnagrams(
+std::vector<std::vector<std::string>> day24::lc49::Solution::groupAnagrams(
     std::vector<std::string>& strs) {
+    validateLowercaseWords(strs);
     
     // 哈希表：键是排序后的字符串，值是原字符串列表
     std::unordered_map<std::string, std::vector<std::string>> groups;
@@ -54,8 +78,9 @@ std::vector<std::vector<std::string>> Solution::groupAnagrams(
  * 
  * 这种方法避免了排序，时间复杂度更优
  */
-std::vector<std::vector<std::string>> Solution::groupAnagramsCount(
+std::vector<std::vector<std::string>> day24::lc49::Solution::groupAnagramsCount(
     std::vector<std::string>& strs) {
+    validateLowercaseWords(strs);
     
     // 哈希表：键是计数编码字符串，值是原字符串列表
     std::unordered_map<std::string, std::vector<std::string>> groups;
@@ -64,7 +89,7 @@ std::vector<std::vector<std::string>> Solution::groupAnagramsCount(
         // 统计每个字母出现的次数
         int count[26] = {0};
         for (char c : s) {
-            count[c - 'a']++;
+            ++count[lowercaseIndex(c)];
         }
         
         // 将计数编码为字符串
@@ -117,7 +142,7 @@ void testGroupAnagrams() {
     std::cout << "   LC 49: 字母异位词分组\n";
     std::cout << "========================================\n";
     
-    Solution solution;
+    day24::lc49::Solution solution;
     
     // 测试用例 1
     std::cout << "\n=== 测试用例 1 ===\n";

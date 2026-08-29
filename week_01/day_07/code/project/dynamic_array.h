@@ -6,7 +6,7 @@
  * - RAII: 资源获取即初始化
  * - 移动语义: 移动构造和移动赋值
  * - 模板编程: 类模板设计
- * - 异常安全: 强异常安全保证
+ * - 异常安全: 构造失败不泄漏，扩容在可拷贝或无抛出移动时提供强保证
  */
 
 #ifndef DYNAMIC_ARRAY_H
@@ -18,6 +18,7 @@
 #include <type_traits>
 #include <algorithm>
 #include <iterator>
+#include <limits>
 
 namespace cpp_learning {
 
@@ -73,7 +74,7 @@ public:
 
     /**
      * @brief 从迭代器范围构造
-     * @tparam InputIt 输入迭代器类型
+     * @tparam InputIt 前向迭代器类型（实现需要先求距离，再遍历一次）
      * @param first 起始迭代器
      * @param last 结束迭代器
      */
@@ -81,10 +82,10 @@ public:
              // C++11写法（注释）:
              // typename = typename std::enable_if<
              //     std::is_convertible<typename std::iterator_traits<InputIt>::iterator_category,
-             //                         std::input_iterator_tag>::value>::type
+             //                         std::forward_iterator_tag>::value>::type
              typename = std::enable_if_t<std::is_convertible_v<
                  typename std::iterator_traits<InputIt>::iterator_category,
-                 std::input_iterator_tag>>>
+                 std::forward_iterator_tag>>>
     DynamicArray(InputIt first, InputIt last);
 
     /**
@@ -123,6 +124,7 @@ public:
     
     /**
      * @brief 下标访问（无边界检查）
+     * @pre pos < size()；需要失败报告时使用 at()。
      */
     reference operator[](size_type pos) { return data_[pos]; }
     const_reference operator[](size_type pos) const { return data_[pos]; }
@@ -136,15 +138,23 @@ public:
 
     /**
      * @brief 访问首元素
+     * @throws std::out_of_range 容器为空
      */
-    reference front() { return data_[0]; }
-    const_reference front() const { return data_[0]; }
+    reference front() { return at(0); }
+    const_reference front() const { return at(0); }
 
     /**
      * @brief 访问末元素
+     * @throws std::out_of_range 容器为空
      */
-    reference back() { return data_[size_ - 1]; }
-    const_reference back() const { return data_[size_ - 1]; }
+    reference back() {
+        if (empty()) throw std::out_of_range("DynamicArray::back on empty array");
+        return data_[size_ - 1];
+    }
+    const_reference back() const {
+        if (empty()) throw std::out_of_range("DynamicArray::back on empty array");
+        return data_[size_ - 1];
+    }
 
     /**
      * @brief 获取底层数据指针
@@ -170,6 +180,13 @@ public:
     size_type capacity() const noexcept { return capacity_; }
 
     /**
+     * @brief 当前元素类型在字节乘法不溢出时可表示的最大元素数
+     */
+    static constexpr size_type max_size() noexcept {
+        return std::numeric_limits<size_type>::max() / sizeof(T);
+    }
+
+    /**
      * @brief 预留容量
      */
     void reserve(size_type new_cap);
@@ -192,13 +209,13 @@ public:
     void push_back(T&& value);
 
     /**
-     * @brief 原地构造元素
+     * @brief 在容量足够时原地构造；扩容时先构造临时值以保护自引用参数
      */
     template<typename... Args>
     reference emplace_back(Args&&... args);
 
     /**
-     * @brief 移除末尾元素
+     * @brief 移除末尾元素；空容器上调用为无操作
      */
     void pop_back();
 
@@ -221,11 +238,11 @@ public:
     // ========== 迭代器 ==========
     
     iterator begin() noexcept { return data_; }
-    iterator end() noexcept { return data_ + size_; }
+    iterator end() noexcept { return size_ == 0 ? data_ : data_ + size_; }
     const_iterator begin() const noexcept { return data_; }
-    const_iterator end() const noexcept { return data_ + size_; }
+    const_iterator end() const noexcept { return size_ == 0 ? data_ : data_ + size_; }
     const_iterator cbegin() const noexcept { return data_; }
-    const_iterator cend() const noexcept { return data_ + size_; }
+    const_iterator cend() const noexcept { return size_ == 0 ? data_ : data_ + size_; }
 
 private:
     T* data_ = nullptr;          ///< 数据指针
@@ -243,9 +260,20 @@ private:
     void destroy_elements() noexcept;
 
     /**
-     * @brief 移动元素到新位置
+     * @brief 检查字节乘法后分配原始存储
      */
-    void move_elements(T* dest, T* src, size_type count);
+    static pointer allocate(size_type count);
+
+    /**
+     * @brief 使用与 allocate 匹配的方式释放原始存储
+     */
+    static void deallocate(pointer ptr) noexcept;
+
+    /**
+     * @brief 计算下一次增长容量，达到上限时抛出 length_error
+     */
+    size_type next_capacity() const;
+
 };
 
 // ========== 非成员函数 ==========
@@ -260,5 +288,9 @@ template<typename T>
 void swap(DynamicArray<T>& lhs, DynamicArray<T>& rhs) noexcept;
 
 } // namespace cpp_learning
+
+// 模板定义必须对实例化点可见。将实现放在 .tpp 中既保持文件可读性，
+// 又能让 DynamicArray<Point> 等用户自定义类型正确实例化。
+#include "dynamic_array.tpp"
 
 #endif // DYNAMIC_ARRAY_H

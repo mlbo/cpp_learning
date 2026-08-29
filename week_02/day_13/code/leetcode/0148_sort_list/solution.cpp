@@ -5,6 +5,8 @@
 
 #include "solution.h"
 
+namespace leetcode_0148 {
+
 // ============================================
 // 方法一：归并排序（自顶向下）
 // ============================================
@@ -81,7 +83,7 @@ ListNode* Solution148::sortListBottomUp(ListNode* head) {
     }
     
     // 计算链表长度
-    int length = 0;
+    std::size_t length = 0U;
     ListNode* node = head;
     while (node) {
         ++length;
@@ -92,7 +94,7 @@ ListNode* Solution148::sortListBottomUp(ListNode* head) {
     dummy.next = head;
     
     // 从长度为1的子链表开始，逐步增大
-    for (int step = 1; step < length; step *= 2) {
+    for (std::size_t step = 1U; step < length; step *= 2U) {
         ListNode* prev = &dummy;
         ListNode* curr = dummy.next;
         
@@ -119,13 +121,13 @@ ListNode* Solution148::sortListBottomUp(ListNode* head) {
 }
 
 // 分割链表，返回后半部分的头节点
-ListNode* Solution148::split(ListNode* head, int step) {
+ListNode* Solution148::split(ListNode* head, std::size_t step) {
     if (head == nullptr) {
         return nullptr;
     }
     
     // 前进step-1步
-    for (int i = 1; i < step && head->next; ++i) {
+    for (std::size_t i = 1U; i < step && head->next; ++i) {
         head = head->next;
     }
     
@@ -134,3 +136,5 @@ ListNode* Solution148::split(ListNode* head, int step) {
     
     return result;
 }
+
+} // namespace leetcode_0148

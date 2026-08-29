@@ -17,6 +17,8 @@
 #include <functional>
 #include <array>
 
+#include "../../../common/noexcept_output.h"
+
 // ============================================
 // 辅助打印
 // ============================================
@@ -28,19 +30,21 @@
 // ============================================
 
 // 方法1: 函数指针作为删除器
-void file_deleter(FILE* f) {
+void file_deleter(FILE* f) noexcept {
     if (f) {
-        std::cout << "  [删除器] 关闭文件\n";
         fclose(f);
+        week2_support::write_noexcept([] { std::cout << "  [删除器] 关闭文件\n"; });
     }
 }
 
 // 方法2: 函数对象（仿函数）
 struct FileDeleter {
-    void operator()(FILE* f) const {
+    void operator()(FILE* f) const noexcept {
         if (f) {
-            std::cout << "  [仿函数删除器] 关闭文件\n";
             fclose(f);
+            week2_support::write_noexcept([] {
+                std::cout << "  [仿函数删除器] 关闭文件\n";
+            });
         }
     }
 };
@@ -77,10 +81,12 @@ void demo_unique_ptr_deleters() {
     // 1.3 Lambda 表达式（最常用）
     std::cout << "\n--- 1.3 Lambda 删除器 ---\n";
     {
-        auto deleter = [](FILE* f) {
+        auto deleter = [](FILE* f) noexcept {
             if (f) {
-                std::cout << "  [Lambda删除器] 关闭文件\n";
                 fclose(f);
+                week2_support::write_noexcept([] {
+                    std::cout << "  [Lambda删除器] 关闭文件\n";
+                });
             }
         };
         
@@ -100,11 +106,11 @@ void demo_unique_ptr_deleters() {
     {
         // unique_ptr<T[]> 自动使用 delete[]
         std::unique_ptr<int[]> arr = std::make_unique<int[]>(5);
-        for (int i = 0; i < 5; ++i) {
-            arr[i] = i * 10;
+        for (std::size_t i = 0; i < 5U; ++i) {
+            arr[i] = static_cast<int>(i) * 10;
         }
         std::cout << "  数组元素: ";
-        for (int i = 0; i < 5; ++i) {
+        for (std::size_t i = 0; i < 5U; ++i) {
             std::cout << arr[i] << " ";
         }
         std::cout << "\n";
@@ -124,10 +130,12 @@ void demo_shared_ptr_deleters() {
         // shared_ptr 不需要指定删除器类型
         std::shared_ptr<FILE> file(
             fopen("/tmp/test4.txt", "w"),
-            [](FILE* f) {
+            [](FILE* f) noexcept {
                 if (f) {
-                    std::cout << "  [shared_ptr删除器] 关闭文件\n";
                     fclose(f);
+                    week2_support::write_noexcept([] {
+                        std::cout << "  [shared_ptr删除器] 关闭文件\n";
+                    });
                 }
             }
         );
@@ -147,9 +155,11 @@ void demo_shared_ptr_deleters() {
         // 使用自定义删除器管理数组
         std::shared_ptr<int> arr(
             new int[5]{1, 2, 3, 4, 5},
-            [](int* p) {
-                std::cout << "  [数组删除器] delete[]\n";
+            [](int* p) noexcept {
                 delete[] p;
+                week2_support::write_noexcept([] {
+                    std::cout << "  [数组删除器] delete[]\n";
+                });
             }
         );
         std::cout << "  数组元素: ";
@@ -164,8 +174,10 @@ void demo_shared_ptr_deleters() {
     {
         int value = 100;
         // 使用空删除器，不释放栈变量
-        std::shared_ptr<int> ptr(&value, [](int*) {
-            std::cout << "  [空删除器] 不执行任何操作\n";
+        std::shared_ptr<int> ptr(&value, [](int*) noexcept {
+            week2_support::write_noexcept([] {
+                std::cout << "  [空删除器] 不执行任何操作\n";
+            });
         });
         std::cout << "  值: " << *ptr << "\n";
         // value 是栈变量，不需要 delete
@@ -178,24 +190,31 @@ void demo_shared_ptr_deleters() {
 
 // POSIX 文件描述符删除器
 struct FdDeleter {
-    void operator()(int* fd) const;
+    void operator()(int* fd) const noexcept;
 };
 
 // 前向声明实现
-void FdDeleter::operator()(int* fd) const {
-    if (fd && *fd >= 0) {
-        std::cout << "  [FD删除器] close(" << *fd << ")\n";
-        // 实际代码: close(*fd);
-        delete fd;
+void FdDeleter::operator()(int* fd) const noexcept {
+    if (!fd) {
+        return;
     }
+    if (*fd >= 0) {
+        week2_support::write_noexcept([fd] {
+            std::cout << "  [FD删除器] close(" << *fd << ")\n";
+        });
+        // 实际代码: close(*fd);
+    }
+    delete fd;
 }
 
 // C 风格字符串删除器
 struct CStringDeleter {
-    void operator()(char* s) const {
+    void operator()(char* s) const noexcept {
         if (s) {
-            std::cout << "  [CString删除器] free()\n";
             free(s);
+            week2_support::write_noexcept([] {
+                std::cout << "  [CString删除器] free()\n";
+            });
         }
     }
 };
@@ -215,6 +234,9 @@ void demo_common_deleters() {
     std::cout << "\n--- 3.2 C 风格字符串 ---\n";
     {
         char* s = (char*)std::malloc(20);
+        if (!s) {
+            throw std::bad_alloc();
+        }
         std::strcpy(s, "Hello, World!");
         std::unique_ptr<char, CStringDeleter> str(s);
         std::cout << "  字符串: " << str.get() << "\n";
@@ -229,11 +251,14 @@ void demo_common_deleters() {
             DBConnection(int h) : handle(h) {}
         };
         
-        auto dbDeleter = [](DBConnection* conn) {
+        auto dbDeleter = [](DBConnection* conn) noexcept {
             if (conn) {
-                std::cout << "  [DB删除器] 关闭连接 handle=" << conn->handle << "\n";
+                const int handle = conn->handle;
                 // 实际代码: db_close(conn->handle);
                 delete conn;
+                week2_support::write_noexcept([handle] {
+                    std::cout << "  [DB删除器] 关闭连接 handle=" << handle << "\n";
+                });
             }
         };
         
@@ -247,12 +272,17 @@ void demo_common_deleters() {
     // 3.4 网络套接字（示例）
     std::cout << "\n--- 3.4 网络套接字 ---\n";
     {
-        auto socketDeleter = [](int* sock) {
-            if (sock && *sock >= 0) {
-                std::cout << "  [Socket删除器] closesocket(" << *sock << ")\n";
-                // 实际代码: closesocket(*sock);
-                delete sock;
+        auto socketDeleter = [](int* sock) noexcept {
+            if (!sock) {
+                return;
             }
+            if (*sock >= 0) {
+                week2_support::write_noexcept([sock] {
+                    std::cout << "  [Socket删除器] closesocket(" << *sock << ")\n";
+                });
+                // 实际代码: closesocket(*sock);
+            }
+            delete sock;
         };
         
         std::unique_ptr<int, decltype(socketDeleter)> sock(
@@ -310,9 +340,11 @@ public:
     static std::shared_ptr<char[]> allocateBuffer(size_t size) {
         return std::shared_ptr<char[]>(
             new char[size],
-            [](char* p) {
-                std::cout << "  [Buffer删除器] 释放缓冲区\n";
+            [](char* p) noexcept {
                 delete[] p;
+                week2_support::write_noexcept([] {
+                    std::cout << "  [Buffer删除器] 释放缓冲区\n";
+                });
             }
         );
     }

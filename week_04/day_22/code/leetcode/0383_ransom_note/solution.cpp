@@ -21,6 +21,27 @@
 #include "solution.h"
 #include <iostream>
 #include <unordered_map>
+#include <stdexcept>
+
+namespace {
+
+std::size_t lowercaseIndex(char character) {
+    const auto byte = static_cast<unsigned char>(character);
+    const auto first = static_cast<unsigned char>('a');
+    const auto last = static_cast<unsigned char>('z');
+    if (byte < first || byte > last) {
+        throw std::invalid_argument("LC383 只接受小写英文字母");
+    }
+    return static_cast<std::size_t>(byte - first);
+}
+
+void validateLowercase(const std::string& text) {
+    for (char character : text) {
+        static_cast<void>(lowercaseIndex(character));
+    }
+}
+
+} // namespace
 
 /**
  * 方法一：哈希表解法
@@ -31,6 +52,9 @@
  * 3. 如果字符不足，返回false
  */
 bool canConstruct_hash(const std::string& ransomNote, const std::string& magazine) {
+    validateLowercase(ransomNote);
+    validateLowercase(magazine);
+
     // 统计magazine中每个字符的数量
     std::unordered_map<char, int> count;
     for (char c : magazine) {
@@ -58,18 +82,22 @@ bool canConstruct_hash(const std::string& ransomNote, const std::string& magazin
  * 3. 再检查ransomNote的需求
  */
 bool canConstruct_array(const std::string& ransomNote, const std::string& magazine) {
+    validateLowercase(ransomNote);
+    validateLowercase(magazine);
+
     // 统计magazine中每个字符的数量
     int count[26] = {0};
     for (char c : magazine) {
-        count[c - 'a']++;
+        ++count[lowercaseIndex(c)];
     }
     
     // 检查ransomNote的需求
     for (char c : ransomNote) {
-        if (count[c - 'a'] <= 0) {
+        const std::size_t index = lowercaseIndex(c);
+        if (count[index] <= 0) {
             return false;
         }
-        count[c - 'a']--;
+        --count[index];
     }
     
     return true;

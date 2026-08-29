@@ -7,6 +7,19 @@
 #include <memory>
 #include <functional>
 #include <vector>
+#include <utility>
+
+namespace {
+
+void receiveForwarded(int&) {
+    std::cout << "    目标重载收到左值引用" << std::endl;
+}
+
+void receiveForwarded(int&&) {
+    std::cout << "    目标重载收到右值引用" << std::endl;
+}
+
+}  // namespace
 
 void emcppReview() {
     std::cout << "╔══════════════════════════════════════╗" << std::endl;
@@ -57,12 +70,15 @@ void emcppReview() {
     auto forwarder = [](auto&& x) {
         // x绑定到左值时，decltype(x)是T&
         // x绑定到右值时，decltype(x)是T&&
-        std::cout << "    转发值: " << x << std::endl;
+        // 但有名字的表达式x本身始终是左值，必须恢复调用者的值类别。
+        receiveForwarded(std::forward<decltype(x)>(x));
     };
     
     int value = 100;
-    forwarder(value);   // 左值
-    forwarder(200);     // 右值
+    std::cout << "    传入具名变量 value: ";
+    forwarder(value);
+    std::cout << "    传入临时量 200: ";
+    forwarder(200);
     
     // ========== Item 34 ==========
     std::cout << "\n--- Item 34: 优先Lambda而非std::bind ---" << std::endl;
@@ -74,7 +90,7 @@ void emcppReview() {
     std::cout << "    4. 支持泛型（C++14）" << std::endl;
     
     // 对比
-    auto addLambda = [](int a, int b) { return a + b; };
+    auto addLambda = [](int left, int right) { return left + right; };
     auto addBind = std::bind(std::plus<int>(), std::placeholders::_1, std::placeholders::_2);
     
     std::cout << "\n  Lambda: [](int a, int b) { return a + b; }" << std::endl;

@@ -1,77 +1,124 @@
-/**
- * 树遍历演示
- */
-
+#include <algorithm>
 #include <iostream>
-#include <vector>
-#include <stack>
+#include <memory>
 #include <queue>
+#include <stack>
+#include <utility>
+#include <vector>
 
 struct TreeNode {
+    explicit TreeNode(int value) : val(value) {}
+
     int val;
-    TreeNode* left;
-    TreeNode* right;
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+    std::unique_ptr<TreeNode> left;
+    std::unique_ptr<TreeNode> right;
 };
 
-// 迭代前序
-std::vector<int> preorderIterative(TreeNode* root) {
+std::vector<int> preorderIterative(const TreeNode* root) {
     std::vector<int> result;
-    if (!root) return result;
-    
-    std::stack<TreeNode*> stk;
-    stk.push(root);
-    
-    while (!stk.empty()) {
-        TreeNode* node = stk.top();
-        stk.pop();
+    if (root == nullptr) {
+        return result;
+    }
+
+    std::stack<const TreeNode*> pending;
+    pending.push(root);
+    while (!pending.empty()) {
+        const TreeNode* node = pending.top();
+        pending.pop();
         result.push_back(node->val);
-        
-        if (node->right) stk.push(node->right);
-        if (node->left) stk.push(node->left);
-    }
-    return result;
-}
-
-// 迭代中序
-std::vector<int> inorderIterative(TreeNode* root) {
-    std::vector<int> result;
-    std::stack<TreeNode*> stk;
-    TreeNode* curr = root;
-    
-    while (curr || !stk.empty()) {
-        while (curr) {
-            stk.push(curr);
-            curr = curr->left;
+        if (node->right != nullptr) {
+            pending.push(node->right.get());
         }
-        curr = stk.top();
-        stk.pop();
-        result.push_back(curr->val);
-        curr = curr->right;
+        if (node->left != nullptr) {
+            pending.push(node->left.get());
+        }
     }
     return result;
 }
 
-void treeTraversalDemo() {
-    std::cout << "=== 树遍历演示 ===" << std::endl;
-    
-    TreeNode* root = new TreeNode(1);
-    root->left = new TreeNode(2);
-    root->right = new TreeNode(3);
-    root->left->left = new TreeNode(4);
-    root->left->right = new TreeNode(5);
-    
-    auto pre = preorderIterative(root);
-    auto in = inorderIterative(root);
-    
-    std::cout << "迭代前序: ";
-    for (int v : pre) std::cout << v << " ";
-    std::cout << "\n迭代中序: ";
-    for (int v : in) std::cout << v << " ";
-    std::cout << std::endl;
+std::vector<int> inorderIterative(const TreeNode* root) {
+    std::vector<int> result;
+    std::stack<const TreeNode*> ancestors;
+    const TreeNode* current = root;
+    while (current != nullptr || !ancestors.empty()) {
+        while (current != nullptr) {
+            ancestors.push(current);
+            current = current->left.get();
+        }
+        current = ancestors.top();
+        ancestors.pop();
+        result.push_back(current->val);
+        current = current->right.get();
+    }
+    return result;
+}
+
+std::vector<int> postorderIterative(const TreeNode* root) {
+    std::vector<int> result;
+    if (root == nullptr) {
+        return result;
+    }
+
+    std::stack<const TreeNode*> pending;
+    pending.push(root);
+    while (!pending.empty()) {
+        const TreeNode* node = pending.top();
+        pending.pop();
+        result.push_back(node->val);
+        if (node->left != nullptr) {
+            pending.push(node->left.get());
+        }
+        if (node->right != nullptr) {
+            pending.push(node->right.get());
+        }
+    }
+    std::reverse(result.begin(), result.end());
+    return result;
+}
+
+std::vector<std::vector<int>> levelOrder(const TreeNode* root) {
+    std::vector<std::vector<int>> result;
+    if (root == nullptr) {
+        return result;
+    }
+
+    std::queue<const TreeNode*> pending;
+    pending.push(root);
+    while (!pending.empty()) {
+        const std::size_t levelSize = pending.size();
+        std::vector<int> level;
+        level.reserve(levelSize);
+        for (std::size_t i = 0; i < levelSize; ++i) {
+            const TreeNode* node = pending.front();
+            pending.pop();
+            level.push_back(node->val);
+            if (node->left != nullptr) {
+                pending.push(node->left.get());
+            }
+            if (node->right != nullptr) {
+                pending.push(node->right.get());
+            }
+        }
+        result.push_back(std::move(level));
+    }
+    return result;
 }
 
 int main() {
-    treeTraversalDemo();
-    return 0;
+    auto root = std::make_unique<TreeNode>(1);
+    root->left = std::make_unique<TreeNode>(2);
+    root->right = std::make_unique<TreeNode>(3);
+    root->left->left = std::make_unique<TreeNode>(4);
+    root->left->right = std::make_unique<TreeNode>(5);
+
+    const bool passed =
+        preorderIterative(root.get()) == std::vector<int>({1, 2, 4, 5, 3}) &&
+        inorderIterative(root.get()) == std::vector<int>({4, 2, 5, 1, 3}) &&
+        postorderIterative(root.get()) == std::vector<int>({4, 5, 2, 3, 1}) &&
+        levelOrder(root.get()) == std::vector<std::vector<int>>({{1}, {2, 3}, {4, 5}}) &&
+        preorderIterative(nullptr).empty();
+
+    std::cout << (passed ? "tree traversal checks passed\n"
+                         : "tree traversal checks failed\n");
+    return passed ? 0 : 1;
 }

@@ -17,13 +17,15 @@
 #ifndef LEETCODE_0024_SWAP_PAIRS_H
 #define LEETCODE_0024_SWAP_PAIRS_H
 
+namespace leetcode_24 {
+
 // 链表节点定义
 struct ListNode {
     int val;
     ListNode* next;
     ListNode() : val(0), next(nullptr) {}
     ListNode(int x) : val(x), next(nullptr) {}
-    ListNode(int x, ListNode* next) : val(x), next(next) {}
+    ListNode(int x, ListNode* next_node) : val(x), next(next_node) {}
 };
 
 class Solution {
@@ -59,5 +61,7 @@ public:
         return swapPairs_iterative(head);
     }
 };
+
+} // namespace leetcode_24
 
 #endif // LEETCODE_0024_SWAP_PAIRS_H

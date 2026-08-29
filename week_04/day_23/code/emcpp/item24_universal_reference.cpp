@@ -18,9 +18,15 @@
 // 辅助类型特征
 // ============================================================
 
-// 打印类型的值类别
+enum class ForwardedCategory {
+    Lvalue,
+    Rvalue
+};
+
+// 打印被转发进来的来源类别，并把真实分类返回给契约测试。
 template<typename T>
-void printValueType(T&& param) {
+ForwardedCategory printValueType(T&& param) {
+    (void)param;
     std::cout << "  T 的类型: ";
     if constexpr (std::is_lvalue_reference_v<T>) {
         std::cout << "左值引用";
@@ -39,6 +45,10 @@ void printValueType(T&& param) {
         std::cout << "右值引用";
     }
     std::cout << std::endl;
+
+    return std::is_lvalue_reference_v<T>
+        ? ForwardedCategory::Lvalue
+        : ForwardedCategory::Rvalue;
 }
 
 // ============================================================
@@ -71,7 +81,8 @@ void demonstrateUniversalReference() {
     
     auto testUniversalRef = [](auto&& param) {
         std::cout << "传入参数: " << param << std::endl;
-        printValueType(param);
+        // param 是命名形参，表达式本身是左值；必须恢复调用点类别后再交给分类函数。
+        return printValueType(std::forward<decltype(param)>(param));
     };
     
     int x = 42;
@@ -92,6 +103,7 @@ void demonstrateUniversalReference() {
 // 这是一个通用引用！
 template<typename T>
 void universalRef(T&& param) {
+    std::cout << "  参数值: " << param << "\n";
     std::cout << "  [universalRef] ";
     if constexpr (std::is_lvalue_reference_v<T>) {
         std::cout << "接收到左值引用" << std::endl;
@@ -117,6 +129,7 @@ class Widget {
 public:
     // 这不是通用引用！因为 T 在类实例化时已确定
     void process(T&& param) {
+        std::cout << "  process 参数值: " << param << "\n";
         std::cout << "  [Widget::process] ";
         if constexpr (std::is_rvalue_reference_v<T>) {
             std::cout << "T 是右值引用类型" << std::endl;
@@ -130,6 +143,7 @@ public:
     // 这才是通用引用！
     template<typename U>
     void realUniversalRef(U&& param) {
+        std::cout << "  realUniversalRef 参数值: " << param << "\n";
         std::cout << "  [Widget::realUniversalRef] ";
         if constexpr (std::is_lvalue_reference_v<U>) {
             std::cout << "U 被推导为左值引用" << std::endl;
@@ -200,7 +214,7 @@ void demonstratePitfalls() {
 template<typename T>
 void notUniversal(const T&& param);  // 这是右值引用！
 
-const 使 T&& 不再是通用引用，因为通用引用需要能够绑定到可修改的值。
+const T&& 不再是转发引用，因为它不是“被推导的、未加 cv 限定的模板参数 T&&”这一规定形式；原因是形式不满足，而不是实参是否可修改。
 
 陷阱 2：非模板参数
 ------------------
@@ -214,11 +228,12 @@ class Container {
 template<typename T>
 void process(std::vector<T>&& vec);  // 这是右值引用！不是 T&& 形式
 
-陷阱 4：auto&& 是通用引用
--------------------------
-auto&& x = expr;  // 这是通用引用！
+陷阱 4：auto&& 要单独检查列表初始化
+-------------------------------------------
+auto&& x = expr;        // 从普通表达式推导：转发引用
+auto&& y = {1, 2, 3};   // initializer_list 特殊推导：不是转发引用
 
-auto&& 遵循相同的规则，可以绑定左值或右值。
+auto&& 从普通表达式推导时可以绑定左值或右值，但不能把直接大括号列表机械地归入同一规则。
 )" << std::endl;
     
     // auto&& 示例
@@ -229,6 +244,7 @@ auto&& 遵循相同的规则，可以绑定左值或右值。
     auto&& r1 = value;       // 绑定左值，r1 类型为 int&
     auto&& r2 = 200;         // 绑定右值，r2 类型为 int&&
     auto&& r3 = std::move(value);  // 绑定右值，r3 类型为 int&&
+    std::cout << "  r1=" << r1 << ", r2=" << r2 << ", r3=" << r3 << "\n";
     
     std::cout << "auto&& r1 = value;  // r1 是左值引用" << std::endl;
     std::cout << "auto&& r2 = 200;    // r2 是右值引用" << std::endl;
@@ -289,26 +305,27 @@ void printBestPracticesItem24() {
     std::cout << R"(
 记住这些规则：
 
-1. 识别通用引用的两个条件：
-   - 形式必须是 T&&（模板参数 + &&）
-   - 必须发生类型推导
+1. 识别函数模板转发引用的完整条件：
+   - 形参必须是未加 cv 的模板参数 T 之精确 T&&
+   - 这次函数调用必须正在推导 T
 
 2. 通用引用的行为：
    - 绑定左值时，T 推导为左值引用
    - 绑定右值时，T 推导为非引用类型
 
-3. 右值引用的限制：
+3. 非转发右值引用的限制：
    - 只能绑定右值
-   - 形式不是 T&& 时一定是右值引用
+   - const T&&、std::vector<T>&& 或已知具体类型的 U&& 都不是转发引用
 
 4. 常见陷阱：
    - const T&& 不是通用引用
    - 类成员 T&& 如果 T 在实例化时确定，不是通用引用
    - std::vector<T>&& 不是通用引用
 
-5. auto&& 是通用引用：
+5. auto&& 的对应规则：
    - 范围 for 循环中常用
-   - 可以安全地绑定任何表达式
+   - 从普通表达式推导时是转发引用
+   - 直接大括号列表初始化是 initializer_list 特例，不是转发引用
 )" << std::endl;
 }
 
@@ -325,4 +342,15 @@ void run_item24_demo() {
     demonstratePitfalls();
     explainReferenceCollapsing();
     printBestPracticesItem24();
+}
+
+bool verify_item24_forwarding_report_contract() {
+    auto relay = [](auto&& param) {
+        return printValueType(std::forward<decltype(param)>(param));
+    };
+
+    int value = 42;
+    return relay(value) == ForwardedCategory::Lvalue &&
+           relay(42) == ForwardedCategory::Rvalue &&
+           relay(std::move(value)) == ForwardedCategory::Rvalue;
 }

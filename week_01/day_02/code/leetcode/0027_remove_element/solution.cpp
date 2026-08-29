@@ -17,6 +17,8 @@
 #include <iostream>
 #include <vector>
 
+#include "../../../../common/integer_contracts.h"
+
 namespace leetcode {
 namespace p0027 {
 
@@ -33,17 +35,17 @@ namespace p0027 {
  * 4. 将保留的元素复制到left位置，left++
  */
 int removeElement(std::vector<int>& nums, int val) {
-    int left = 0;  // 左指针：指向待填充位置
+    std::size_t left = 0;  // 左指针：指向待填充位置
     
     // 右指针：遍历数组
-    for (int right = 0; right < static_cast<int>(nums.size()); ++right) {
+    for (std::size_t right = 0; right < nums.size(); ++right) {
         if (nums[right] != val) {
             nums[left] = nums[right];
             ++left;
         }
     }
     
-    return left;
+    return week01::checked_index(left);
 }
 
 /**
@@ -53,19 +55,19 @@ int removeElement(std::vector<int>& nums, int val) {
  * 将匹配的元素与末尾元素交换，然后缩小数组大小
  */
 int removeElementOptimized(std::vector<int>& nums, int val) {
-    int left = 0;
-    int right = static_cast<int>(nums.size()) - 1;
+    std::size_t left = 0;
+    std::size_t right = nums.size();
     
-    while (left <= right) {
+    while (left < right) {
         if (nums[left] == val) {
-            nums[left] = nums[right];
             --right;
+            nums[left] = nums[right];
         } else {
             ++left;
         }
     }
     
-    return left;
+    return week01::checked_index(left);
 }
 
 /**
@@ -73,7 +75,7 @@ int removeElementOptimized(std::vector<int>& nums, int val) {
  */
 void printVector(const std::vector<int>& nums, int length) {
     std::cout << "结果数组: ";
-    for (int i = 0; i < length; ++i) {
+    for (std::size_t i = 0; i < static_cast<std::size_t>(length); ++i) {
         std::cout << nums[i] << " ";
     }
     std::cout << std::endl;

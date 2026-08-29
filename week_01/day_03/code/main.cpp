@@ -11,6 +11,7 @@
  */
 
 #include <iostream>
+#include <limits>
 #include <string>
 
 namespace cpp11_features {
@@ -24,11 +25,11 @@ void run_item07_demo();
 }
 
 namespace leetcode_0088 {
-void run_tests();
+int run_tests();
 }
 
 namespace leetcode_0283 {
-void run_tests();
+int run_tests();
 }
 
 void print_banner() {
@@ -41,7 +42,7 @@ void print_banner() {
 ║  1. 掌握统一初始化语法（花括号 {}）                                  ║
 ║  2. 深入理解 std::initializer_list                                  ║
 ║  3. 区分 () 和 {} 初始化的使用场景                                   ║
-║  4. 掌握逆向双指针技巧（LeetCode 88、283）                           ║
+║  4. 掌握双指针技巧（逆向合并、稳定分区）                            ║
 ║                                                                      ║
 ╚══════════════════════════════════════════════════════════════════════╝
 )" << std::endl;
@@ -73,8 +74,8 @@ void run_all_demos() {
     cpp11_features::run_initializer_list_demo();
     cpp11_features::run_init_comparison_demo();
     emcpp::run_item07_demo();
-    leetcode_0088::run_tests();
-    leetcode_0283::run_tests();
+    (void)leetcode_0088::run_tests();
+    (void)leetcode_0283::run_tests();
 }
 
 int main(int argc, char* argv[]) {
@@ -90,8 +91,17 @@ int main(int argc, char* argv[]) {
     while (true) {
         print_menu();
 
-        int choice;
-        std::cin >> choice;
+        int choice{};
+        if (!(std::cin >> choice)) {
+            if (std::cin.eof()) {
+                std::cout << "\n输入结束，退出教程。\n";
+                return 0;
+            }
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "请输入 0 到 7 之间的整数。\n";
+            continue;
+        }
 
         switch (choice) {
             case 1:

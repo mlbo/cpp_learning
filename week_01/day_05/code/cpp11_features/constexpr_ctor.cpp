@@ -9,6 +9,11 @@
 #include <iostream>
 #include <array>
 #include <cmath>
+#include <limits>
+#include <stdexcept>
+#include <type_traits>
+
+#include "../constexpr_math.h"
 
 using namespace std;
 
@@ -32,22 +37,24 @@ public:
     
     // constexpr计算
     constexpr int distance_squared() const {
-        return x_ * x_ + y_ * y_;
+        return day05::checked_add(day05::square(x_), day05::square(y_));
     }
     
     constexpr double distance() const {
         // 注意：sqrt在C++26前不是constexpr
         // 这里简化处理
-        return x_ * x_ + y_ * y_;
+        return static_cast<double>(x_) * x_ + static_cast<double>(y_) * y_;
     }
     
     // constexpr运算符重载
     constexpr Point operator+(const Point& other) const {
-        return Point(x_ + other.x_, y_ + other.y_);
+        return Point(day05::checked_add(x_, other.x_),
+                     day05::checked_add(y_, other.y_));
     }
     
     constexpr Point operator-(const Point& other) const {
-        return Point(x_ - other.x_, y_ - other.y_);
+        return Point(day05::checked_subtract(x_, other.x_),
+                     day05::checked_subtract(y_, other.y_));
     }
     
     constexpr bool operator==(const Point& other) const {
@@ -93,7 +100,22 @@ public:
 template <typename T, size_t N>
 class ConstexprArray {
 private:
+    static_assert(N > 0, "ConstexprArray demo requires N > 0");
     T data_[N];
+
+    static constexpr T checked_add_value(T lhs, T rhs) {
+        if constexpr (std::is_integral_v<T>) {
+            if constexpr (std::is_signed_v<T>) {
+                if ((rhs > 0 && lhs > std::numeric_limits<T>::max() - rhs) ||
+                    (rhs < 0 && lhs < std::numeric_limits<T>::min() - rhs)) {
+                    throw std::overflow_error("ConstexprArray::sum integral overflow");
+                }
+            } else if (lhs > std::numeric_limits<T>::max() - rhs) {
+                throw std::overflow_error("ConstexprArray::sum integral overflow");
+            }
+        }
+        return lhs + rhs;
+    }
     
 public:
     // constexpr构造函数（初始化列表）
@@ -108,8 +130,14 @@ public:
     
     constexpr size_t size() const { return N; }
     
-    constexpr T& operator[](size_t index) { return data_[index]; }
-    constexpr const T& operator[](size_t index) const { return data_[index]; }
+    constexpr T& operator[](size_t index) {
+        return index < N ? data_[index]
+                         : throw std::out_of_range("ConstexprArray index out of range");
+    }
+    constexpr const T& operator[](size_t index) const {
+        return index < N ? data_[index]
+                         : throw std::out_of_range("ConstexprArray index out of range");
+    }
     
     constexpr const T* begin() const { return data_; }
     constexpr const T* end() const { return data_ + N; }
@@ -117,7 +145,7 @@ public:
     constexpr T sum() const {
         T total = T{};
         for (size_t i = 0; i < N; ++i) {
-            total += data_[i];
+            total = checked_add_value(total, data_[i]);
         }
         return total;
     }
@@ -254,12 +282,44 @@ void demonstrate_string() {
 
 void explain_literal_type() {
     cout << "\n【字面量类型要求】\n\n";
-    cout << "一个类要成为字面量类型（可用于constexpr），需要满足:\n";
-    cout << "  1. 有constexpr构造函数\n";
-    cout << "  2. 析构函数是平凡的（或constexpr，C++20起）\n";
-    cout << "  3. 所有非静态数据成员都是字面量类型\n";
-    cout << "  4. 如果有联合体，只能有一个成员有初始化\n";
-    cout << "  5. 所有成员函数要么是constexpr，要么是虚函数（C++20起）\n";
+    cout << "在本课程的 C++17 环境中，普通类要成为字面量类型，核心要求包括:\n";
+    cout << "  1. 析构函数是平凡的\n";
+    cout << "  2. 所有基类和非静态数据成员都是字面量类型\n";
+    cout << "  3. 至少有一个 constexpr 构造函数，使对象可能由常量表达式创建\n";
+    cout << "  4. constexpr 对象的实际初始化过程本身也必须满足常量求值规则\n";
+    cout << "  普通非 constexpr 成员函数完全可以存在，并非所有成员函数都必须 constexpr。\n";
+}
+
+bool demonstrate_boundary_contracts() {
+    cout << "\n【constexpr 类的运行时边界】\n";
+    bool passed = true;
+
+    try {
+        (void)Point{numeric_limits<int>::max(), 0}.distance_squared();
+        cerr << "  [FAIL] Point 平方距离未拒绝 int 溢出\n";
+        passed = false;
+    } catch (const overflow_error&) {
+        cout << "  [PASS] Point 平方距离拒绝 int 溢出\n";
+    }
+
+    ConstexprArray<int, 2> values{numeric_limits<int>::max(), 1};
+    try {
+        (void)values.sum();
+        cerr << "  [FAIL] ConstexprArray::sum 未拒绝 int 溢出\n";
+        passed = false;
+    } catch (const overflow_error&) {
+        cout << "  [PASS] ConstexprArray::sum 拒绝 int 溢出\n";
+    }
+
+    try {
+        (void)values[values.size()];
+        cerr << "  [FAIL] ConstexprArray 未拒绝越界下标\n";
+        passed = false;
+    } catch (const out_of_range&) {
+        cout << "  [PASS] ConstexprArray 拒绝越界下标\n";
+    }
+
+    return passed;
 }
 
 // ==================== main函数 ====================
@@ -274,14 +334,15 @@ int main() {
     demonstrate_array();
     demonstrate_string();
     explain_literal_type();
+    const bool boundaries_passed = demonstrate_boundary_contracts();
     
     cout << "\n╔════════════════════════════════════════════════════════════╗\n";
     cout << "║     constexpr构造函数要点：                                 ║\n";
-    cout << "║     1. 使类成为字面量类型                                   ║\n";
+    cout << "║     1. 让满足其他条件的对象参与常量求值                     ║\n";
     cout << "║     2. 允许编译期创建对象                                   ║\n";
     cout << "║     3. 成员函数可以是constexpr                              ║\n";
     cout << "║     4. 支持运算符重载                                       ║\n";
     cout << "╚════════════════════════════════════════════════════════════╝\n";
     
-    return 0;
+    return boundaries_passed ? 0 : 1;
 }

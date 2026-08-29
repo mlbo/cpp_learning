@@ -99,7 +99,7 @@ void bindDemo() {
     }
     
     // 统计大于5的元素个数
-    int count = std::count_if(nums.begin(), nums.end(), greaterThan5);
+    const auto count = std::count_if(nums.begin(), nums.end(), greaterThan5);
     std::cout << "  大于5的元素个数: " << count << std::endl;
     
     // ========== 5. bind vs Lambda对比 ==========

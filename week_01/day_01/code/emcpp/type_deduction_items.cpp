@@ -17,6 +17,8 @@
 #include <memory>
 #include <initializer_list>
 
+#include "safe_index_access.h"
+
 // ============================================
 // 辅助工具
 // ============================================
@@ -28,6 +30,7 @@ struct TypePrinter;
 // 打印推导类型的函数
 template<typename T>
 void print_type_info(const T& param, const std::string& param_name) {
+    (void)param;
     std::cout << "  " << param_name << ":\n";
     std::cout << "    T = ";
     
@@ -50,6 +53,7 @@ void print_type_info(const T& param, const std::string& param_name) {
 // 情况1：ParamType是指针或引用（非万能引用）
 template<typename T>
 void func_reference(T& param) {
+    (void)param;
     std::cout << "  func_reference(T& param): ";
     if (std::is_same<T, int>::value) std::cout << "T = int\n";
     else if (std::is_same<T, const int>::value) std::cout << "T = const int\n";
@@ -58,6 +62,7 @@ void func_reference(T& param) {
 
 template<typename T>
 void func_const_reference(const T& param) {
+    (void)param;
     std::cout << "  func_const_reference(const T& param): ";
     if (std::is_same<T, int>::value) std::cout << "T = int\n";
     else std::cout << "T = other\n";
@@ -65,6 +70,7 @@ void func_const_reference(const T& param) {
 
 template<typename T>
 void func_pointer(T* param) {
+    (void)param;
     std::cout << "  func_pointer(T* param): ";
     if (std::is_same<T, int>::value) std::cout << "T = int\n";
     else if (std::is_same<T, const int>::value) std::cout << "T = const int\n";
@@ -74,6 +80,7 @@ void func_pointer(T* param) {
 // 情况2：ParamType是万能引用
 template<typename T>
 void func_universal_reference(T&& param) {
+    (void)param;
     std::cout << "  func_universal_reference(T&& param): ";
     if (std::is_same<T, int>::value) std::cout << "T = int (右值)\n";
     else if (std::is_same<T, int&>::value) std::cout << "T = int& (左值)\n";
@@ -84,6 +91,7 @@ void func_universal_reference(T&& param) {
 // 情况3：ParamType非引用
 template<typename T>
 void func_by_value(T param) {
+    (void)param;
     std::cout << "  func_by_value(T param): ";
     if (std::is_same<T, int>::value) std::cout << "T = int\n";
     else std::cout << "T = other\n";
@@ -136,18 +144,20 @@ void item02_auto_deduction() {
     std::cout << "  auto x = 27 -> int\n";
     std::cout << "  const auto cx = x -> const int\n";
     std::cout << "  const auto& rx = x -> const int&\n";
+    (void)cx; (void)rx;
     
     // auto与模板推导的唯一区别：初始化列表
     std::cout << "\n  auto与模板推导的区别：初始化列表\n";
     auto x1 = 27;          // int
     auto x2(27);           // int
     auto x3 = {27};        // std::initializer_list<int>
-    auto x4{27};           // int (C++17), initializer_list (C++11)
+    auto x4{27};           // int（单元素直接列表初始化）
     
     std::cout << "    auto x1 = 27 -> int\n";
     std::cout << "    auto x2(27) -> int\n";
     std::cout << "    auto x3 = {27} -> initializer_list<int>\n";
-    std::cout << "    auto x4{27} -> int (C++17)\n";
+    std::cout << "    auto x4{27} -> int（单元素直接列表初始化）\n";
+    (void)x1; (void)x2; (void)x3; (void)x4;
     
     // 模板无法自动推导初始化列表
     // template<typename T> void f(T param);
@@ -191,19 +201,16 @@ void item03_decltype() {
     
     // 在返回类型中使用
     std::cout << "\n  在函数返回类型中使用decltype(auto):\n";
-    std::cout << "    可以完美转发返回值的类型\n";
+    std::cout << "    可以精确保留返回值的引用与 const；同时必须检查生命周期\n";
+    (void)y; (void)z; (void)a1; (void)da1; (void)a2; (void)da2;
 }
 
-// 返回值使用decltype(auto)的示例
+// 返回值使用decltype(auto)的示例：元素引用只能来自仍然存活的左值容器。
 // C++11写法（注释）:
 // template<typename Container, typename Index>
-// auto get_element(Container&& c, Index i) -> decltype(std::forward<Container>(c)[i]) {
-//     return std::forward<Container>(c)[i];
+// auto get_element(Container& c, Index i) -> decltype(c[i]) {
+//     return c[i];
 // }
-template<typename Container, typename Index>
-decltype(auto) get_element(Container&& c, Index i) {
-    return std::forward<Container>(c)[i];
-}
 
 // ============================================
 // 条款4：学会查看类型推导结果
@@ -254,6 +261,7 @@ void item05_prefer_auto() {
     // unsigned size = vec.size();  // 32/64位可能不兼容
     auto size = vec.size();         // 总是正确
     std::cout << "  优点2：auto自动匹配正确类型\n";
+    (void)size;
     
     // 优点3：避免冗长的类型名
     std::unique_ptr<std::vector<std::pair<int, std::string>>> ptr1;

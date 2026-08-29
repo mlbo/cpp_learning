@@ -22,9 +22,10 @@
  * 输出：[]
  */
 
-#include <vector>
-#include <queue>
+#include <cstddef>
 #include <functional>
+#include <queue>
+#include <vector>
 
 namespace leetcode_0023 {
 
@@ -34,7 +35,7 @@ struct ListNode {
     ListNode* next;
     ListNode() : val(0), next(nullptr) {}
     ListNode(int x) : val(x), next(nullptr) {}
-    ListNode(int x, ListNode* next) : val(x), next(next) {}
+    ListNode(int x, ListNode* next_node) : val(x), next(next_node) {}
 };
 
 /**
@@ -52,6 +53,10 @@ public:
      *
      * 时间复杂度: O(N * log K)，N为所有节点总数，K为链表数量
      * 空间复杂度: O(log K)，递归栈深度
+     *
+     * @pre 每条链表无环、升序，且不同输入链表不共享节点。
+     * @note 原地重连输入节点，不创建结果节点。成功后lists中的旧头指针只是
+     *       借用别名；调用者必须只从返回头释放合并后的整条链。
      */
     ListNode* mergeKLists(std::vector<ListNode*>& lists);
 
@@ -65,6 +70,9 @@ public:
      *
      * 时间复杂度: O(N * log K)
      * 空间复杂度: O(K)，优先队列大小
+     * @note 先为至多K个堆元素reserve容量，再开始改链；容量分配失败时输入完全
+     *       不变。提交阶段的堆大小不超过该容量，指针移动、比较和next重连均不抛，
+     *       因此本实现对分配失败提供强保证。
      */
     ListNode* mergeKListsPriorityQueue(std::vector<ListNode*>& lists);
 
@@ -73,7 +81,7 @@ public:
      *
      * 思路：逐个合并链表
      *
-     * 时间复杂度: O(K^2 * N)
+     * 时间复杂度: 最坏O(N * K)，N为所有节点总数
      * 空间复杂度: O(1)
      */
     ListNode* mergeKListsSequential(std::vector<ListNode*>& lists);
@@ -87,7 +95,9 @@ private:
     /**
      * @brief 分治合并的递归函数
      */
-    ListNode* merge(std::vector<ListNode*>& lists, int left, int right);
+    ListNode* merge(std::vector<ListNode*>& lists,
+                    std::size_t left,
+                    std::size_t right);
 };
 
 // ========== 辅助函数 ==========

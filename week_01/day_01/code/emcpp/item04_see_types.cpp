@@ -186,6 +186,7 @@ void methodFour_TypeTraits() {
     cout << "• is_array<T> - 是否数组" << endl;
     cout << "• is_integral<T> - 是否整型" << endl;
     cout << "• is_floating_point<T> - 是否浮点型" << endl;
+    (void)rcx; (void)a1;
     
     cout << endl;
 }

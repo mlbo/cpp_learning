@@ -16,6 +16,8 @@
 
 #include <vector>
 
+#include "../../../common/integer_contracts.h"
+
 /**
  * @brief 查找目标值的左边界（第一个出现位置）
  * @param nums 已排序的数组（升序，可以有重复元素）
@@ -37,22 +39,21 @@ int binarySearchLeft(const std::vector<int>& nums, int target) {
     }
     
     // 初始化搜索区间：左闭右开 [left, right)
-    int left = 0;
-    int right = static_cast<int>(nums.size());
+    (void)week01::checked_index(nums.size());
+    std::size_t left = 0;
+    std::size_t right = nums.size();
     
     // 循环条件：left < right
     // 当 left == right 时，搜索区间为空，循环结束
     while (left < right) {
         // 计算中间位置（防溢出写法）
-        int mid = left + (right - left) / 2;
+        const std::size_t mid = left + (right - left) / 2;
         
         if (nums[mid] >= target) {
-            // nums[mid] >= target，说明左边界在 [left, mid] 区间
-            // 收缩右边界，包含 mid
+            // nums[mid] >= target，把 mid 纳入已确认后缀；待判定元素变为 [left, mid)
             right = mid;
         } else {
-            // nums[mid] < target，说明左边界在 (mid, right) 区间
-            // 收缩左边界，不包含 mid
+            // nums[mid] < target，把 [left, mid] 排除；待判定元素变为 [mid + 1, right)
             left = mid + 1;
         }
     }
@@ -61,7 +62,7 @@ int binarySearchLeft(const std::vector<int>& nums, int target) {
     // 需要检查是否真的找到了目标
     
     // 情况1：left 超出数组范围（target比所有元素都大）
-    if (left == static_cast<int>(nums.size())) {
+    if (left == nums.size()) {
         return -1;
     }
     
@@ -71,7 +72,7 @@ int binarySearchLeft(const std::vector<int>& nums, int target) {
     }
     
     // 情况3：找到目标值的左边界
-    return left;
+    return week01::checked_index(left);
 }
 
 /**
@@ -89,15 +90,12 @@ int binarySearchLeft(const std::vector<int>& nums, int target) {
  * 返回 2（第一个 >= 4 的元素是 5）
  */
 int lowerBound(const std::vector<int>& nums, int target) {
-    if (nums.empty()) {
-        return 0;
-    }
-    
-    int left = 0;
-    int right = static_cast<int>(nums.size());
+    (void)week01::checked_index(nums.size());
+    std::size_t left = 0;
+    std::size_t right = nums.size();
     
     while (left < right) {
-        int mid = left + (right - left) / 2;
+        const std::size_t mid = left + (right - left) / 2;
         
         if (nums[mid] >= target) {
             right = mid;
@@ -106,7 +104,7 @@ int lowerBound(const std::vector<int>& nums, int target) {
         }
     }
     
-    return left;
+    return week01::checked_index(left);
 }
 
 /**
@@ -123,7 +121,7 @@ int binarySearchLeftClosed(const std::vector<int>& nums, int target) {
     }
     
     int left = 0;
-    int right = static_cast<int>(nums.size()) - 1;
+    int right = week01::checked_index(nums.size()) - 1;
     
     // 记录找到的左边界
     int result = -1;
@@ -131,11 +129,12 @@ int binarySearchLeftClosed(const std::vector<int>& nums, int target) {
     while (left <= right) {
         int mid = left + (right - left) / 2;
         
-        if (nums[mid] == target) {
+        const auto index = static_cast<std::size_t>(mid);
+        if (nums[index] == target) {
             // 找到目标，记录位置，继续向左找
             result = mid;
             right = mid - 1;
-        } else if (nums[mid] < target) {
+        } else if (nums[index] < target) {
             left = mid + 1;
         } else {
             right = mid - 1;

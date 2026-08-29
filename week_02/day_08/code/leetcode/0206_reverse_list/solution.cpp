@@ -22,7 +22,9 @@
 
 #include "solution.h"
 
-namespace leetcode {
+using day08_lists::ListNode;
+
+namespace leetcode_0206 {
 
 /**
  * @brief 方法一：迭代法（推荐）
@@ -194,7 +196,7 @@ ListNode* reverseBetween(ListNode* head, int m, int n) {
     return result;
 }
 
-} // namespace leetcode
+} // namespace leetcode_0206
 
 // ============================================================
 // 测试代码
@@ -205,7 +207,8 @@ ListNode* reverseBetween(ListNode* head, int m, int n) {
 
 using namespace list_ops;
 
-void testReverseList() {
+bool testReverseList() {
+    bool allPassed = true;
     std::cout << "======== LeetCode 206: 反转链表 测试 ========\n";
     
     // 测试用例1：普通链表
@@ -214,14 +217,16 @@ void testReverseList() {
     std::cout << "输入: ";
     printList(head1);
     
-    ListNode* result1 = leetcode::reverseList(head1);
+    ListNode* result1 = leetcode_0206::reverseList(head1);
     std::cout << "输出: ";
     printList(result1);
     std::cout << "预期: 5 -> 4 -> 3 -> 2 -> 1 -> nullptr\n";
     
     std::vector<int> expected1 = {5, 4, 3, 2, 1};
     std::vector<int> actual1 = toVector(result1);
-    std::cout << "结果: " << (actual1 == expected1 ? "✓ 通过" : "✗ 失败") << "\n";
+    const bool passed1 = actual1 == expected1;
+    allPassed = allPassed && passed1;
+    std::cout << "结果: " << (passed1 ? "✓ 通过" : "✗ 失败") << "\n";
     deleteList(result1);
     
     // 测试用例2：递归法
@@ -230,14 +235,16 @@ void testReverseList() {
     std::cout << "输入: ";
     printList(head2);
     
-    ListNode* result2 = leetcode::reverseListRecursive(head2);
+    ListNode* result2 = leetcode_0206::reverseListRecursive(head2);
     std::cout << "输出: ";
     printList(result2);
     std::cout << "预期: 5 -> 4 -> 3 -> 2 -> 1 -> nullptr\n";
     
     std::vector<int> expected2 = {5, 4, 3, 2, 1};
     std::vector<int> actual2 = toVector(result2);
-    std::cout << "结果: " << (actual2 == expected2 ? "✓ 通过" : "✗ 失败") << "\n";
+    const bool passed2 = actual2 == expected2;
+    allPassed = allPassed && passed2;
+    std::cout << "结果: " << (passed2 ? "✓ 通过" : "✗ 失败") << "\n";
     deleteList(result2);
     
     // 测试用例3：两个节点
@@ -246,14 +253,16 @@ void testReverseList() {
     std::cout << "输入: ";
     printList(head3);
     
-    ListNode* result3 = leetcode::reverseList(head3);
+    ListNode* result3 = leetcode_0206::reverseList(head3);
     std::cout << "输出: ";
     printList(result3);
     std::cout << "预期: 2 -> 1 -> nullptr\n";
     
     std::vector<int> expected3 = {2, 1};
     std::vector<int> actual3 = toVector(result3);
-    std::cout << "结果: " << (actual3 == expected3 ? "✓ 通过" : "✗ 失败") << "\n";
+    const bool passed3 = actual3 == expected3;
+    allPassed = allPassed && passed3;
+    std::cout << "结果: " << (passed3 ? "✓ 通过" : "✗ 失败") << "\n";
     deleteList(result3);
     
     // 测试用例4：空链表
@@ -261,11 +270,13 @@ void testReverseList() {
     ListNode* head4 = nullptr;
     std::cout << "输入: nullptr\n";
     
-    ListNode* result4 = leetcode::reverseList(head4);
+    ListNode* result4 = leetcode_0206::reverseList(head4);
     std::cout << "输出: ";
     printList(result4);
     std::cout << "预期: nullptr\n";
-    std::cout << "结果: " << (result4 == nullptr ? "✓ 通过" : "✗ 失败") << "\n";
+    const bool passed4 = result4 == nullptr;
+    allPassed = allPassed && passed4;
+    std::cout << "结果: " << (passed4 ? "✓ 通过" : "✗ 失败") << "\n";
     
     // 测试用例5：单个节点
     std::cout << "\n【测试用例5：单个节点】\n";
@@ -273,14 +284,16 @@ void testReverseList() {
     std::cout << "输入: ";
     printList(head5);
     
-    ListNode* result5 = leetcode::reverseList(head5);
+    ListNode* result5 = leetcode_0206::reverseList(head5);
     std::cout << "输出: ";
     printList(result5);
     std::cout << "预期: 1 -> nullptr\n";
     
     std::vector<int> expected5 = {1};
     std::vector<int> actual5 = toVector(result5);
-    std::cout << "结果: " << (actual5 == expected5 ? "✓ 通过" : "✗ 失败") << "\n";
+    const bool passed5 = actual5 == expected5;
+    allPassed = allPassed && passed5;
+    std::cout << "结果: " << (passed5 ? "✓ 通过" : "✗ 失败") << "\n";
     deleteList(result5);
     
     // 测试用例6：反转前N个节点
@@ -290,20 +303,23 @@ void testReverseList() {
     printList(head6);
     std::cout << "反转前3个节点\n";
     
-    ListNode* result6 = leetcode::reverseN(head6, 3);
+    ListNode* result6 = leetcode_0206::reverseN(head6, 3);
     std::cout << "输出: ";
     printList(result6);
     std::cout << "预期: 3 -> 2 -> 1 -> 4 -> 5 -> nullptr\n";
     
     std::vector<int> expected6 = {3, 2, 1, 4, 5};
     std::vector<int> actual6 = toVector(result6);
-    std::cout << "结果: " << (actual6 == expected6 ? "✓ 通过" : "✗ 失败") << "\n";
+    const bool passed6 = actual6 == expected6;
+    allPassed = allPassed && passed6;
+    std::cout << "结果: " << (passed6 ? "✓ 通过" : "✗ 失败") << "\n";
     deleteList(result6);
     
-    std::cout << "\n======== 测试完成 ========\n";
+    std::cout << "\n======== " << (allPassed ? "全部测试通过" : "存在失败用例")
+              << " ========\n";
+    return allPassed;
 }
 
 int main() {
-    testReverseList();
-    return 0;
+    return testReverseList() ? 0 : 1;
 }

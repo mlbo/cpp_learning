@@ -18,7 +18,8 @@ int main() {
 ╔══════════════════════════════════════════════════════════════╗
 ║                   Day 7: 第一周复习与综合练习                  ║
 ║                                                              ║
-║  📚 复习内容: 类型推导 | 初始化 | 指针与智能指针               ║
+║  📚 复习内容: 类型推导 | 初始化 | nullptr                   ║
+║  🔎 下周预览: 智能指针所有权                               ║
 ║  🚀 综合项目: DynamicArray 动态数组类                         ║
 ║  💻 LeetCode: 42.接雨水 | 189.轮转数组                        ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -40,11 +41,11 @@ int main() {
 
     // 3. 指针复习
     std::cout << "\n┌─────────────────────────────────────────────────────┐\n";
-    std::cout << "│  📝 第三部分: 指针与智能指针复习                      │\n";
+    std::cout << "│  📝 第三部分: nullptr复习与所有权预览                     │\n";
     std::cout << "└─────────────────────────────────────────────────────┘\n";
     pointer_review();
 
-    std::cout << "\nDynamicArray 独立测试请运行 leetcode 目标外的专用测试程序。\n";
+    std::cout << "\nDynamicArray 独立测试：./build/dynamic_array_tests\n";
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);

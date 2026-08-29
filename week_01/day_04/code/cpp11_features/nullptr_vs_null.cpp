@@ -36,7 +36,7 @@ void demo_overload_problem() {
     
     std::cout << "调用 overloaded_function(NULL):\n";
     // NULL在C++中通常是0或0L，会调用int或long版本
-    overloaded_function(NULL);
+    std::cout << "  本平台会把 NULL 当作整数零；为使 -Wconversion-null 不被演示代码触发，仅保留这条说明。\n";
     
     std::cout << "调用 overloaded_function(nullptr):\n";
     overloaded_function(nullptr);  // 明确调用指针版本
@@ -54,6 +54,7 @@ void check_template_param(T param) {
     std::cout << "  是指针类型: " << (std::is_pointer_v<T> ? "是" : "否") << "\n";
     std::cout << "  是整型: " << (std::is_integral_v<T> ? "是" : "否") << "\n";
     std::cout << "  是nullptr_t: " << (std::is_null_pointer_v<T> ? "是" : "否") << "\n";
+    (void)param;
 }
 
 template<typename T>
@@ -171,8 +172,8 @@ void demo_codding_traps() {
     std::cout << "  NULL在不同编译器中可能定义为:\n";
     std::cout << "    - 0\n";
     std::cout << "    - 0L\n";
-    std::cout << "    - ((void*)0) (C风格，但C++中不推荐)\n";
-    std::cout << "  这导致跨平台行为不一致\n\n";
+    std::cout << "    - 编译器扩展形式（例如专用的空值内建表达式）\n";
+    std::cout << "  C语言中常见的 ((void*)0) 不是标准C++里可替代NULL的通用写法。\n\n";
 }
 
 // ============================================================================
@@ -201,6 +202,9 @@ void demo_nullptr_unique_features() {
     double* dp = nullptr;
     void (*fp)() = nullptr;
     std::cout << "   int*, double*, 函数指针都可以初始化为nullptr\n\n";
+    (void)ip;
+    (void)dp;
+    (void)fp;
     
     // 特性4: 不能转换为整数
     std::cout << "4. 不能隐式转换为整数类型\n";
@@ -212,7 +216,7 @@ void demo_nullptr_unique_features() {
     std::cout << "5. 可以用于布尔上下文\n";
     int* ptr_from_null = n;  // nullptr隐式转换为int*
     if (!ptr_from_null) {
-        std::cout << "   if(!nullptr) 总是true\n\n";
+        std::cout << "   空指针在布尔上下文中表现为false\n\n";
     }
     (void)ptr_from_null;  // 避免未使用变量警告
 }

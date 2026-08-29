@@ -15,8 +15,8 @@
  * 输出: [1,3,12,0,0]
  */
 
-#ifndef SOLUTION_H
-#define SOLUTION_H
+#ifndef WEEK01_DAY03_LEETCODE_0283_SOLUTION_H
+#define WEEK01_DAY03_LEETCODE_0283_SOLUTION_H
 
 #include <vector>
 
@@ -55,4 +55,4 @@ public:
 
 } // namespace leetcode_0283
 
-#endif // SOLUTION_H
+#endif // WEEK01_DAY03_LEETCODE_0283_SOLUTION_H

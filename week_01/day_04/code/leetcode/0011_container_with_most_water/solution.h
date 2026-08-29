@@ -14,11 +14,13 @@
  * 解释: 选中索引 1 和 8 的两条线，最大水量 = min(8,7) * (8-1) = 49
  */
 
-#ifndef SOLUTION_H
-#define SOLUTION_H
+#ifndef WEEK01_DAY04_LEETCODE_0011_SOLUTION_H
+#define WEEK01_DAY04_LEETCODE_0011_SOLUTION_H
 
 #include <vector>
 #include <algorithm>
+
+namespace leetcode_0011 {
 
 class Solution {
 public:
@@ -35,6 +37,9 @@ public:
      * 
      * @param height 高度数组
      * @return 最大水量
+     * @throws std::invalid_argument 当高度为负数
+     * @throws std::length_error 当下标范围不能由题目要求的 int 表示
+     * @throws std::overflow_error 当数学结果不能由 int 表示
      * 
      * 时间复杂度: O(n)
      * 空间复杂度: O(1)
@@ -49,4 +54,6 @@ public:
     int maxAreaBruteForce(std::vector<int>& height);
 };
 
-#endif // SOLUTION_H
+} // namespace leetcode_0011
+
+#endif // WEEK01_DAY04_LEETCODE_0011_SOLUTION_H

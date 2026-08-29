@@ -2,15 +2,17 @@
  * @file decltype_rules.cpp
  * @brief decltype 推导规则详解
  * 
- * 本文件详细讲解 decltype 的三种推导规则：
+ * 本文件详细讲解 decltype 的四种推导规则：
  * 规则1: 标识符表达式 - 返回声明的类型
  * 规则2: 左值表达式（非标识符）- 返回 T&
- * 规则3: 右值表达式 - 返回 T
+ * 规则3: 将亡值表达式 - 返回 T&&
+ * 规则4: 纯右值表达式 - 返回 T
  */
 
 #include <iostream>
 #include <type_traits>
 #include <iomanip>
+#include <utility>
 
 // 辅助宏
 #define PRINT_SEPARATOR() std::cout << "\n" << std::string(60, '=') << "\n"
@@ -82,6 +84,7 @@ void demonstrateRule1() {
     
     std::cout << "【规则1总结】\n";
     std::cout << "  decltype(变量名) 返回变量的声明类型，不做任何修改\n";
+    (void)arr;
 }
 
 /**
@@ -106,6 +109,7 @@ void demonstrateRule2() {
     int arr[5] = {1, 2, 3, 4, 5};
     SHOW_TYPE(arr[0]);
     std::cout << "  → arr[0] 是左值表达式，返回 int&\n\n";
+    (void)arr;
     
     // 解引用
     int* ptr = &x;
@@ -130,31 +134,35 @@ void demonstrateRule2() {
     std::cout << "【规则2总结】\n";
     std::cout << "  对于左值表达式，decltype 返回引用类型\n";
     std::cout << "  常见陷阱：decltype((x)) != decltype(x)\n";
+    (void)y;
 }
 
 /**
- * @brief 规则3：右值表达式
+ * @brief 规则3、4：将亡值与纯右值表达式
  * 
- * 如果 expr 是一个右值表达式（xvalue 或 prvalue），
- * decltype(expr) 返回 T（非引用）
+ * 如果 expr 是 xvalue，decltype(expr) 返回 T&&；
+ * 如果 expr 是 prvalue，decltype(expr) 返回 T。
  */
 void demonstrateRule3() {
-    PRINT_TITLE("规则3: 右值表达式");
+    PRINT_TITLE("规则3、4: 将亡值与纯右值表达式");
     
-    std::cout << "规则: 如果 expr 是右值表达式，返回 T\n";
-    std::cout << "适用: 算术表达式、后置++、函数返回值等\n\n";
+    std::cout << "规则3: xvalue（将亡值）返回 T&&\n";
+    std::cout << "规则4: prvalue（纯右值）返回 T\n\n";
     
     int x = 10, y = 20;
     
     // 算术表达式
     SHOW_TYPE(x + y);
-    std::cout << "  → x + y 是右值表达式，返回 int\n";
-    std::cout << "  算术运算产生临时值（右值）\n\n";
+    std::cout << "  → x + y 是纯右值表达式，返回 int\n";
+    std::cout << "  算术运算产生临时值\n\n";
     
     // 后置++
     SHOW_TYPE(x++);
-    std::cout << "  → x++ 是右值表达式，返回 int\n";
-    std::cout << "  后置++返回原始值的副本（右值）\n\n";
+    std::cout << "  → x++ 是纯右值表达式，返回 int\n";
+    std::cout << "  后置++返回原始值的副本\n\n";
+
+    SHOW_TYPE(std::move(x));
+    std::cout << "  → std::move(x) 是将亡值表达式，返回 int&&\n\n";
     
     // 字面量
     SHOW_TYPE(42);
@@ -172,9 +180,8 @@ void demonstrateRule3() {
     SHOW_TYPE(x > y);
     std::cout << "  → x > y 是右值表达式，返回 bool\n\n";
     
-    std::cout << "【规则3总结】\n";
-    std::cout << "  对于右值表达式，decltype 返回非引用类型\n";
-    std::cout << "  表达式产生临时值时适用此规则\n";
+    std::cout << "【规则3、4总结】\n";
+    std::cout << "  xvalue -> T&&；prvalue -> T，不能把所有右值合并成一种结果\n";
 }
 
 /**
@@ -184,34 +191,12 @@ void demonstrateRuleComparison() {
     PRINT_TITLE("规则判断流程");
     
     std::cout << R"(
-┌─────────────────────────────────────────────────────────────┐
-│                   decltype(expr) 判断流程                    │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   输入: expr                                                │
-│                    │                                        │
-│                    ▼                                        │
-│   ┌─────────────────────────────────┐                       │
-│   │ expr 是否为标识符？              │                       │
-│   │ (变量名/类成员名)               │                       │
-│   └────────────┬────────────────────┘                       │
-│           是 / │ \ 否                                       │
-│             /  │  \                                         │
-│            ▼   │   ▼                                        │
-│   ┌──────────┐ │ ┌──────────────────────┐                   │
-│   │ 规则1    │ │ │ expr 是否为左值？     │                   │
-│   │ 返回声明 │ │ │ (非标识符)            │                   │
-│   │ 类型     │ │ └──────────┬───────────┘                   │
-│   └──────────┘ │      是 /  │ \ 否                          │
-│                │        /   │  \                            │
-│                │       ▼    │   ▼                           │
-│                │ ┌────────┐ │ ┌────────┐                    │
-│                │ │ 规则2  │ │ │ 规则3  │                    │
-│                │ │ 返回T& │ │ │ 返回T  │                    │
-│                │ └────────┘ │ └────────┘                    │
-│                └────────────┴───────────┘                   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+先判断 expr 是否是不加括号的变量名或成员访问：
+  是 -> 返回实体声明时的类型
+  否 -> 再看表达式的值类别
+          左值   -> T&
+          将亡值 -> T&&
+          纯右值 -> T
 )";
 
     std::cout << "\n典型例子对比:\n";
@@ -224,12 +209,14 @@ void demonstrateRuleComparison() {
     std::cout << "├─────────────────┼────────────────┼──────────────────┤\n";
     std::cout << "│ decltype(x)     │ 规则1: 标识符  │ int              │\n";
     std::cout << "│ decltype((x))   │ 规则2: 左值    │ int&             │\n";
-    std::cout << "│ decltype(x+1)   │ 规则3: 右值    │ int              │\n";
+    std::cout << "│ decltype(x+1)   │ 规则4: 纯右值  │ int              │\n";
+    std::cout << "│ decltype(move(x))│规则3: 将亡值  │ int&&            │\n";
     std::cout << "│ decltype(arr[0])│ 规则2: 左值    │ int&             │\n";
     std::cout << "│ decltype(*&x)   │ 规则2: 左值    │ int&             │\n";
-    std::cout << "│ decltype(x++)   │ 规则3: 右值    │ int              │\n";
+    std::cout << "│ decltype(x++)   │ 规则4: 纯右值  │ int              │\n";
     std::cout << "│ decltype(++x)   │ 规则2: 左值    │ int&             │\n";
     std::cout << "└─────────────────┴────────────────┴──────────────────┘\n";
+    (void)x; (void)arr;
 }
 
 /**
@@ -262,7 +249,7 @@ void demonstratePractice() {
     // 练习3
     std::cout << "练习3: decltype(a + b) v3 = a + b;\n";
     decltype(a + b) v3 = a + b;  // int
-    std::cout << "  答案: int (规则3: a+b是右值表达式)\n\n";
+    std::cout << "  答案: int (规则4: a+b是纯右值表达式)\n\n";
     
     // 练习4
     std::cout << "练习4: decltype(arr[0]) v4 = arr[0];\n";
@@ -277,7 +264,7 @@ void demonstratePractice() {
     // 练习6
     std::cout << "练习6: decltype(p + 1) v6 = p + 1;\n";
     decltype(p + 1) v6 = p + 1;  // int*
-    std::cout << "  答案: int* (规则3: p+1是右值表达式)\n\n";
+    std::cout << "  答案: int* (规则4: p+1是纯右值表达式)\n\n";
     
     // 练习7 - 经典陷阱
     std::cout << "练习7: decltype(a = b) v7 = a;\n";

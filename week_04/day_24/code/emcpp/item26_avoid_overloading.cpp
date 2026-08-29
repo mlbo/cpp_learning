@@ -17,6 +17,8 @@
 #include <chrono>
 #include <set>
 
+namespace day24::item26_and_27 {
+
 // ==================== 问题演示 ====================
 
 /**
@@ -60,7 +62,11 @@ void logData(int idx) {
 template<typename T>
 void logData(T&& name) {
     std::cout << "  [重载2] 通用引用版本\n";
-    names.emplace(std::forward<T>(name));
+    if constexpr (std::is_constructible_v<std::string, T&&>) {
+        names.emplace(std::forward<T>(name));
+    } else {
+        std::cout << "  该类型不能构造string；真实业务模板若直接emplace会在此编译失败\n";
+    }
 }
 
 /**
@@ -72,8 +78,11 @@ void demonstrateTrap() {
     std::string name = "Alice";
     
     std::cout << "\n调用 logData(42):\n";
-    logData(42);  // 期望调用重载1，实际调用重载2！
-    // 原因：T&& = int&& 是精确匹配，比 int 转换更优
+    logData(42);  // int 精确匹配；同等级时优先非模板重载
+
+    short index = 7;
+    std::cout << "\n调用 short 类型的 logData(index):\n";
+    logData(index);  // 通用引用精确匹配 short&，胜过 short 到 int 的提升
     
     std::cout << "\n调用 logData(name):\n";
     logData(name);  // 调用重载2，OK
@@ -84,7 +93,7 @@ void demonstrateTrap() {
     std::cout << "\n问题总结:\n";
     std::cout << "  - 通用引用匹配 'too well'\n";
     std::cout << "  - 会劫持其他重载版本的调用\n";
-    std::cout << "  - 特别是精确匹配优于类型转换的情况\n";
+    std::cout << "  - int 实参仍会选非模板 int 重载；问题出在 short 等需要转换的实参\n";
 }
 
 } // namespace trap
@@ -100,7 +109,7 @@ void logById(int idx) {
 
 template<typename T>
 void logByName(T&& name) {
-    std::cout << "  按名称记录\n";
+    std::cout << "  按名称记录: " << name << "\n";
 }
 
 void demonstrate() {
@@ -115,7 +124,7 @@ void demonstrate() {
 
 } // namespace solution1
 
-// ==================== 解决方案 2：传递 const T& ====================
+// ==================== 解决方案 2：使用具体类型的 const 引用 ====================
 
 namespace solution2 {
 
@@ -123,24 +132,43 @@ void logData(int idx) {
     std::cout << "  [const T&] 整数: " << idx << "\n";
 }
 
-template<typename T>
-void logData(const T& name) {
-    std::cout << "  [const T&] 名称版本\n";
+void logData(const std::string& name) {
+    std::cout << "  [const string&] 名称: " << name << "\n";
 }
 
 void demonstrate() {
-    std::cout << "\n=== 解决方案 2：传递 const T& ===\n";
+    std::cout << "\n=== 解决方案 2：传递 const std::string& ===\n";
     
     logData(42);         // 调用 int 版本
-    logData("Charlie");  // 调用 const T& 版本
+    short index = 7;
+    logData(index);       // string重载不可行，short提升到int版本
+    logData(std::string("Charlie"));
     
     std::cout << "优点：不会劫持重载\n";
-    std::cout << "缺点：无法移动语义，性能损失\n";
+    std::cout << "缺点：调用方可能先构造临时string，且接口只接受这一具体语义类型\n";
 }
 
 } // namespace solution2
 
-// ==================== 解决方案 3：标签分发 ====================
+// ==================== 解决方案 3：按值接收 ====================
+
+namespace solution_by_value {
+
+void logName(std::string name) {
+    std::cout << "  [按值] 名称: " << name << "\n";
+}
+
+void demonstrate() {
+    std::cout << "\n=== 解决方案 3：按值接收名称 ===\n";
+    std::string name = "Dora";
+    logName(name);                 // 左值复制到形参
+    logName(std::string("Evan")); // 右值可移动或直接构造形参
+    std::cout << "适用：函数本来就要保存一份值，且一次复制/移动成本可接受\n";
+}
+
+} // namespace solution_by_value
+
+// ==================== 解决方案 4：标签分发 ====================
 
 namespace solution3 {
 
@@ -151,12 +179,12 @@ struct FalseType {};
 // 根据类型特征分发
 template<typename T>
 void logDataImpl(T&& val, TrueType) {
-    std::cout << "  [标签分发] 整数类型处理\n";
+    std::cout << "  [标签分发] 整数类型处理: " << val << "\n";
 }
 
 template<typename T>
 void logDataImpl(T&& val, FalseType) {
-    std::cout << "  [标签分发] 其他类型处理\n";
+    std::cout << "  [标签分发] 其他类型处理: " << val << "\n";
 }
 
 // 入口函数：使用标签分发
@@ -169,7 +197,7 @@ void logData(T&& val) {
 }
 
 void demonstrate() {
-    std::cout << "\n=== 解决方案 3：标签分发 ===\n";
+    std::cout << "\n=== 解决方案 4：标签分发 ===\n";
     
     logData(42);           // 整数 → TrueType 分支
     logData("David");      // 非整数 → FalseType 分支
@@ -181,7 +209,7 @@ void demonstrate() {
 
 } // namespace solution3
 
-// ==================== 解决方案 4：SFINAE 约束 ====================
+// ==================== 解决方案 5：SFINAE 约束 ====================
 
 namespace solution4 {
 
@@ -189,7 +217,7 @@ namespace solution4 {
 template<typename T,
          typename = std::enable_if_t<!std::is_integral_v<std::decay_t<T>>>>
 void logData(T&& name) {
-    std::cout << "  [SFINAE] 非整数版本\n";
+    std::cout << "  [SFINAE] 非整数版本: " << name << "\n";
 }
 
 // 整数版本
@@ -198,7 +226,7 @@ void logData(int idx) {
 }
 
 void demonstrate() {
-    std::cout << "\n=== 解决方案 4：SFINAE 约束 ===\n";
+    std::cout << "\n=== 解决方案 5：SFINAE 约束 ===\n";
     
     logData(42);         // 整数版本
     logData("Eve");      // SFINAE 约束后的通用引用版本
@@ -209,7 +237,7 @@ void demonstrate() {
 
 } // namespace solution4
 
-// ==================== 解决方案 5：C++20 Concepts ====================
+// ==================== 解决方案 6：C++20 Concepts ====================
 
 #if __cplusplus >= 202002L
 
@@ -229,7 +257,7 @@ void logData(T&& name) {
 }
 
 void demonstrate() {
-    std::cout << "\n=== 解决方案 5：C++20 Concepts ===\n";
+    std::cout << "\n=== 解决方案 6：C++20 Concepts ===\n";
     
     logData(42);         // 整数版本
     logData("Frank");    // Concepts 约束版本
@@ -244,10 +272,10 @@ void demonstrate() {
 
 // ==================== 主演示函数 ====================
 
-void runItem26Demo() {
+void run() {
     std::cout << "\n";
     std::cout << "========================================\n";
-    std::cout << "   EMC++ Item 26: 避免在通用引用上重载\n";
+    std::cout << "   EMC++ Item 26-27: 重载风险与替代方案\n";
     std::cout << "========================================\n";
     
     // 演示陷阱
@@ -256,23 +284,30 @@ void runItem26Demo() {
     // 演示解决方案
     solution1::demonstrate();
     solution2::demonstrate();
+    solution_by_value::demonstrate();
     solution3::demonstrate();
     solution4::demonstrate();
     
 #if __cplusplus >= 202002L
     solution5::demonstrate();
 #else
-    std::cout << "\n=== 解决方案 5：C++20 Concepts ===\n";
+    std::cout << "\n=== 解决方案 6：C++20 Concepts ===\n";
     std::cout << "  (需要 C++20 支持，当前编译器不支持)\n";
 #endif
     
     std::cout << "\n========================================\n";
-    std::cout << "   Item 26 演示完成\n";
+    std::cout << "   Item 26-27 演示完成\n";
     std::cout << "========================================\n";
     
     std::cout << "\n关键要点:\n";
     std::cout << "  1. 通用引用匹配范围极广，容易「劫持」其他重载\n";
     std::cout << "  2. 避免在通用引用上重载，除非必要\n";
-    std::cout << "  3. 优先使用标签分发或 SFINAE/Concepts 约束\n";
-    std::cout << "  4. 最简单的方案是使用不同的函数名\n";
+    std::cout << "  3. Item 27 的替代方案包括不同函数名、传 const 引用、传值和标签分发\n";
+    std::cout << "  4. 必须保留重载时，再用 SFINAE/Concepts 约束模板参与条件\n";
+}
+
+} // namespace day24::item26_and_27
+
+void runItem26And27Demo() {
+    day24::item26_and_27::run();
 }

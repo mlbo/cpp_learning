@@ -6,14 +6,12 @@
  * 如果不存在这样的子串，返回空字符串。
  */
 
-#ifndef SOLUTION_H
-#define SOLUTION_H
+#ifndef WEEK04_DAY27_LC0076_SOLUTION_H
+#define WEEK04_DAY27_LC0076_SOLUTION_H
 
 #include <string>
-#include <vector>
-#include <climits>
 
-using namespace std;
+namespace day27::lc0076 {
 
 class Solution {
 public:
@@ -27,15 +25,18 @@ public:
      * 4. 记录过程中的最小窗口
      * 
      * 时间复杂度：O(n)，n是s的长度
-     * 空间复杂度：O(k)，k是字符集大小
+     * 空间复杂度：O(1)，固定统计 256 种字节值
+     * 输入按字节处理，先转 unsigned char 再做下标；空 t 返回空串。
      */
-    string minWindow(string s, string t);
+    std::string minWindow(std::string s, std::string t);
 };
 
 /**
  * 演示滑动窗口的执行过程
- * 用于理解算法的每一步操作
+ * 用于理解算法的每一步操作；空 t 会直接说明空窗口契约并返回。
  */
-void demonstrateAlgorithm(const string& s, const string& t);
+void demonstrateAlgorithm(const std::string& s, const std::string& t);
 
-#endif // SOLUTION_H
+} // namespace day27::lc0076
+
+#endif

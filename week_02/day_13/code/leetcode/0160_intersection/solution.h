@@ -15,6 +15,8 @@
 #ifndef LEETCODE_160_SOLUTION_H
 #define LEETCODE_160_SOLUTION_H
 
+namespace leetcode_0160 {
+
 // 链表节点定义
 struct ListNode {
     int val;
@@ -41,6 +43,8 @@ public:
      * 
      * 时间复杂度：O(m + n)
      * 空间复杂度：O(1)
+     * @note 只读取next，不修改任一输入链；返回值是非拥有观察指针。
+     * @pre 两条输入链无环；若相交，则从交点起共享同一条尾链。
      */
     ListNode* getIntersectionNode(ListNode* headA, ListNode* headB);
     
@@ -69,5 +73,7 @@ public:
      */
     ListNode* getIntersectionNodeByHash(ListNode* headA, ListNode* headB);
 };
+
+} // namespace leetcode_0160
 
 #endif // LEETCODE_160_SOLUTION_H

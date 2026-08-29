@@ -13,20 +13,18 @@
 #include <iostream>
 #include <string>
 
+#include "cpp11_features/perfect_forwarding_demo.h"
+#include "leetcode/0003_longest_substring/solution.h"
+#include "leetcode/0438_find_anagrams/solution.h"
+
 // 声明各个演示函数
 namespace cpp11_features {
-    void perfectForwardingDemo();
     void stdForwardDemo();
 }
 
 namespace emcpp {
     void item29StdForwardDetail();
     void item30PerfectForwardFail();
-}
-
-namespace leetcode {
-    void lc0003Demo();
-    void lc0438Demo();
 }
 
 // 打印分隔线
@@ -52,7 +50,7 @@ int main() {
     cpp11_features::stdForwardDemo();
 
     // 3. EMC++ Item 29
-    printSeparator("EMC++ Item 29: 理解std::forward");
+    printSeparator("EMC++ Item 29: 不要假定移动存在、便宜且会发生");
     emcpp::item29StdForwardDetail();
 
     // 4. EMC++ Item 30

@@ -1,5 +1,13 @@
 # Day 4: nullptr详解与双指针算法
 
+> **学习定位**：承接 Day 3 的初始化规则，本日明确“没有对象”应如何表达，并继续训练对撞指针。`nullptr` 的重载优势会在 Week 2 的链表与智能指针中反复用到。
+
+## 阅读导航
+
+- `nullptr` 的标准转换与重载语义可对照 [cppreference](https://en.cppreference.com/w/cpp/language/nullptr)；本文负责把它连接到接口空值契约。
+- 盛水容器和三数之和的完整证明分别见 [LeetCode 11](code/leetcode/0011_container_with_most_water/README.md) 与 [LeetCode 15](code/leetcode/0015_3sum/README.md)，图解见 [形象化指南](../算法小白形象化题解指南.md) 的 Day 4 部分。
+- 前接 [Day 3 的重载选择](../day_03/README.md)，后接 [Day 5 的滑动窗口](../day_05/README.md)；Week 2 会继续区分空指针、悬空指针和所有权。
+
 ## 📚 学习目标
 
 1. **深入理解nullptr**：掌握C++11引入的nullptr的关键特性
@@ -13,6 +21,29 @@
 ## 🔍 知识点详解
 
 ### 1. nullptr 基础
+
+#### 1.0 先把“指针”说清楚
+
+如果把对象想成一间房子，指针保存的就是房子的“地址”：
+
+```cpp
+int value = 42;        // 真正存放数据的对象
+int* ptr = &value;     // ptr 保存 value 的地址
+std::cout << *ptr;     // 解引用：沿地址找到对象，读出 42
+```
+
+指针有三种需要分清的状态：
+
+1. 指向有效对象：可以在对象生命期内解引用。
+2. 空指针：明确表示“当前没有指向任何对象”。
+3. 悬空指针：仍保存某个地址，但对象已经销毁；这比空指针更危险。
+
+`nullptr` 只能表示第 2 种状态，不会自动解决悬空指针、重复释放或资源所有权问题。任何空指针都不能解引用：
+
+```cpp
+int* ptr = nullptr;
+// std::cout << *ptr;  // 错误：解引用空指针，行为未定义
+```
 
 #### 1.1 nullptr 是什么？
 
@@ -31,15 +62,15 @@ void (*func)() = nullptr;
 #### 1.2 NULL 和 0 的问题
 
 ```cpp
-// 在C++中，NULL通常被定义为 0
-#define NULL 0
+// NULL 是实现提供的宏，常见定义是 0 或 0L。
+// 不要在自己的程序中重新 #define NULL。
 
 // 这会导致函数重载时的问题
 void f(int);
 void f(int*);
 
 f(0);        // 调用 f(int)
-f(NULL);     // 也调用 f(int)！可能不是期望的行为
+f(NULL);     // 结果受 NULL 实现影响，可能调到整数版或产生歧义
 f(nullptr);  // 调用 f(int*)，明确无误
 ```
 
@@ -47,10 +78,10 @@ f(nullptr);  // 调用 f(int*)，明确无误
 
 | 特性 | 0 | NULL | nullptr |
 |------|---|------|---------|
-| 类型 | int | int/long | std::nullptr_t |
-| 指针安全 | ❌ | ❌ | ✅ |
-| 重载正确 | ❌ | ❌ | ✅ |
-| 模板友好 | ❌ | ❌ | ✅ |
+| 类型 | `int` | 由实现提供的宏展开结果 | `std::nullptr_t` |
+| 表意 | 整数，也可作空指针常量 | 空指针宏，但本质常为整数 | 专门的空指针字面量 |
+| 重载选择 | 容易选中整数重载 | 依实现而定，可能歧义 | 优先匹配指针语义 |
+| 模板推导 | 推导为 `int` | 常推导为整数类型 | 推导为 `std::nullptr_t` |
 | 可读性 | 差 | 中 | 优 |
 
 ---
@@ -121,23 +152,25 @@ sptr = nullptr;  // 等价于 sptr.reset()
 #### 场景6：模板类型推导
 ```cpp
 template<typename T>
-void func(T arg) {
-    T* ptr = nullptr;  // 正确初始化
-}
+void inspect(T arg);
 
-func(nullptr);  // T 推导为 std::nullptr_t
+inspect(0);        // T = int
+inspect(NULL);     // T 取决于实现提供的宏展开结果，常见为整数类型
+inspect(nullptr);  // T = std::nullptr_t
 ```
+
+这不表示 `std::nullptr_t` 本身是某种指针类型；它是一个可转换成任意指针类型的独立类型。
 
 #### 场景7：容器初始化
 ```cpp
 std::vector<int*> vec(10, nullptr);  // 10个空指针
 ```
 
-#### 场景8：类型安全转换
+#### 场景8：转换为具体指针类型
 ```cpp
-// nullptr 可以安全转换为任何指针类型
-void* vptr = nullptr;
-int* iptr = static_cast<int*>(vptr);  // OK
+int* iptr = nullptr;            // 隐式转换为 int*
+void (*callback)() = nullptr;   // 也可转换为函数指针
+// int value = nullptr;         // 错误：不能当成普通整数
 ```
 
 #### 场景9：函数重载区分
@@ -176,16 +209,20 @@ f(0);     // 调用 f(int)
 f(NULL);  // 可能调用 f(int)，取决于NULL的定义
 f(nullptr);  // 调用 f(void*) ✓
 
-// 问题2：模板中的类型丢失
+// 问题2：模板会记住实参的真实类型
+void consume(int*);
+
 template<typename T>
-void call(T arg) {
-    func(arg);  // 如果arg是0，T是int而非指针类型
+void forward_to_consume(T arg) {
+    consume(arg);
 }
 
-call(0);        // T = int
-call(NULL);     // T = int 或 long
-call(nullptr);  // T = std::nullptr_t，可以正确传递
+// forward_to_consume(0);     // 错误：T = int，函数参数 arg 不再是“字面量 0”
+// forward_to_consume(NULL);  // 同理，T 为整数类型
+forward_to_consume(nullptr);  // 正确：std::nullptr_t 仍可转换为 int*
 ```
+
+这就是 Item 8 不只谈“代码好看”的原因：`nullptr` 在跨越函数模板边界后仍保留空指针语义。
 
 #### 3.3 代码示例对比
 
@@ -234,32 +271,39 @@ flowchart LR
 
 #### 核心思想
 
-1. **贪心策略**：每次移动较矮的边，因为只有移动较矮边才可能获得更大的面积
-2. **双指针**：从两端向中间收缩，保证不遗漏最优解
-3. **时间复杂度**：O(n)，空间复杂度：O(1)
+1. **状态**：`left` 和 `right` 表示当前还没有被排除的两端。
+2. **面积瓶颈**：面积是 `min(左高, 右高) × 宽度`，因此较矮边限制了当前高度。
+3. **排除证明**：假设左边不高于右边。固定左边、把右边向左移，宽度变小，高度又不会超过左边，所以不可能超过当前面积。因而可以安全排除当前左边，移动 `left`。
+4. **复杂度**：两个指针各自只单调移动，时间 O(n)，额外空间 O(1)。
 
 #### 代码实现
 
+下面展示核心函数体；`validate_input` 与 `week01::checked_result` 分别承担非负高度/长度检查和 `int` 返回范围检查。可编译权威版本位于 `code/leetcode/0011_container_with_most_water/solution.cpp`。
+
 ```cpp
 int maxArea(vector<int>& height) {
-    int left = 0, right = height.size() - 1;
-    int maxWater = 0;
+    validate_input(height);
+    if (height.size() < 2) return 0;
+
+    size_t left = 0;
+    size_t right = height.size() - 1;
+    int64_t max_water = 0;
     
     while (left < right) {
         // 计算当前容器面积
-        int h = min(height[left], height[right]);
-        int width = right - left;
-        maxWater = max(maxWater, h * width);
+        const int64_t h = min(height[left], height[right]);
+        const int64_t width = static_cast<int64_t>(right - left);
+        max_water = max(max_water, h * width);
         
         // 移动较矮的边
         if (height[left] < height[right]) {
-            left++;
+            ++left;
         } else {
-            right--;
+            --right;
         }
     }
     
-    return maxWater;
+    return week01::checked_result(max_water);
 }
 ```
 
@@ -291,37 +335,42 @@ flowchart TB
 
 #### 去重技巧详解
 
+先排序的价值不只是“能用双指针”：相同值会聚在一起，因此才能通过跳过相邻重复值去重。循环不变量是：在固定 `i` 后，`[i + 1, left)` 中过小的候选和 `(right, n)` 中过大的候选都已排除。
+
+下面是核心函数体；配套实现还通过公开头文件提供类接口。复制到独立文件时需要补齐 `<algorithm>`、`<cstdint>`、`<vector>` 和相应 `std::` 限定，权威可编译版本位于本题 `solution.cpp`。
+
 ```cpp
 vector<vector<int>> threeSum(vector<int>& nums) {
     vector<vector<int>> result;
     sort(nums.begin(), nums.end());
-    int n = nums.size();
-    
-    for (int i = 0; i < n - 2; i++) {
+
+    for (size_t i = 0; i + 2 < nums.size(); ++i) {
         // 去重1：跳过相同的第一个数
         if (i > 0 && nums[i] == nums[i - 1]) continue;
         
         // 剪枝优化
         if (nums[i] > 0) break;
         
-        int left = i + 1, right = n - 1;
+        size_t left = i + 1;
+        size_t right = nums.size() - 1;
         while (left < right) {
-            int sum = nums[i] + nums[left] + nums[right];
+            const int64_t sum = static_cast<int64_t>(nums[i]) +
+                                nums[left] + nums[right];
             
             if (sum == 0) {
                 result.push_back({nums[i], nums[left], nums[right]});
                 
                 // 去重2：跳过相同的第二个数
-                while (left < right && nums[left] == nums[left + 1]) left++;
+                while (left < right && nums[left] == nums[left + 1]) ++left;
                 // 去重3：跳过相同的第三个数
-                while (left < right && nums[right] == nums[right - 1]) right--;
+                while (left < right && nums[right] == nums[right - 1]) --right;
                 
-                left++;
-                right--;
+                ++left;
+                --right;
             } else if (sum < 0) {
-                left++;
+                ++left;
             } else {
-                right--;
+                --right;
             }
         }
     }
@@ -378,10 +427,8 @@ day_04/
 
 ```bash
 # 进入目录
-cd /home/z/my-project/download/week_01/day_04
+cd week_01/day_04
 
-# 添加执行权限并运行
-chmod +x build_and_run.sh
 ./build_and_run.sh
 ```
 
@@ -392,9 +439,9 @@ chmod +x build_and_run.sh
 | 概念 | 要点 |
 |------|------|
 | nullptr | 类型安全的空指针，优先使用 |
-| NULL | C++中定义为0，存在重载歧义 |
+| NULL | 实现提供的宏，常表现为整数空指针常量，重载结果不可靠 |
 | 0 | 整数类型，不是指针类型 |
-| 双指针 | O(n)时间复杂度解决两数问题 |
+| 双指针 | 利用有序性或可证明的排除规则，让边界单调移动 |
 | 去重 | 排序后跳过相同元素 |
 
 ---
@@ -409,7 +456,24 @@ chmod +x build_and_run.sh
 
 ## 📝 练习
 
-1. 编写代码验证nullptr不能赋值给整型变量
-2. 实现一个函数模板，正确处理nullptr参数
-3. 修改LeetCode 15，实现四数之和
-4. 思考：为什么nullptr不能进行算术运算？
+1. **验证语言规则**：分别尝试将 `0`、`NULL`、`nullptr` 传给整数/指针重载，记录编译结果。
+2. **解释机制**：不看文档，用自己的话解释为什么模板包装函数中 `0` 不再能当空指针，`nullptr` 却可以。
+3. **手算算法**：对 `[1,8,6,2,5,4,8,3,7]` 写出盛水题每轮的 `left/right/area/maxArea`。
+4. **独立编程**：不复制模板，重写三数之和，并补充空数组、全 0、大量重复值和整数边界测试。
+5. **进阶迁移**：实现四数之和，说明它与三数之和共用了哪些模板。
+
+## 🧩 今日唯一工程动作
+
+为代码中一个指针参数写一张空值契约卡，卡片只记录“是否允许 `nullptr`、空值行为、违约报告、是否保存指针”四项。
+
+## 📝 五句复盘
+
+1. `nullptr` 具有 `std::nullptr_t` 类型，因此能在重载和模板推导中保留指针意图。
+2. `0` 和 `NULL` 可能走向整数重载，所以它们不是现代 C++ 的空指针接口选择。
+3. 非空检查只能排除空值，不能证明对象生命周期仍然有效。
+4. 盛水容器和三数之和的指针移动都需要可证明的排除规则和安全的中间算术类型。
+5. Day 5 将把两端向中间的边界移动扩展为维护连续区间状态的滑动窗口。
+
+## ✅ 完成标准与下一日过渡
+
+完成 Day 4 后，你应能说清“空指针不等于悬空指针”，也能为双指针的移动规则给出排除证明。Day 5 会把“两端向中间收缩”扩展成“维护一个连续区间的状态”，即滑动窗口。

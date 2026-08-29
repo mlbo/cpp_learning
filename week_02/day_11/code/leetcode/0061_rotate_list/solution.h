@@ -17,6 +17,7 @@
  * 输出：[2,0,1]
  */
 
+#include <cstddef>
 #include <vector>
 
 namespace leetcode_0061 {
@@ -27,7 +28,7 @@ struct ListNode {
     ListNode* next;
     ListNode() : val(0), next(nullptr) {}
     ListNode(int x) : val(x), next(nullptr) {}
-    ListNode(int x, ListNode* next) : val(x), next(next) {}
+    ListNode(int x, ListNode* next_node) : val(x), next(next_node) {}
 };
 
 /**
@@ -46,6 +47,7 @@ public:
      *
      * 时间复杂度: O(N)，遍历链表
      * 空间复杂度: O(1)，常数空间
+     * @note 原地重连节点；k < 0 时按非法输入处理并原样返回。
      */
     ListNode* rotateRight(ListNode* head, int k);
 
@@ -100,7 +102,7 @@ void deleteList(ListNode* head);
 /**
  * @brief 计算链表长度
  */
-int getListLength(ListNode* head);
+std::size_t getListLength(ListNode* head);
 
 } // namespace leetcode_0061
 

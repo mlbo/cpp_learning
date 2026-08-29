@@ -14,6 +14,8 @@
 #include <chrono>
 #include <functional>
 
+#include "../../../common/noexcept_output.h"
+
 // ============================================
 // 辅助类定义
 // ============================================
@@ -24,7 +26,9 @@ public:
         std::cout << "  [Resource] 构造 id=" << id_ << "\n";
     }
     ~Resource() {
-        std::cout << "  [Resource] 析构 id=" << id_ << "\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  [Resource] 析构 id=" << id_ << "\n";
+        });
     }
     void use() const {
         std::cout << "  [Resource] 使用 id=" << id_ << "\n";
@@ -75,11 +79,11 @@ void demo_unique_ptr() {
     {
         // 使用 unique_ptr<T[]> 管理数组
         std::unique_ptr<int[]> arr = std::make_unique<int[]>(5);
-        for (int i = 0; i < 5; ++i) {
-            arr[i] = i * 10;
+        for (std::size_t i = 0; i < 5U; ++i) {
+            arr[i] = static_cast<int>(i) * 10;
         }
         std::cout << "  数组内容: ";
-        for (int i = 0; i < 5; ++i) {
+        for (std::size_t i = 0; i < 5U; ++i) {
             std::cout << arr[i] << " ";
         }
         std::cout << "\n";
@@ -158,7 +162,9 @@ public:
         std::cout << "  [Node] 创建 value=" << value_ << "\n";
     }
     ~Node() {
-        std::cout << "  [Node] 销毁 value=" << value_ << "\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  [Node] 销毁 value=" << value_ << "\n";
+        });
     }
     
     void setNext(std::shared_ptr<Node> next) {
@@ -240,15 +246,15 @@ void demo_weak_ptr() {
 void benchmark_smart_pointers() {
     std::cout << "\n=== 4. 性能对比 ===\n";
     
-    const int N = 1000000;
+    const std::size_t element_count = 1000000U;
     
     // unique_ptr 性能
     auto start = std::chrono::high_resolution_clock::now();
     {
         std::vector<std::unique_ptr<int>> vec;
-        vec.reserve(N);
-        for (int i = 0; i < N; ++i) {
-            vec.push_back(std::make_unique<int>(i));
+        vec.reserve(element_count);
+        for (std::size_t i = 0; i < element_count; ++i) {
+            vec.push_back(std::make_unique<int>(static_cast<int>(i)));
         }
     }
     auto end = std::chrono::high_resolution_clock::now();
@@ -260,9 +266,9 @@ void benchmark_smart_pointers() {
     start = std::chrono::high_resolution_clock::now();
     {
         std::vector<std::shared_ptr<int>> vec;
-        vec.reserve(N);
-        for (int i = 0; i < N; ++i) {
-            vec.push_back(std::make_shared<int>(i));
+        vec.reserve(element_count);
+        for (std::size_t i = 0; i < element_count; ++i) {
+            vec.push_back(std::make_shared<int>(static_cast<int>(i)));
         }
     }
     end = std::chrono::high_resolution_clock::now();
@@ -270,7 +276,8 @@ void benchmark_smart_pointers() {
               << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() 
               << " ms\n";
     
-    std::cout << "\n  结论: unique_ptr 零开销，shared_ptr 有原子操作开销\n";
+    std::cout << "\n  说明: 这次单机计时只用于观察，不能单凭一次耗时下性能结论；"
+                 "shared_ptr还需维护共享控制块。\n";
 }
 
 // ============================================
@@ -285,11 +292,11 @@ void print_decision_guide() {
   │                   智能指针选择决策树                         │
   ├─────────────────────────────────────────────────────────────┤
   │                                                             │
-  │   需要管理动态资源？                                        │
+  │   当前关系是否拥有资源？                                    │
   │        │                                                    │
-  │        ├── 否 ──→ 使用栈对象/值语义                         │
+  │        ├── 否 ──→ 引用/裸指针；观察共享寿命则用weak_ptr     │
   │        │                                                    │
-  │        └── 是 ──→ 需要共享所有权？                          │
+  │        └── 是 ──→ 是否真的需要多个共同所有者？              │
   │                      │                                      │
   │                      ├── 否 ──→ std::unique_ptr            │
   │                      │              │                       │
@@ -299,19 +306,15 @@ void print_decision_guide() {
   │                      │              │                       │
   │                      │              └── unique_ptr<T>       │
   │                      │                                      │
-  │                      └── 是 ──→ 需要观察但不拥有？          │
-  │                                    │                        │
-  │                                    ├── 是 ──→ std::weak_ptr │
-  │                                    │                        │
-  │                                    └── 否 ──→ std::shared_ptr
+  │                      └── 是 ──→ std::shared_ptr             │
   │                                                             │
   └─────────────────────────────────────────────────────────────┘
 
-  推荐优先级：
-  1. 栈对象 > unique_ptr > shared_ptr > weak_ptr
-  2. 能用栈对象就不用指针
-  3. 能用 unique_ptr 就不用 shared_ptr
-  4. 需要 shared_ptr 时才考虑 weak_ptr
+  判断顺序：
+  1. 能用值语义就优先值语义
+  2. 所有权唯一时用 unique_ptr
+  3. 确有共同所有者时用 shared_ptr
+  4. 不拥有时用引用/裸指针；观察共享寿命才用 weak_ptr
 )";
 }
 

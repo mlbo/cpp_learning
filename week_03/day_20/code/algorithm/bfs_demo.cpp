@@ -35,7 +35,7 @@ void waterWaveDemo() {
     
     // 创建一个简单的图（用邻接表表示）
     // 中心节点是0，周围是1-6，最外层是7-12
-    std::vector<std::vector<int>> graph = {
+    std::vector<std::vector<std::size_t>> graph = {
         {1, 2, 3, 4, 5, 6},    // 0: 中心
         {0, 7, 8},             // 1
         {0, 8, 9},             // 2
@@ -51,11 +51,10 @@ void waterWaveDemo() {
         {5, 6}                 // 12
     };
     
-    int n = static_cast<int>(graph.size());
-    std::vector<int> distance(n, -1);
-    std::queue<int> q;
+    std::vector<int> distance(graph.size(), -1);
+    std::queue<std::size_t> q;
     
-    int start = 0;  // 从中心开始
+    const std::size_t start = 0;  // 从中心开始
     
     q.push(start);
     distance[start] = 0;
@@ -63,20 +62,19 @@ void waterWaveDemo() {
     std::cout << "\n石头落点: 节点" << start << " (中心)\n";
     std::cout << "\n水波扩散过程:\n";
     
-    int currentLevel = 0;
-    std::vector<std::vector<int>> levels;
+    std::vector<std::vector<std::size_t>> levels;
     levels.push_back({start});
     
     while (!q.empty()) {
-        int levelSize = static_cast<int>(q.size());
-        std::vector<int> thisLevel;
+        const std::size_t levelSize = q.size();
+        std::vector<std::size_t> thisLevel;
         
-        for (int i = 0; i < levelSize; ++i) {
-            int node = q.front();
+        for (std::size_t i = 0; i < levelSize; ++i) {
+            const std::size_t node = q.front();
             q.pop();
             thisLevel.push_back(node);
             
-            for (int neighbor : graph[node]) {
+            for (std::size_t neighbor : graph[node]) {
                 if (distance[neighbor] == -1) {
                     distance[neighbor] = distance[node] + 1;
                     q.push(neighbor);
@@ -90,20 +88,20 @@ void waterWaveDemo() {
     }
     
     // 打印水波扩散效果
-    for (size_t i = 0; i < levels.size(); ++i) {
+    for (std::size_t i = 0; i < levels.size(); ++i) {
         std::cout << "第" << i + 1 << "圈水波 (距离=" << i << "): ";
-        for (int node : levels[i]) {
+        for (std::size_t node : levels[i]) {
             std::cout << node << " ";
         }
         std::cout << "\n";
         
         // 可视化水波
         std::cout << "   ";
-        for (int j = 0; j < static_cast<int>(i); ++j) {
+        for (std::size_t j = 0; j < i; ++j) {
             std::cout << "~~~~";
         }
         std::cout << "🌊 ";
-        for (size_t j = 0; j < levels[i].size(); ++j) {
+        for (std::size_t j = 0; j < levels[i].size(); ++j) {
             std::cout << "● ";
         }
         std::cout << "\n";
@@ -120,12 +118,13 @@ void waterWaveDemo() {
 void bfsVisualizationDemo() {
     std::cout << "\n======== 演示2：BFS逐层遍历可视化 ========\n";
     
-    // 创建测试树
-    //        1
-    //       / \
-    //      2   3
-    //     / \   \
-    //    4   5   6
+    /* 创建测试树：
+     *        1
+     *       ╱ ╲
+     *      2   3
+     *     ╱ ╲   ╲
+     *    4   5   6
+     */
     auto root = new TreeNode(1);
     root->left = new TreeNode(2);
     root->right = new TreeNode(3);
@@ -194,12 +193,13 @@ void bfsVisualizationDemo() {
 void bfsVsDfsDemo() {
     std::cout << "\n======== 演示3：BFS vs DFS 对比 ========\n";
     
-    // 创建测试树
-    //        1
-    //       / \
-    //      2   3
-    //     / \   \
-    //    4   5   6
+    /* 创建测试树：
+     *        1
+     *       ╱ ╲
+     *      2   3
+     *     ╱ ╲   ╲
+     *    4   5   6
+     */
     auto root = new TreeNode(1);
     root->left = new TreeNode(2);
     root->right = new TreeNode(3);
@@ -268,8 +268,9 @@ void bfsVsDfsDemo() {
     std::cout << "+----------------+------------------+------------------+\n";
     std::cout << "| 数据结构       |     队列 Queue   |     栈 Stack     |\n";
     std::cout << "| 遍历方式       |     逐层扩展     |     深入到底     |\n";
-    std::cout << "| 空间复杂度     |     O(宽度)      |     O(深度)      |\n";
-    std::cout << "| 最短路径       |       支持       |     不保证       |\n";
+    std::cout << "| 当前树的空间   |   O(最大层宽度)  |   O(最大深度)    |\n";
+    std::cout << "| 一般图最坏空间 |      O(V)        |      O(V)        |\n";
+    std::cout << "| 最短路径       | 无权/等权边保证  |     不保证       |\n";
     std::cout << "+----------------+------------------+------------------+\n";
     
     // 清理
@@ -289,10 +290,11 @@ void queueDemo() {
     std::cout << "\n队列特点：FIFO (First In First Out) 先进先出\n";
     std::cout << "就像排队买票，先来的人先买\n\n";
     
-    // 创建简单树
-    //     1
-    //    / \
-    //   2   3
+    /* 创建简单树：
+     *     1
+     *    ╱ ╲
+     *   2   3
+     */
     auto root = new TreeNode(1);
     root->left = new TreeNode(2);
     root->right = new TreeNode(3);
@@ -361,7 +363,7 @@ int main() {
     std::cout << "\n关键记忆点：\n";
     std::cout << "  1. BFS使用队列，逐层扩展\n";
     std::cout << "  2. 先记录当前层大小，再处理\n";
-    std::cout << "  3. 适合最短路径、层序遍历问题\n";
+    std::cout << "  3. 适合无权/等权边图的最短步数、层序遍历问题\n";
     std::cout << "  4. 队列的FIFO特性保证层级顺序\n";
     
     return 0;

@@ -10,11 +10,11 @@
 
 // 演示默认对齐的结构体
 struct DefaultAligned {
-    char a;     // 1字节 + 3字节填充
-    int b;      // 4字节
-    char c;     // 1字节 + 3字节填充
-    double d;   // 8字节
-};  // 总共24字节
+    char a;
+    int b;
+    char c;
+    double d;
+};  // 偏移和总大小由目标ABI决定，演示程序会实际查询
 
 // 优化成员顺序后的结构体
 struct OptimizedAligned {
@@ -22,7 +22,7 @@ struct OptimizedAligned {
     int b;      // 4字节
     char a;     // 1字节
     char c;     // 1字节 + 2字节填充
-};  // 总共16字节
+};  // 常见ABI上更紧凑，但不把具体字节数写成跨平台保证
 
 // 使用alignas指定对齐的结构体
 struct alignas(16) AlignedTo16 {
@@ -30,20 +30,10 @@ struct alignas(16) AlignedTo16 {
     int y;
 };  // 强制16字节对齐
 
-// 缓存行对齐的结构体
+// 以64字节作为实验布局参数，不声称它等于当前机器的真实缓存行大小
 struct alignas(64) CacheLineAligned {
-    int data[14];  // 56字节 + 8字节填充 = 64字节
+    int data[14];
 };
-
-// 紧凑打包的结构体（不推荐，仅作演示）
-#pragma pack(push, 1)
-struct PackedStruct {
-    char a;     // 1字节
-    int b;      // 4字节
-    char c;     // 1字节
-    double d;   // 8字节
-};  // 总共14字节，无填充
-#pragma pack(pop)
 
 /**
  * 运行内存对齐演示
@@ -71,8 +61,8 @@ void demoAlignasAlignof();
 void demoStructOptimization();
 
 /**
- * 演示未对齐访问的性能影响
+ * 用合法的字节观察和memcpy解释为什么不能随意构造未对齐T*
  */
-void demoUnalignedAccess();
+void demoSafeByteAccess();
 
 #endif // MEMORY_ALIGNMENT_DEMO_H

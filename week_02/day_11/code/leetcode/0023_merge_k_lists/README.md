@@ -34,6 +34,8 @@
 
 ## 解题思路
 
+记 `K` 为链表数量、`N` 为所有链表节点总数；复杂度中的 `N` 不是每条链表的平均长度。实现重连输入节点，不复制节点值，前置条件是每条输入链无环、非递减且不同输入链不共享节点。
+
 ### 方法一：分治合并（推荐）
 
 **思路**：
@@ -49,14 +51,14 @@
 ```cpp
 ListNode* mergeKLists(vector<ListNode*>& lists) {
     if (lists.empty()) return nullptr;
-    return merge(lists, 0, lists.size() - 1);
+    return merge(lists, 0U, lists.size() - 1U);
 }
 
-ListNode* merge(vector<ListNode*>& lists, int left, int right) {
+ListNode* merge(vector<ListNode*>& lists, size_t left, size_t right) {
     if (left == right) return lists[left];
-    int mid = left + (right - left) / 2;
+    const size_t mid = left + (right - left) / 2U;
     ListNode* l1 = merge(lists, left, mid);
-    ListNode* l2 = merge(lists, mid + 1, right);
+    ListNode* l2 = merge(lists, mid + 1U, right);
     return mergeTwoLists(l1, l2);
 }
 ```
@@ -75,8 +77,15 @@ ListNode* merge(vector<ListNode*>& lists, int left, int right) {
 **代码**：
 ```cpp
 ListNode* mergeKLists(vector<ListNode*>& lists) {
-    auto cmp = [](ListNode* a, ListNode* b) { return a->val > b->val; };
-    priority_queue<ListNode*, vector<ListNode*>, decltype(cmp)> pq(cmp);
+    auto cmp = [](ListNode* a, ListNode* b) noexcept {
+        return a->val > b->val;
+    };
+
+    // 在修改任何 next 之前完成唯一可能的堆分配。
+    vector<ListNode*> storage;
+    storage.reserve(lists.size());
+    priority_queue<ListNode*, vector<ListNode*>, decltype(cmp)> pq(
+        cmp, std::move(storage));
 
     for (auto list : lists) {
         if (list) pq.push(list);
@@ -96,12 +105,14 @@ ListNode* mergeKLists(vector<ListNode*>& lists) {
 }
 ```
 
+这里先 `reserve(K)` 再重连节点不是微优化，而是异常边界：堆中元素数始终不超过 `K`，指针移动和比较器也不抛，因此进入改链循环后不会因容器扩容异常留下“输入链已部分合并”的状态。若删掉预留而仍声称强异常保证，就必须另外设计回滚协议。
+
 ### 方法三：顺序合并
 
 **思路**：逐个合并链表
 
 **复杂度分析**：
-- 时间复杂度：O(K² × N)
+- 时间复杂度：最坏 O(NK)；均衡长度时，第 `i` 次会扫描越来越长的已合并前缀
 - 空间复杂度：O(1)
 
 **适用场景**：链表数量较少时简单直观
@@ -112,7 +123,7 @@ ListNode* mergeKLists(vector<ListNode*>& lists) {
 |------|-----------|-----------|------|
 | 分治合并 | O(N×log K) | O(log K) | 递归，空间效率高 |
 | 优先队列 | O(N×log K) | O(K) | 非递归，思路直观 |
-| 顺序合并 | O(K²×N) | O(1) | 简单，但效率低 |
+| 顺序合并 | 最坏 O(NK) | O(1) | 简单，但会重复扫描长前缀 |
 
 ## 关键点
 
@@ -130,6 +141,6 @@ ListNode* mergeKLists(vector<ListNode*>& lists) {
 ## 编译运行
 
 ```bash
-cd /home/z/my-project/download/week_02/day_11
+cd week_02/day_11
 ./build_and_run.sh leetcode23
 ```

@@ -7,6 +7,10 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include <limits>
+#include <stdexcept>
+
+namespace leetcode_0011 {
 
 void printVector(const std::vector<int>& v) {
     std::cout << "[";
@@ -17,7 +21,7 @@ void printVector(const std::vector<int>& v) {
     std::cout << "]";
 }
 
-void runTest(const std::vector<int>& height, int expected, const char* description) {
+bool runTest(const std::vector<int>& height, int expected, const char* description) {
     Solution sol;
     std::vector<int> h = height;  // 复制，因为maxArea接受非const引用
     int result = sol.maxArea(h);
@@ -31,8 +35,10 @@ void runTest(const std::vector<int>& height, int expected, const char* descripti
     
     if (result == expected) {
         std::cout << "  ✅ 通过\n\n";
+        return true;
     } else {
         std::cout << "  ❌ 失败\n\n";
+        return false;
     }
 }
 
@@ -94,7 +100,7 @@ static void explainAlgorithm() {
     std::cout << "   - 空间: O(1) - 只使用常数变量\n\n";
 }
 
-void run_leetcode11_tests() {
+bool run_tests() {
     std::cout << "═══════════════════════════════════════════════════════════════\n";
     std::cout << "LeetCode 11: 盛最多水的容器\n";
     std::cout << "═══════════════════════════════════════════════════════════════\n\n";
@@ -107,27 +113,41 @@ void run_leetcode11_tests() {
     std::cout << "───────────────────────────────────────────────────────────────\n\n";
     
     // 测试用例1: 示例
-    runTest({1, 8, 6, 2, 5, 4, 8, 3, 7}, 49, "示例用例");
+    bool passed = true;
+    passed &= runTest({1, 8, 6, 2, 5, 4, 8, 3, 7}, 49, "示例用例");
     
     // 测试用例2: 简单情况
-    runTest({1, 1}, 1, "两个元素");
+    passed &= runTest({1, 1}, 1, "两个元素");
     
     // 测试用例3: 递增序列
-    runTest({1, 2, 3, 4, 5}, 6, "递增序列");
+    passed &= runTest({1, 2, 3, 4, 5}, 6, "递增序列");
     
     // 测试用例4: 递减序列
-    runTest({5, 4, 3, 2, 1}, 6, "递减序列");
+    passed &= runTest({5, 4, 3, 2, 1}, 6, "递减序列");
     
     // 测试用例5: 相同高度
-    runTest({4, 4, 4, 4}, 12, "相同高度");
+    passed &= runTest({4, 4, 4, 4}, 12, "相同高度");
     
     // 测试用例6: 较大数组
-    runTest({2, 3, 4, 5, 18, 17, 6}, 17, "复杂情况");
+    passed &= runTest({2, 3, 4, 5, 18, 17, 6}, 17, "复杂情况");
     
     // 测试用例7: 包含0
-    runTest({0, 2, 0, 3, 0}, 4, "包含0的高度");
+    passed &= runTest({0, 2, 0, 3, 0}, 4, "包含0的高度");
+
+    try {
+        std::vector<int> overflow_case{
+            std::numeric_limits<int>::max(), 0, std::numeric_limits<int>::max()};
+        (void)Solution{}.maxArea(overflow_case);
+        passed = false;
+        std::cout << "结果越界契约: ❌ 未抛出 overflow_error\n";
+    } catch (const std::overflow_error&) {
+        std::cout << "结果越界契约: ✅ 抛出 overflow_error\n";
+    }
     
     std::cout << "═══════════════════════════════════════════════════════════════\n";
     std::cout << "所有测试完成！\n";
     std::cout << "═══════════════════════════════════════════════════════════════\n\n";
+    return passed;
 }
+
+} // namespace leetcode_0011

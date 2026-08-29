@@ -17,7 +17,7 @@ struct TestCase {
 };
 
 // 打印测试结果
-void printResult(int testNum, const TestCase& tc, int result) {
+void printResult(std::size_t testNum, const TestCase& tc, int result) {
     std::cout << "测试 " << testNum << ": " << tc.description << "\n";
     std::cout << "  数组: [";
     for (size_t i = 0; i < tc.nums.size(); ++i) {
@@ -70,11 +70,11 @@ int main() {
         {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19}, 11, 5, "10元素数组"},
     };
     
-    int passed = 0;
-    int total = static_cast<int>(testCases.size());
+    std::size_t passed = 0;
+    const std::size_t total = testCases.size();
     
     // 运行测试
-    for (int i = 0; i < total; ++i) {
+    for (std::size_t i = 0; i < total; ++i) {
         int result = solution.search(testCases[i].nums, testCases[i].target);
         printResult(i + 1, testCases[i], result);
         if (result == testCases[i].expected) {

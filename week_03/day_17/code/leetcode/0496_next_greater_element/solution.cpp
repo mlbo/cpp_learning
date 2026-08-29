@@ -10,7 +10,10 @@
 #include <stack>
 #include <unordered_map>
 
-std::vector<int> Solution::nextGreaterElement(std::vector<int>& nums1, std::vector<int>& nums2) {
+namespace lc496 {
+
+std::vector<int> Solution::nextGreaterElement(const std::vector<int>& nums1,
+                                               const std::vector<int>& nums2) {
     // Step 1: 使用单调栈找出nums2中每个元素的下一个更大元素
     std::unordered_map<int, int> nextGreater;
     std::stack<int> stk;
@@ -31,48 +34,47 @@ std::vector<int> Solution::nextGreaterElement(std::vector<int>& nums1, std::vect
     
     // Step 2: 查询nums1中每个元素的结果
     std::vector<int> result;
+    result.reserve(nums1.size());
     for (int num : nums1) {
-        result.push_back(nextGreater[num]);
+        const auto found = nextGreater.find(num);
+        result.push_back(found == nextGreater.end() ? -1 : found->second);
     }
     
     return result;
 }
 
-void testNextGreaterElement() {
+bool testNextGreaterElement() {
     Solution sol;
-    
+
     std::cout << "LeetCode 496. 下一个更大元素 I 测试结果：" << std::endl;
-    
-    // 测试用例1
-    std::vector<int> nums1_1 = {4, 1, 2};
-    std::vector<int> nums2_1 = {1, 3, 4, 2};
-    auto result1 = sol.nextGreaterElement(nums1_1, nums2_1);
-    
-    std::cout << "  nums1 = [4, 1, 2], nums2 = [1, 3, 4, 2]" << std::endl;
-    std::cout << "  输出: [";
-    for (int i = 0; i < result1.size(); ++i) {
-        std::cout << result1[i];
-        if (i < result1.size() - 1) std::cout << ", ";
+
+    struct TestCase {
+        std::vector<int> nums1;
+        std::vector<int> nums2;
+        std::vector<int> expected;
+        const char* description;
+    };
+    const std::vector<TestCase> tests = {
+        {{4, 1, 2}, {1, 3, 4, 2}, {-1, 3, -1}, "标准案例"},
+        {{2, 4}, {1, 2, 3, 4}, {3, -1}, "递增序列"},
+        {{}, {1, 2}, {}, "空查询"},
+        {{5}, {1, 2, 3}, {-1}, "工程边界：查询值缺失"}
+    };
+
+    bool allPassed = true;
+    for (const auto& test : tests) {
+        const auto result = sol.nextGreaterElement(test.nums1, test.nums2);
+        const bool passed = result == test.expected;
+        allPassed = allPassed && passed;
+        std::cout << "  " << test.description << ": " << (passed ? "✓" : "✗") << std::endl;
     }
-    std::cout << "]" << std::endl;
-    std::cout << "  期望: [-1, 3, -1]" << std::endl;
-    
-    // 测试用例2
-    std::vector<int> nums1_2 = {2, 4};
-    std::vector<int> nums2_2 = {1, 2, 3, 4};
-    auto result2 = sol.nextGreaterElement(nums1_2, nums2_2);
-    
-    std::cout << "\n  nums1 = [2, 4], nums2 = [1, 2, 3, 4]" << std::endl;
-    std::cout << "  输出: [";
-    for (int i = 0; i < result2.size(); ++i) {
-        std::cout << result2[i];
-        if (i < result2.size() - 1) std::cout << ", ";
-    }
-    std::cout << "]" << std::endl;
-    std::cout << "  期望: [3, -1]" << std::endl;
     
     std::cout << "\n  解题思路：" << std::endl;
     std::cout << "    1. 先用单调栈求出nums2中所有元素的下一个更大元素" << std::endl;
     std::cout << "    2. 用哈希表存储映射关系" << std::endl;
     std::cout << "    3. 查询nums1中每个元素的结果" << std::endl;
+
+    return allPassed;
 }
+
+}  // namespace lc496

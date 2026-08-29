@@ -67,8 +67,15 @@ void stackQueueSummary() {
     
     // ========== 单调栈 ==========
     std::cout << "\n--- 单调栈 ---" << std::endl;
-    std::cout << "  单调递增栈：找下一个更大元素" << std::endl;
-    std::cout << "  单调递减栈：找下一个更小元素" << std::endl;
+    std::cout << "  不要脱离扫描方向死记“递增找更大/递减找更小”。" << std::endl;
+    std::cout << "  写模板前固定回答四个问题：" << std::endl;
+    std::cout << "    1. 从左到右还是从右到左扫描？" << std::endl;
+    std::cout << "    2. 栈中存值还是下标？需要距离或回填位置时通常存下标。" << std::endl;
+    std::cout << "    3. 栈底到栈顶对应值保持什么顺序，是否允许相等？" << std::endl;
+    std::cout << "    4. 当前值满足什么严格/非严格条件时弹栈并结算答案？" << std::endl;
+    std::cout << "  例：从左到右找右侧第一个严格更大值时，" << std::endl;
+    std::cout << "      栈存未结算下标，对应值从栈底到栈顶非递增，" << std::endl;
+    std::cout << "      current > value[top] 时弹栈。" << std::endl;
     std::cout << "  时间复杂度：O(n)" << std::endl;
     std::cout << "  模板要点：" << std::endl;
     std::cout << "    while (!stk.empty() && condition) {" << std::endl;

@@ -1,20 +1,18 @@
 #ifndef SOLUTION_102_H
 #define SOLUTION_102_H
 
+#include "data_structure/tree_node.h"
+
 #include <vector>
 
-// 二叉树节点定义
-struct TreeNode {
-    int val;
-    TreeNode* left;
-    TreeNode* right;
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
-};
+namespace leetcode_0102 {
 
 class Solution {
 public:
     std::vector<std::vector<int>> levelOrder(TreeNode* root);
 };
+
+} // namespace leetcode_0102
 
 void testLevelOrder();
 

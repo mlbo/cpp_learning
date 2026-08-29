@@ -1,12 +1,18 @@
 # Day 29：二叉树入门
 
+> **学习定位**：算法线从线性结构进入递归树结构，并发线从可调用对象进入任务与线程。先分别学会树的递归语义和 `thread` 生命周期，再理解 EMC++ 为什么偏向基于任务的接口。
+
+> **共性入口**：遍历手算过程见 [形象化指南的 Day 29](../树与并发专题形象化题解指南.md#day29-visual)；线程创建、参数传递和生命周期的完整机制见 [C++ 并发编程教程](../../tutorials/CPP并发编程教程.md)；Item 35 的反例与边界见 [Effective Modern C++ 教程](../../tutorials/Effective_Modern_CPP教程.md)。本日只新增“树的递归/所有权契约”和“thread 与 task 的第一处分界”。
+
+> **前后关系**：从 [Day 28 的哈希与移动复盘](../../week_04/day_28/README.md) 带着 RAII 和移动语义进入线程参数；下一步在 [Day 30](../day_30/README.md) 为树遍历补迭代/BFS，并为共享状态建立 mutex 同步。
+
 ## 📅 学习目标
 
 今天我们正式开启树形数据结构的学习之旅，从最基础也是最重要的二叉树开始。二叉树是数据结构中的基石，它不仅是理解更复杂树形结构（如红黑树、B树、堆）的基础，更是众多算法问题的核心数据结构。在面试和算法竞赛中，二叉树相关的题目占据了重要位置，掌握二叉树的遍历、操作和性质是每个程序员的必修课。
 
 与此同时，我们将学习C++11引入的多线程编程基础——std::thread。在现代软件开发中，多核处理器已成为标配，并发编程能力越来越重要。std::thread提供了简洁的线程创建和管理接口，是C++程序员进入并发编程世界的第一步。最后，我们还将学习Effective Modern C++中的重要条款：优先使用基于任务的编程而非基于线程的编程，这是编写高质量并发代码的关键建议。
 
-通过今天的学习，你将建立对二叉树的直观认识，掌握三种基本遍历方式（前序、中序、后序），理解多线程编程的基本概念，并学会如何编写更安全的并发代码。
+通过今天的学习，你将建立对二叉树的直观认识，掌握三种基本遍历方式（前序、中序、后序），理解线程对象与操作系统线程不是同一个生命周期概念，并学会把“树由谁释放、线程由谁等待、任务结果由谁观察”写成明确的接口契约。当天的工程产物不是只看输出的演示，而是七个由 CTest 驱动、失败时返回非零的可执行目标，其中一项专门复现批量创建线程中途抛异常的回滚路径。
 
 ## 📖 知识点一：二叉树数据结构
 
@@ -22,25 +28,25 @@
 
 从计算机科学的角度，二叉树有着严格的数学定义和丰富的性质：
 
-**完全二叉树（Complete Binary Tree）**：如果一棵二叉树除最后一层外，每一层都被完全填满，并且最后一层的所有节点都集中在左侧，则称为完全二叉树。完全二叉树非常适合用数组来存储，因为节点可以按层序编号，父子节点的索引存在简单的数学关系：对于索引为 i 的节点，其父节点索引为 (i-1)/2，左子节点索引为 2i+1，右子节点索引为 2i+2。
+**完全二叉树（Complete Binary Tree）**：如果一棵非空二叉树除最后一层外，每一层都被完全填满，并且最后一层的节点从左到右连续出现，则称为完全二叉树。完全二叉树非常适合用数组按层序存储：对从 0 开始的有效索引 `i`，非根节点的父索引是 `(i - 1) / 2`，孩子候选索引是 `2 * i + 1` 和 `2 * i + 2`；真实实现还必须先检查乘加是否越界以及索引是否小于节点数。
 
-**满二叉树（Full Binary Tree）**：如果一棵二叉树的每个节点要么是叶子节点（没有子节点），要么有两个子节点，则称为满二叉树。满二叉树的一个重要性质是：叶子节点的数量等于内部节点（非叶子节点）的数量加一。
+**严格/真二叉树（Full/Proper Binary Tree）**：每个节点要么没有孩子，要么恰有两个孩子，此时叶子数等于双孩子内部节点数加一。**完美二叉树（Perfect Binary Tree）**则要求所有内部节点都有两个孩子且所有叶子在同一层。中文资料有时都把它们翻译成“满二叉树”，阅读教材时必须先确认作者采用哪一种定义，不能把两个性质混用。
 
-**二叉搜索树（Binary Search Tree, BST）**：如果一棵二叉树满足对于每个节点，其左子树中所有节点的值都小于该节点的值，右子树中所有节点的值都大于该节点的值，则称为二叉搜索树。BST支持高效的查找、插入和删除操作，平均时间复杂度为 O(log n)。
+**二叉搜索树（Binary Search Tree, BST）**：如果一棵二叉树满足对于每个节点，其左子树中所有节点的值都小于该节点的值，右子树中所有节点的值都大于该节点的值，则称为二叉搜索树；如果允许重复值，接口必须另行约定重复值放哪一侧或用计数器保存。BST 查找、插入和删除的代价是 O(h)，其中 h 是树高；随机或平衡情况下常为 O(log n)，但按有序数据插入普通 BST 会退化成链，最坏为 O(n)。
 
 **平衡二叉树**：如果一棵二叉树的任意节点的左右子树高度差不超过某个常数（通常为1），则称为平衡二叉树。平衡性的保证使得树的高度保持在 O(log n) 量级，从而保证操作的效率。常见的平衡二叉树有 AVL 树和红黑树。
 
 二叉树的重要性质：
 - 第 i 层最多有 2^(i-1) 个节点（根节点为第1层）
-- 深度为 k 的二叉树最多有 2^k - 1 个节点
-- 具有 n 个节点的完全二叉树的深度为 ⌊log₂n⌋ + 1
+- 共有 k 层的二叉树最多有 2^k - 1 个节点
+- 具有 n 个节点的非空完全二叉树共有 ⌊log₂n⌋ + 1 层
 - 对于任意二叉树，如果叶子节点数为 n₀，度为2的节点数为 n₂，则 n₀ = n₂ + 1
 
 ### 1.3 通俗解释
 
 想象一个家族的族谱图，每个人（节点）最多有两个孩子（左孩子和右孩子）。最年长的祖先就是"根节点"，没有孩子的成员就是"叶子节点"。这就是二叉树的直观模型。
 
-再想象你在玩一个猜数字游戏，系统会问"数字大于50吗？"如果你回答"是"，就进入右分支；如果回答"否"，就进入左分支。每次选择都会让范围缩小一半，这就是二叉搜索树查找的原理——每次比较都能排除一半的可能性。
+再想象你在玩一个猜数字游戏，系统会问“数字大于 50 吗？”回答决定下一步进入左分支还是右分支，这对应 BST 利用有序性排除一个方向。只有树保持平衡时，每次比较才近似排除一半节点；普通 BST 若退化成链，一次比较可能只排除一个节点。
 
 二叉树的三种遍历方式可以这样理解：
 - **前序遍历**：先访问"自己"，再访问"左孩子"，最后访问"右孩子"。就像你先介绍自己，再介绍你的左孩子，最后介绍你的右孩子。
@@ -113,21 +119,23 @@ flowchart LR
 
 ### 1.5 代码示例
 
+先写清所有权：遍历函数只借用节点，不删除节点；根节点独占子树，根离开作用域时整棵树自动释放。课程工程使用 `std::unique_ptr` 表达这个不变量，而 LeetCode 固定签名仍使用原始指针；后者只是平台接口约束，不代表原始指针适合承担所有权。
+
 ```cpp
+#include <algorithm>
+#include <memory>
+#include <vector>
+
 /**
  * 二叉树节点定义
  * 这是二叉树最基础的构建块
  */
 struct TreeNode {
-    int val;            // 节点存储的值
-    TreeNode* left;     // 指向左子节点的指针
-    TreeNode* right;    // 指向右子节点的指针
-    
-    // 构造函数
-    TreeNode() : val(0), left(nullptr), right(nullptr) {}
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
-    TreeNode(int x, TreeNode* left, TreeNode* right) 
-        : val(x), left(left), right(right) {}
+    explicit TreeNode(int value) : val(value) {}
+
+    int val;
+    std::unique_ptr<TreeNode> left;
+    std::unique_ptr<TreeNode> right;
 };
 
 /**
@@ -136,54 +144,56 @@ struct TreeNode {
 class BinaryTree {
 public:
     // 前序遍历：根 -> 左 -> 右
-    void preorderTraversal(TreeNode* root, vector<int>& result) {
+    void preorderTraversal(const TreeNode* root, std::vector<int>& result) {
         if (root == nullptr) return;
         result.push_back(root->val);           // 访问根
-        preorderTraversal(root->left, result);  // 遍历左子树
-        preorderTraversal(root->right, result); // 遍历右子树
+        preorderTraversal(root->left.get(), result);  // 借用，不接管所有权
+        preorderTraversal(root->right.get(), result);
     }
     
     // 中序遍历：左 -> 根 -> 右
-    void inorderTraversal(TreeNode* root, vector<int>& result) {
+    void inorderTraversal(const TreeNode* root, std::vector<int>& result) {
         if (root == nullptr) return;
-        inorderTraversal(root->left, result);   // 遍历左子树
+        inorderTraversal(root->left.get(), result);
         result.push_back(root->val);            // 访问根
-        inorderTraversal(root->right, result);  // 遍历右子树
+        inorderTraversal(root->right.get(), result);
     }
     
     // 后序遍历：左 -> 右 -> 根
-    void postorderTraversal(TreeNode* root, vector<int>& result) {
+    void postorderTraversal(const TreeNode* root, std::vector<int>& result) {
         if (root == nullptr) return;
-        postorderTraversal(root->left, result);  // 遍历左子树
-        postorderTraversal(root->right, result); // 遍历右子树
+        postorderTraversal(root->left.get(), result);
+        postorderTraversal(root->right.get(), result);
         result.push_back(root->val);             // 访问根
     }
     
     // 计算树的高度
-    int getHeight(TreeNode* root) {
+    int getHeight(const TreeNode* root) {
         if (root == nullptr) return 0;
-        int leftHeight = getHeight(root->left);
-        int rightHeight = getHeight(root->right);
-        return max(leftHeight, rightHeight) + 1;
+        int leftHeight = getHeight(root->left.get());
+        int rightHeight = getHeight(root->right.get());
+        return std::max(leftHeight, rightHeight) + 1;
     }
     
     // 统计节点数量
-    int countNodes(TreeNode* root) {
+    int countNodes(const TreeNode* root) {
         if (root == nullptr) return 0;
-        return 1 + countNodes(root->left) + countNodes(root->right);
+        return 1 + countNodes(root->left.get()) + countNodes(root->right.get());
     }
 };
 ```
+
+这里每个递归函数都必须有一句可验证的含义，例如“把以 `root` 为根的前序序列追加到 `result`”。空指针是基线条件，左右孩子是严格更小的子问题，正常返回后树结构和所有权不变；访问 `n` 个节点的时间为 O(n)，额外调用栈为 O(h)。当树由外部输入构造且 `h` 没有上限时，递归版还需要显式深度限制或迭代替代，不能只因为平均树较矮就忽略调用栈资源。
 
 ## 📖 知识点二：std::thread 基础
 
 ### 2.1 概念定义
 
-std::thread 是 C++11 标准库引入的线程类，用于创建和管理线程。线程是操作系统能够进行运算调度的最小单位，它被包含在进程之中，是进程中的实际运作单位。一个进程可以包含多个线程，它们共享进程的资源（如内存空间、文件描述符等），但各自拥有独立的执行栈和程序计数器。
+`std::thread` 是 C++11 标准库提供的执行线程句柄。它让 C++ 程序启动一个新的执行线程并管理其关联状态，但标准接口不会把具体调度策略、栈实现或“最小调度单位”固定成跨平台结论；这些属于操作系统和实现层。一个进程内的线程通常共享地址空间和进程资源，同时各自保有执行状态，因此共享方便也意味着对象寿命与同步必须由程序明确管理。
 
 在单核处理器时代，多线程主要用于处理阻塞式 I/O 操作，如网络请求、文件读写等。当某个线程在等待 I/O 完成时，其他线程可以继续执行，从而提高程序的响应性。在多核处理器时代，多线程可以实现真正的并行计算，将计算任务分配到多个核心上同时执行，显著提高计算密集型任务的效率。
 
-std::thread 的设计目标是提供一个类型安全、跨平台的线程接口。它封装了底层操作系统的线程 API（如 POSIX 的 pthread 或 Windows 的线程 API），使得开发者可以用统一的 C++ 语法编写多线程代码。std::thread 支持任意可调用对象（函数指针、函数对象、lambda 表达式等）作为线程入口，参数通过模板可变参数传递，确保类型安全。
+`std::thread` 支持函数指针、函数对象、lambda 等可调用对象。按本课程 C++17 基线，构造函数会把可调用对象和参数按 `decay-copy` 规则保存到新线程可使用的内部状态，再以这些保存值调用目标；要传引用必须显式使用 `std::ref`，并由调用者证明被引用对象活到线程完成。构造成功后新线程可以立即开始执行，所以任何要供它读取的共享状态都必须在启动前准备好，或通过同步协议发布。
 
 ### 2.2 创建线程
 
@@ -214,6 +224,9 @@ int main() {
 创建线程的第二种方式是使用 Lambda 表达式。Lambda 表达式提供了一种简洁的方式来定义线程要执行的代码，可以直接在创建线程时编写代码逻辑，无需单独定义函数。
 
 ```cpp
+#include <iostream>
+#include <thread>
+
 int main() {
     int value = 42;
     
@@ -230,6 +243,9 @@ int main() {
 创建线程的第三种方式是使用函数对象（Functor）。通过重载 operator()，我们可以创建具有状态的线程对象，这种方式适合需要复用或封装复杂逻辑的场景。
 
 ```cpp
+#include <iostream>
+#include <thread>
+
 class Worker {
 public:
     Worker(int id) : id_(id) {}
@@ -256,6 +272,8 @@ int main() {
 
 join() 是一种阻塞操作，调用线程会等待被 join 的线程执行完毕。这适用于需要等待线程结果的场景。join() 只能调用一次，调用后 std::thread 对象就不再关联任何线程，可以安全销毁。
 
+下块是局部用法片段，**不可单独编译**；省略了 `<thread>`、外围函数以及可调用对象 `someFunction` 的定义。
+
 ```cpp
 std::thread t(someFunction);
 // ... 做一些其他工作 ...
@@ -263,7 +281,9 @@ t.join();  // 等待线程完成
 // t 不再关联任何线程，可以安全销毁
 ```
 
-detach() 将线程分离，使其成为"守护线程"，在后台独立运行。分离后的线程不再受 std::thread 对象管理，当主线程结束时，分离的线程可能还在运行。这适用于不需要等待结果的场景，如后台日志记录、监控任务等。
+detach() 只会切断 `std::thread` 句柄与执行线程的关联，它不会提供进程级“守护线程”语义，也不会延长线程所引用对象的生命周期。分离后调用方失去了完成点、异常通道和停止协议；如果线程捕获了局部变量引用，函数返回后继续访问就是悬空引用，因此入门阶段应把 `join` 或 RAII 自动 `join` 作为默认方案。
+
+下块是局部用法片段，**不可单独编译**；省略了 `<thread>`、外围函数和 `backgroundTask` 定义。真实代码还必须证明任务对象寿命超过分离线程。
 
 ```cpp
 std::thread t(backgroundTask);
@@ -271,7 +291,11 @@ t.detach();  // 线程在后台运行，不再被管理
 // 主线程继续执行，不等待 t 完成
 ```
 
-**joinable() 检查**：在调用 join() 或 detach() 之前，应该先检查线程是否 joinable。一个 std::thread 对象如果没有关联任何线程（如默认构造、已被 join 或 detach），则 joinable() 返回 false。
+参数默认会被复制或移动进线程内部存储，真正按引用传递要使用 `std::ref`，并保证被引用对象活到 `join` 之后。`std::thread t(f, value)` 给线程一个快照，`std::thread t(f, std::ref(value))` 则允许线程修改原对象；后者如果没有同步或生命周期不足，就会产生数据竞争或悬空引用。
+
+**joinable() 检查**：`joinable()` 描述句柄是否仍关联一个尚未 `join`/`detach` 的执行线程，而不是查询操作系统线程此刻是否还在运行；函数体已经结束但尚未 `join` 的句柄依然是 joinable。默认构造、已被 `join` 或已被 `detach` 的 `std::thread` 才返回 false，因此销毁前必须按所有权协议处理句柄。
+
+下块是局部状态检查片段，**不可单独编译**；省略了 `<thread>`、外围函数和 `someFunction` 定义。
 
 ```cpp
 std::thread t;
@@ -286,6 +310,8 @@ if (t2.joinable()) {  // true
 ```
 
 **RAII 管理线程**：为了确保线程一定会被 join 或 detach，可以使用 RAII（资源获取即初始化）技术，封装一个线程守卫类。这样无论函数是正常返回还是异常退出，线程都会被正确处理。
+
+下块是局部 RAII 片段，**不可单独编译**；省略了 `<thread>` 和 `someFunction` 定义。守卫只借用句柄，因此声明顺序必须保证被守卫的 `std::thread` 比守卫活得更久。
 
 ```cpp
 class ThreadGuard {
@@ -313,6 +339,8 @@ void safeFunction() {
 }
 ```
 
+守卫保存的是线程对象的引用，所以守卫必须比被守卫的 `std::thread` 更早析构；声明顺序写反会让引用先悬空。C++20 的 `std::jthread` 能在析构时请求停止并 `join`，但“请求停止”仍要求任务主动检查停止令牌，不能强行终止任意代码。
+
 ### 2.4 代码示例
 
 ```cpp
@@ -322,9 +350,9 @@ void safeFunction() {
  */
 #include <thread>
 #include <iostream>
-#include <vector>
-#include <chrono>
 #include <mutex>
+
+#include "joining_thread_group.h"
 
 std::mutex printMutex;  // 用于同步输出的互斥锁
 
@@ -339,7 +367,6 @@ void workerFunction(int id, int iterations) {
     for (int i = 0; i < iterations; i++) {
         safePrint("Thread " + std::to_string(id) + 
                   ": iteration " + std::to_string(i));
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
@@ -350,7 +377,6 @@ public:
     
     void operator()() const {
         safePrint("Task " + std::to_string(id_) + " started");
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
         safePrint("Task " + std::to_string(id_) + " completed");
     }
     
@@ -374,28 +400,23 @@ private:
 int main() {
     std::cout << "=== std::thread 基础演示 ===" << std::endl;
     
-    // 创建多个线程
-    std::vector<std::thread> threads;
+    // 批量创建也需要 RAII：若后续线程构造失败，已创建线程仍会被 join。
+    week5::JoiningThreadGroup threads;
     
     // 方式1：函数指针
-    threads.emplace_back(workerFunction, 1, 3);
+    threads.start(workerFunction, 1, 3);
     
     // 方式2：Lambda表达式
-    threads.emplace_back([]() {
+    threads.start([]() {
         safePrint("Lambda thread started");
-        std::this_thread::sleep_for(std::chrono::milliseconds(150));
         safePrint("Lambda thread completed");
     });
     
     // 方式3：函数对象
-    threads.emplace_back(Task(3));
+    threads.start(Task(3));
     
     // 等待所有线程完成
-    for (auto& t : threads) {
-        if (t.joinable()) {
-            t.join();
-        }
-    }
+    threads.join_all();
     
     std::cout << "\n所有线程已完成" << std::endl;
     
@@ -412,6 +433,12 @@ int main() {
 }
 ```
 
+这段示例只保证单条消息不会被其他线程拆开、`join_all()` 返回时所有任务都已完成；它不承诺不同线程消息的先后顺序，也不需要用固定睡眠“制造并发”。可执行版本还会断言每个线程写入的最终结果，见 [thread_demo.cpp](code/cpp11_features/thread_demo.cpp)。
+
+只在循环之后手写 `join` 不具备异常安全性：第一个线程已成功启动后，第二个 `std::thread` 构造可能因资源不足或参数拷贝抛异常；栈展开会销毁容器里仍 joinable 的线程并调用 `std::terminate()`。`JoiningThreadGroup` 在析构时 join 所有已成功创建的线程，因而无论循环在哪一次失败都保持所有权闭环；它只能由不属于该组的外部 owner 回收，worker 调用公开 `join_all()` 会被拒绝，否则就会尝试 join 自身。Day 29 的 `thread_group_regression_test.cpp` 会主动回归批量创建失败和公开 self-join 两条路径。
+
+<a id="item-35"></a>
+
 ## 📖 知识点三：EMC++ Item 35 - 优先使用基于任务的编程而非基于线程
 
 ### 3.1 条款概述
@@ -420,7 +447,7 @@ Effective Modern C++ Item 35 提出：**Prefer task-based programming to thread-
 
 Scott Meyers 指出，基于线程的编程方式要求程序员手动管理线程的方方面面，包括线程创建、参数传递、结果获取、异常处理、资源管理等。这种低层次的管理不仅繁琐，而且容易出错。相比之下，基于任务的编程让程序员表达"做什么"（任务本身），而让系统决定"怎么做"（线程调度）。
 
-基于任务的编程模型使用 `std::async` 启动异步任务，返回 `std::future` 对象。通过 future，我们可以方便地获取任务的返回值或捕获任务抛出的异常。系统会自动管理底层线程的创建和销毁，程序员只需要关心业务逻辑。
+基于任务的编程模型使用 `std::async` 启动任务，返回一个关联共享状态的 `std::future`。通过 future，我们可以取得返回值或让任务异常在调用 `get()` 时重新抛出；实现负责执行资源的收尾，因此没有可手动 `join` 的线程句柄，但调用方仍必须管理 future、输入对象的生命周期和任务的停止协议。
 
 ### 3.2 基于线程 vs 基于任务
 
@@ -440,9 +467,9 @@ Scott Meyers 指出，基于线程的编程方式要求程序员手动管理线�
 
 2. **异常自动传递**：如果任务抛出异常，异常会被存储在 future 中，调用 `get()` 时会重新抛出，可以在调用方处理。
 
-3. **自动资源管理**：系统负责管理线程的生命周期，无需手动 join。
+3. **结果句柄管理**：共享状态把结果或异常保存到 `future`，调用方不需要手写共享结果槽；但仍须决定何时 `get`、`wait` 或销毁句柄。
 
-4. **调度灵活性**：系统可以根据当前负载决定是否创建新线程或复用现有线程。
+4. **表达任务意图**：接口直接表达“计算并取得结果”。标准不承诺线程池或自动限制线程数量；显式 `std::launch::async` 通常为每个调用启动新的执行线程，资源不足时还可能抛出 `std::system_error`。
 
 ### 3.3 代码对比
 
@@ -455,13 +482,11 @@ Scott Meyers 指出，基于线程的编程方式要求程序员手动管理线�
 #include <thread>
 #include <future>
 #include <iostream>
-#include <chrono>
 #include <stdexcept>
+#include <vector>
 
-// 模拟一个耗时的计算任务
+// 一个可能返回值或抛异常的计算任务
 int computeValue(int input) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    
     if (input < 0) {
         throw std::invalid_argument("Input must be non-negative");
     }
@@ -572,12 +597,14 @@ int main() {
     
     std::cout << "\n结论: 在大多数情况下，优先使用 std::async 和 std::future"
               << std::endl;
-    std::cout << "它们提供了更简洁的语法、更好的异常安全性和更灵活的调度策略。"
+    std::cout << "它们把返回值和异常放进同一个可观察的共享状态。"
               << std::endl;
     
     return 0;
 }
 ```
+
+代码中的耗时输出只能用于人工观察，不能证明一定并行，也不应成为自动测试断言；稳定测试应比较五个 future 的结果序列与异常传播。可执行版本见 [Item 35 示例](code/emcpp/item35_task_based.cpp)。
 
 ### 3.4 什么时候仍然需要 std::thread
 
@@ -587,6 +614,8 @@ int main() {
 2. **需要实现线程池**：线程池需要更精细的线程控制
 3. **需要手动管理线程生命周期**：某些特定场景需要
 4. **需要线程本地存储**：配合 `thread_local` 使用
+
+Item 35 不是“永远使用 `async`”：长寿命服务、需要有界队列与背压的工作负载通常更适合线程池或执行器；需要取消时还必须单独设计停止协议。`future::get()` 只能成功调用一次，它既取值又让 future 失效；只调用 `wait()` 不会重新抛出任务异常。Day 30 将继续处理默认启动策略与 `std::thread` 的异常路径。
 
 ## 🎯 LeetCode 刷题
 
@@ -690,11 +719,11 @@ flowchart TD
 | 代码简洁性 | 非常简洁 | 相对复杂 |
 | 空间复杂度 | O(h) 递归栈 | O(h) 显式栈 |
 | 理解难度 | 容易理解 | 需要理解栈操作 |
-| 栈溢出风险 | 深树时有风险 | 无风险 |
+| 栈溢出风险 | 深树时可能耗尽调用栈 | 不耗调用栈，但显式栈仍可能耗尽内存 |
 
 #### 代码实现
 
-见 `code/leetcode/0144_binary_tree_preorder/` 目录。
+见 [LC 144 可执行测试](code/leetcode/0144_binary_tree_preorder/test.cpp) 与 [两种基础实现](code/leetcode/0144_binary_tree_preorder/solution.h)。
 
 #### 复杂度分析
 
@@ -781,6 +810,8 @@ flowchart TD
 
 递归实现严格按照"左-右-根"的顺序：
 
+下块是 LeetCode 接口的局部递归片段，**不可单独编译**；省略 `<vector>`、`std::` 限定和 `TreeNode { int val; TreeNode* left; TreeNode* right; }`。
+
 ```cpp
 void postorder(TreeNode* root, vector<int>& result) {
     if (root == nullptr) return;
@@ -805,6 +836,8 @@ void postorder(TreeNode* root, vector<int>& result) {
 1. 按照"根 -> 右 -> 左"的顺序遍历（修改版前序）
 2. 将结果反转
 
+下块是 LeetCode 接口的局部迭代片段，**不可单独编译**；省略 `<vector>`、`<stack>`、`<algorithm>`、`std::` 限定和上述 `TreeNode` 定义。
+
 ```cpp
 vector<int> postorderTraversal(TreeNode* root) {
     vector<int> result;
@@ -828,7 +861,7 @@ vector<int> postorderTraversal(TreeNode* root) {
 
 #### 代码实现
 
-见 `code/leetcode/0145_binary_tree_postorder/` 目录。
+见 [LC 145 可执行测试](code/leetcode/0145_binary_tree_postorder/test.cpp)、[基础实现](code/leetcode/0145_binary_tree_postorder/solution.h) 与 [经典单栈实现](code/leetcode/0145_binary_tree_postorder/solution.cpp)。
 
 #### 复杂度分析
 
@@ -837,18 +870,23 @@ vector<int> postorderTraversal(TreeNode* root) {
 
 ## 🚀 运行代码
 
+### 今日工程动作：把所有权与失败写进工程
+
+运行脚本会删除本日旧 `build`、从全新目录按 C++17 Release 和严格告警配置，构建七个可执行目标，再由 CTest 逐个验证。`day29_thread_group_regression` 让第二个线程的参数复制主动抛异常，证明第一个已创建线程仍由 RAII 线程组 join，而不会在栈展开时触发 `std::terminate`。树演示用 `unique_ptr` 固化独占所有权，LeetCode 测试按后序释放平台要求的原始节点；任一遍历结果、线程结果或 future 异常通道不符合契约，程序返回非零并使脚本失败。
+
 ```bash
 # 进入Day 29目录
-cd /home/z/my-project/download/week_05/day_29
+cd week_05/day_29
 
 # 编译并运行
 ./build_and_run.sh
 
-# 或手动编译
-mkdir build && cd build
-cmake ..
-make
-./day_29_demo
+# 或逐条执行同一流程
+cmake -E remove_directory build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17 \
+  -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Werror"
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
 ```
 
 ## 📚 相关术语
@@ -864,7 +902,7 @@ make
 | 前序遍历 | Preorder Traversal | 根-左-右的遍历顺序 |
 | 中序遍历 | Inorder Traversal | 左-根-右的遍历顺序 |
 | 后序遍历 | Postorder Traversal | 左-右-根的遍历顺序 |
-| 线程 | Thread | 操作系统调度的最小执行单元 |
+| 线程 | Thread | 进程内的一条执行流，通常由操作系统调度 |
 | 异步任务 | Async Task | 通过 std::async 启动的异步计算 |
 | Future | std::future | 用于获取异步任务结果的同步原语 |
 
@@ -880,14 +918,24 @@ make
 
 5. **多线程编程的复杂性**：std::thread 是并发编程的入门，但要写出正确的多线程代码，还需要学习互斥锁、条件变量、原子操作等知识。今天的重点是理解线程的基本概念和任务优先原则。
 
-6. **任务优于线程**：在实际开发中，优先考虑使用 std::async 和 std::future，除非你有特殊需求必须直接控制线程。
+6. **任务优于线程**：一次性计算需要返回值或异常时优先考虑任务接口；长期服务、背压、取消或线程属性需求仍要设计更明确的执行器或线程池。
 
 ## 🔗 参考资料
 
-- [C++ Reference - std::thread](https://en.cppreference.com/w/cpp/thread/thread)
-- [C++ Reference - std::async](https://en.cppreference.com/w/cpp/thread/async)
+- [C++ working draft：`thread.thread.constr`](https://eel.is/c++draft/thread.thread.constr)
+- [cppreference：`std::thread`](https://en.cppreference.com/w/cpp/thread/thread.html)
+- [cppreference：`std::async`](https://en.cppreference.com/w/cpp/thread/async.html)
+- [C++ Core Guidelines CP.23–CP.26：线程生命周期](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#rconc-join)
 - [LeetCode 144 - Binary Tree Preorder Traversal](https://leetcode.com/problems/binary-tree-preorder-traversal/)
 - [LeetCode 145 - Binary Tree Postorder Traversal](https://leetcode.com/problems/binary-tree-postorder-traversal/)
-- 《Effective Modern C++》Item 35
-- 《算法导论》第12章：二叉搜索树
-- 《数据结构与算法分析》第4章：树
+- Scott Meyers, *Effective Modern C++*, Item 35
+- Stanley B. Lippman 等，*C++ Primer*（泛型算法、对象生命周期与并发入门）
+- Anthony Williams, *C++ Concurrency in Action*（线程管理与任务接口）
+
+## 🧭 每日复盘（恰好五句）
+
+1. 我能用空树或“根加左右子树”的递归定义解释二叉树，并说明遍历函数只借用节点而根节点拥有整棵树。
+2. 我能写出前序、中序和后序遍历的递归不变量，并分析退化树带来的 O(n) 深度与调用栈风险。
+3. 我能区分 `std::thread` 对象和执行线程的生命周期，并保证每条退出路径最终执行 `join` 或由 RAII 代为执行。
+4. 我能说明 Item 35 为什么让 `future` 承载结果和异常，同时指出 `std::async` 不等于线程池且需要观察返回句柄。
+5. 我能运行严格构建与七项 CTest，并让错误结果以非零退出码暴露而不是只打印“测试完成”。

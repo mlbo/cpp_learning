@@ -3,18 +3,25 @@
  * @brief LeetCode 26. 删除有序数组中的重复项 - 测试用例
  */
 
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+
 #include "solution.h"
+#include <algorithm>
 #include <iostream>
 #include <vector>
 #include <cassert>
 #include <iomanip>
+#include <stdexcept>
 
 // 辅助函数：打印数组
-void printArray(const std::vector<int>& nums, int length) {
+void printArray(const std::vector<int>& nums, std::size_t length) {
     std::cout << "[";
-    for (int i = 0; i < length && i < static_cast<int>(nums.size()); ++i) {
+    const std::size_t displayed = std::min(length, nums.size());
+    for (std::size_t i = 0; i < displayed; ++i) {
         std::cout << nums[i];
-        if (i < length - 1 && i < static_cast<int>(nums.size()) - 1) {
+        if (i + 1 < displayed) {
             std::cout << ", ";
         }
     }
@@ -43,7 +50,7 @@ void testBasic() {
     int newLength = solution.removeDuplicates(nums);
     
     std::cout << "输出: " << newLength << ", nums = ";
-    printArray(nums, newLength);
+    printArray(nums, static_cast<std::size_t>(newLength));
     std::cout << "\n";
     
     // 验证结果
@@ -71,13 +78,13 @@ void testMultipleDuplicates() {
     int newLength = solution.removeDuplicates(nums);
     
     std::cout << "输出: " << newLength << ", nums = ";
-    printArray(nums, newLength);
+    printArray(nums, static_cast<std::size_t>(newLength));
     std::cout << "\n";
     
     // 验证结果
     assert(newLength == 5);
     std::vector<int> expected = {0, 1, 2, 3, 4};
-    for (int i = 0; i < newLength; ++i) {
+    for (std::size_t i = 0; i < static_cast<std::size_t>(newLength); ++i) {
         assert(nums[i] == expected[i]);
     }
     
@@ -146,7 +153,7 @@ void testNoDuplicates() {
     int newLength = solution.removeDuplicates(nums);
     
     std::cout << "输出: " << newLength << ", nums = ";
-    printArray(nums, newLength);
+    printArray(nums, static_cast<std::size_t>(newLength));
     std::cout << "\n";
     
     // 验证结果
@@ -172,7 +179,7 @@ void testAllSame() {
     int newLength = solution.removeDuplicates(nums);
     
     std::cout << "输出: " << newLength << ", nums = ";
-    printArray(nums, newLength);
+    printArray(nums, static_cast<std::size_t>(newLength));
     std::cout << "\n";
     
     // 验证结果
@@ -199,17 +206,33 @@ void testRecursive() {
     int newLength = solution.removeDuplicatesRecursive(nums);
     
     std::cout << "输出: " << newLength << ", nums = ";
-    printArray(nums, newLength);
+    printArray(nums, static_cast<std::size_t>(newLength));
     std::cout << "\n";
     
     // 验证结果
     assert(newLength == 4);
     std::vector<int> expected = {0, 1, 2, 3};
-    for (int i = 0; i < newLength; ++i) {
+    for (std::size_t i = 0; i < static_cast<std::size_t>(newLength); ++i) {
         assert(nums[i] == expected[i]);
     }
     
     std::cout << "✓ 测试通过\n";
+}
+
+void testRecursiveWorkLimit() {
+    std::cout << "\n【测试用例8：递归工作量边界】\n";
+    printSeparator();
+
+    Solution solution;
+    std::vector<int> nums(4097, 1);
+    bool caught = false;
+    try {
+        (void)solution.removeDuplicatesRecursive(nums);
+    } catch (const std::length_error&) {
+        caught = true;
+    }
+    assert(caught);
+    std::cout << "✓ 超过 4096 个元素时拒绝递归，请改用迭代版\n";
 }
 
 /**
@@ -234,7 +257,8 @@ void testPerformance() {
     
     std::cout << "去重后大小: " << newLength << "\n";
     std::cout << "压缩比: " << std::fixed << std::setprecision(2) 
-              << (1.0 - static_cast<double>(newLength) / nums.size()) * 100 << "%\n";
+              << (1.0 - static_cast<double>(newLength) /
+                             static_cast<double>(nums.size())) * 100 << "%\n";
     
     std::cout << "✓ 性能测试完成\n";
 }
@@ -252,11 +276,11 @@ void demonstrateProcess() {
     printArray(nums, nums.size());
     std::cout << "\n\n";
     
-    int slow = 0;
+    std::size_t slow = 0;
     std::cout << "步骤详解:\n";
     std::cout << "  初始: slow=0, fast=1\n";
     
-    for (int fast = 1; fast < static_cast<int>(nums.size()); ++fast) {
+    for (std::size_t fast = 1; fast < nums.size(); ++fast) {
         std::cout << "  fast=" << fast << ": nums[" << fast << "]=" << nums[fast];
         
         if (nums[fast] != nums[slow]) {
@@ -293,6 +317,7 @@ int main() {
     testNoDuplicates();
     testAllSame();
     testRecursive();
+    testRecursiveWorkLimit();
     testPerformance();
     demonstrateProcess();
     

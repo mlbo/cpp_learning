@@ -5,12 +5,22 @@
  */
 
 #include "solution.h"
+#include <algorithm>
+#include <climits>
 #include <iostream>
 #include <stack>
-#include <climits>
+#include <stdexcept>
 
 // 方法1：使用链表节点存储最小值
 MinStack::MinStack() : head(nullptr) {}
+
+MinStack::~MinStack() {
+    while (head != nullptr) {
+        Node* oldHead = head;
+        head = head->next;
+        delete oldHead;
+    }
+}
 
 void MinStack::push(int val) {
     if (head == nullptr) {
@@ -21,17 +31,30 @@ void MinStack::push(int val) {
 }
 
 void MinStack::pop() {
+    if (head == nullptr) {
+        throw std::underflow_error("不能从空MinStack弹出元素");
+    }
     Node* temp = head;
     head = head->next;
     delete temp;
 }
 
-int MinStack::top() {
+int MinStack::top() const {
+    if (head == nullptr) {
+        throw std::underflow_error("空MinStack没有栈顶元素");
+    }
     return head->val;
 }
 
-int MinStack::getMin() {
+int MinStack::getMin() const {
+    if (head == nullptr) {
+        throw std::underflow_error("空MinStack没有最小值");
+    }
     return head->minVal;
+}
+
+bool MinStack::empty() const noexcept {
+    return head == nullptr;
 }
 
 // 方法2：使用双栈（更直观）

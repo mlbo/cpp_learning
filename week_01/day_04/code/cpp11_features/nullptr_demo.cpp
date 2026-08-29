@@ -162,6 +162,7 @@ void printType(T arg) {
     std::cout << "  类型: " << typeid(T).name() << "\n";
     std::cout << "  是指针类型: " << (std::is_pointer_v<T> ? "是" : "否") << "\n";
     std::cout << "  是nullptr_t类型: " << (std::is_null_pointer_v<T> ? "是" : "否") << "\n\n";
+    (void)arg;
 }
 
 void demo_template_deduction() {

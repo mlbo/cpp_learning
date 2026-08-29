@@ -22,7 +22,7 @@
 #include <vector>
 #include <climits>
 
-using namespace std;
+namespace leetcode_0209 {
 
 class Solution {
 public:
@@ -35,7 +35,7 @@ public:
      * 时间复杂度: O(n)
      * 空间复杂度: O(1)
      */
-    int minSubArrayLen(int target, vector<int>& nums);
+    int minSubArrayLen(int target, const std::vector<int>& nums);
     
     /**
      * @brief 方法二：前缀和 + 二分查找
@@ -46,7 +46,7 @@ public:
      * 时间复杂度: O(n log n)
      * 空间复杂度: O(n)
      */
-    int minSubArrayLenBinarySearch(int target, vector<int>& nums);
+    int minSubArrayLenBinarySearch(int target, const std::vector<int>& nums);
     
     /**
      * @brief 方法三：暴力法（用于对比）
@@ -57,7 +57,9 @@ public:
      * 时间复杂度: O(n²)
      * 空间复杂度: O(1)
      */
-    int minSubArrayLenBruteForce(int target, vector<int>& nums);
+    int minSubArrayLenBruteForce(int target, const std::vector<int>& nums);
 };
+
+} // namespace leetcode_0209
 
 #endif // SOLUTION_0209_H

@@ -15,6 +15,7 @@
 #ifndef LEETCODE_0026_SOLUTION_H
 #define LEETCODE_0026_SOLUTION_H
 
+#include <cstddef>
 #include <vector>
 
 class Solution {
@@ -38,6 +39,7 @@ public:
      * 空间复杂度: O(n) - 递归栈
      * 
      * 注意：本题不推荐使用递归，仅作为算法演示
+     * @throws std::length_error 当元素数超过教学递归上限 4096
      */
     int removeDuplicatesRecursive(std::vector<int>& nums);
     
@@ -45,7 +47,9 @@ private:
     /**
      * @brief 递归辅助函数
      */
-    int removeDuplicatesHelper(std::vector<int>& nums, int slow, int fast);
+    std::size_t removeDuplicatesHelper(std::vector<int>& nums,
+                                       std::size_t slow,
+                                       std::size_t fast);
 };
 
 #endif // LEETCODE_0026_SOLUTION_H

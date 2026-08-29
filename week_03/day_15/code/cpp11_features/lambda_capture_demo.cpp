@@ -50,7 +50,8 @@ void lambdaCaptureDemo() {
     std::cout << "  []        不捕获任何变量" << std::endl;
     std::cout << "  [x]       值捕获x" << std::endl;
     std::cout << "  [&x]      引用捕获x" << std::endl;
-    std::cout << "  [=]       值捕获所有变量" << std::endl;
-    std::cout << "  [&]       引用捕获所有变量" << std::endl;
-    std::cout << "  [=, &x]   值捕获所有，但x引用捕获" << std::endl;
+    std::cout << "  [=]       对Lambda体实际使用的自动局部变量做隐式值捕获" << std::endl;
+    std::cout << "            C++17中访问成员实际隐式捕获this指针" << std::endl;
+    std::cout << "  [&]       对Lambda体实际使用的自动局部变量做隐式引用捕获" << std::endl;
+    std::cout << "  [=, &x]   默认按值捕获实际使用的局部变量，但x按引用捕获" << std::endl;
 }

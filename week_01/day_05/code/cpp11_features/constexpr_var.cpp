@@ -12,6 +12,7 @@
 
 #include <iostream>
 #include <array>
+#include <iterator>
 #include <vector>
 
 using namespace std;
@@ -43,7 +44,7 @@ array<int, max_size> std_arr;  // ✅ 合法
 // constexpr指针：指针本身是常量
 constexpr int* null_ptr = nullptr;
 int global_var = 10;
-// constexpr int* ptr_to_global = &global_var;  // ❌ 错误！地址不是编译期常量
+constexpr int* ptr_to_global = &global_var;  // ✅ 静态存储期对象的地址可组成常量表达式
 
 // constexpr可以指向其他constexpr
 constexpr const char* greeting = "Hello, constexpr!";
@@ -55,20 +56,26 @@ constexpr const int& ref_to_constexpr = max_size;
 
 // ==================== const vs constexpr对比 ====================
 
+int runtime_value() {
+    return 100;
+}
+
 void demonstrate_const_vs_constexpr() {
     cout << "【const vs constexpr对比】\n\n";
     
     // const变量
-    const int const_runtime = 100;  // 可能运行期初始化
+    const int const_runtime = runtime_value();  // 只读，但初始化值到运行时才知道
+    const int const_integral_constant = 100;    // 可用于常量表达式的 const 整数
     const int const_from_constexpr = max_size;  // 从constexpr初始化
     
     // constexpr变量
     constexpr int constexpr_val = 100;  // 必须编译期初始化
+    (void)const_from_constexpr;
     
     cout << "const变量:\n";
-    cout << "  const int const_runtime = 100;\n";
-    cout << "  - 可以延迟初始化（某些情况）\n";
-    cout << "  - 不能保证编译期已知\n\n";
+    cout << "  const int const_runtime = runtime_value();\n";
+    cout << "  - 仍必须在定义时初始化\n";
+    cout << "  - 初始化器可以是运行时表达式，因此不保证编译期已知\n\n";
     
     cout << "constexpr变量:\n";
     cout << "  constexpr int constexpr_val = 100;\n";
@@ -78,8 +85,14 @@ void demonstrate_const_vs_constexpr() {
     
     // 数组大小使用
     cout << "数组大小使用:\n";
-    cout << "  int arr1[" << const_runtime << "];  // VLA，非标准\n";
+    cout << "  const int n = 100; int arr1[n];  // n 是可用的整型常量表达式\n";
+    cout << "  const int runtime_n = runtime_value(); // 不能作为标准 C++ 数组界\n";
     cout << "  int arr2[" << constexpr_val << "];  // 标准合法\n";
+
+    int arr1[const_integral_constant]{};
+    int arr2[constexpr_val]{};
+    cout << "  验证长度: " << std::size(arr1) << ", " << std::size(arr2) << "\n";
+    cout << "  运行时 const 的值: " << const_runtime << "\n";
 }
 
 // ==================== 常见错误示例 ====================
@@ -125,8 +138,8 @@ constexpr Point origin = {0, 0};
 constexpr Point unit_x = {1, 0};
 constexpr Point unit_y = {0, 1};
 
-// C++20: 可以用constexpr声明浮点类型
-// constexpr double precise_pi = 3.14159265358979323846;
+// C++11 起，浮点字面量也可以初始化 constexpr 浮点对象
+constexpr double precise_pi = 3.14159265358979323846;
 
 void demonstrate_advanced_usage() {
     cout << "\n【高级用法】\n\n";

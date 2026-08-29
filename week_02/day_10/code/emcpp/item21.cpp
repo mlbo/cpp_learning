@@ -1,8 +1,8 @@
 /**
  * @file item21.cpp
- * @brief EMC++ 条款21: shared_ptr 与 weak_ptr 配合使用
+ * @brief EMC++ Item 20（weak_ptr）与 Item 21（make 函数）
  * 
- * 条款要点：
+ * Item 20 要点：
  * 1. 当需要访问但不拥有资源时，使用 weak_ptr
  * 2. weak_ptr 不会增加引用计数
  * 3. 典型应用：缓存、观察者、打破循环
@@ -14,8 +14,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include "../../../common/noexcept_output.h"
+
 // ============================================
-// 条款21 核心要点
+// Item 20 核心要点
 // ============================================
 /*
  * std::weak_ptr 的设计目的：
@@ -45,7 +47,9 @@ public:
     }
     
     ~ExpensiveResource() {
-        std::cout << "    💥 ExpensiveResource '" << id << "' 销毁\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "    💥 ExpensiveResource '" << id << "' 销毁\n";
+        });
     }
     
     void use() const {
@@ -59,9 +63,6 @@ public:
     std::weak_ptr<ExpensiveResource> get(const std::string& id) {
         auto it = cache_.find(id);
         if (it != cache_.end()) {
-            if (!it->second.expired()) {
-                std::cout << "    ✅ 缓存命中: " << id << "\n";
-            }
             return it->second;
         }
         return std::weak_ptr<ExpensiveResource>();
@@ -78,6 +79,7 @@ public:
         const std::string& defaultData = "default") {
         
         if (auto cached = get(id).lock()) {
+            std::cout << "    ✅ 缓存命中: " << id << "\n";
             return cached;
         }
         
@@ -135,7 +137,8 @@ template<typename T>
 class ObjectPool {
 public:
     std::shared_ptr<T> acquire() {
-        // 先尝试复用
+        // 清理过期观察记录。这个入门版本只跟踪存活对象，并不拥有空闲对象，
+        // 因而不会真正复用；真实对象池还需要一个拥有空闲对象的free-list。
         for (auto it = pool_.begin(); it != pool_.end(); ) {
             if (it->expired()) {
                 it = pool_.erase(it);
@@ -147,7 +150,7 @@ public:
         // 创建新对象
         auto obj = std::make_shared<T>();
         pool_.push_back(obj);
-        std::cout << "    🎯 对象池分配新对象\n";
+        std::cout << "    🎯 存活对象注册表创建新对象\n";
         return obj;
     }
     
@@ -170,7 +173,9 @@ public:
         std::cout << "    🔌 Connection " << id << " 创建\n";
     }
     ~Connection() {
-        std::cout << "    🔌 Connection " << id << " 关闭\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "    🔌 Connection " << id << " 关闭\n";
+        });
     }
     
     void query(const std::string& sql) {
@@ -215,7 +220,9 @@ public:
     }
     
     ~Processor() {
-        std::cout << "    Processor '" << name << "' 销毁\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "    Processor '" << name << "' 销毁\n";
+        });
     }
     
     // 返回 weak_ptr，调用者不获取所有权
@@ -250,10 +257,10 @@ void demo_weak_this() {
 }
 
 // ============================================
-// 条款21 最佳实践总结
+// Item 20 最佳实践总结
 // ============================================
 void show_best_practices() {
-    std::cout << "\n【条款21 最佳实践总结】\n";
+    std::cout << "\n【Item 20 最佳实践总结】\n";
     
     std::cout << "\n  使用 weak_ptr 的时机:\n";
     std::cout << "    ✅ 需要访问但不拥有资源\n";
@@ -275,16 +282,40 @@ void show_best_practices() {
 }
 
 // ============================================
+// Item 21：优先使用 make_unique / make_shared
+// ============================================
+void demo_item21_make_functions() {
+    std::cout << "\n【Item 21：优先使用 make_unique 和 make_shared】\n";
+
+    auto unique = std::make_unique<int>(42);
+    auto shared = std::make_shared<std::string>("shared object");
+    std::cout << "  make_unique 创建独占对象: " << *unique << "\n";
+    std::cout << "  make_shared 创建共享对象: " << *shared << "\n";
+
+    std::cout << "\n  为什么优先使用 make 函数:\n";
+    std::cout << "    1. 对象创建后立刻进入 RAII 管理，所有权表达完整\n";
+    std::cout << "    2. make_shared 通常把对象和控制块合并为一次分配\n";
+    std::cout << "    3. 代码不暴露裸 new，异常安全边界更清楚\n";
+
+    std::cout << "\n  需要直接构造 shared_ptr 的常见例外:\n";
+    std::cout << "    • 需要自定义删除器\n";
+    std::cout << "    • 类使用特殊分配策略或构造访问受限\n";
+    std::cout << "    • weak_ptr 长期存在，且不希望合并分配块滞留对象存储空间\n";
+}
+
+// ============================================
 // 主演示函数
 // ============================================
-void demo_item21_weak_ptr() {
+void demo_emcpp_items20_21() {
     demo_cache();
     demo_object_pool();
     demo_weak_this();
     show_best_practices();
     
-    std::cout << "\n💡 EMC++ 条款21 核心结论:\n";
+    std::cout << "\n💡 EMC++ Item 20 核心结论:\n";
     std::cout << "   当你需要访问资源但不需要拥有它时，\n";
     std::cout << "   使用 weak_ptr。这允许资源在不再被\n";
     std::cout << "   需要时正确释放，同时提供安全的访问机制。\n";
+
+    demo_item21_make_functions();
 }

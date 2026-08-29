@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 392 64" role="img" aria-labelledby="title">
+  <title id="title">C++ 35 天系统学习教程</title>
+  <rect width="64" height="64" rx="12" fill="#176de8" />
+  <text
+    x="32"
+    y="34"
+    dominant-baseline="middle"
+    text-anchor="middle"
+    font-family="Arial, sans-serif"
+    font-size="24"
+    font-weight="700"
+    fill="#ffffff"
+  >C++</text>
+  <text
+    x="80"
+    y="34"
+    dominant-baseline="middle"
+    font-family="Noto Sans CJK SC, Microsoft YaHei, PingFang SC, Arial, sans-serif"
+    font-size="25"
+    font-weight="600"
+    fill="#24324a"
+  >35 天系统学习教程</text>
+</svg>

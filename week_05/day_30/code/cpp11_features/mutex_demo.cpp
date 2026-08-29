@@ -1,60 +1,100 @@
-/**
- * mutex演示
- */
-
 #include <iostream>
+#include <functional>
+#include <limits>
 #include <mutex>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
-void mutexDemo() {
-    std::cout << "=== mutex互斥锁演示 ===" << std::endl;
-    
-    std::mutex mtx;
-    int sharedCounter = 0;
-    
-    // 不使用锁
-    auto unsafeIncrement = [&]() {
-        for (int i = 0; i < 10000; ++i) {
-            sharedCounter++;  // 数据竞争！
+#include "joining_thread_group.h"
+
+namespace {
+constexpr int iterations = 10'000;
+
+struct Account {
+    explicit Account(int initial_balance) : balance(initial_balance) {
+        if (initial_balance < 0) {
+            throw std::invalid_argument("account balance must be non-negative");
         }
-    };
-    
-    // 使用锁
-    auto safeIncrement = [&]() {
-        for (int i = 0; i < 10000; ++i) {
-            std::lock_guard<std::mutex> lock(mtx);
-            sharedCounter++;
-        }
-    };
-    
-    std::cout << "\n--- 不使用锁 ---" << std::endl;
-    sharedCounter = 0;
-    std::thread t1(unsafeIncrement);
-    std::thread t2(unsafeIncrement);
-    t1.join();
-    t2.join();
-    std::cout << "预期: 20000, 实际: " << sharedCounter << std::endl;
-    
-    std::cout << "\n--- 使用lock_guard ---" << std::endl;
-    sharedCounter = 0;
-    std::thread t3(safeIncrement);
-    std::thread t4(safeIncrement);
-    t3.join();
-    t4.join();
-    std::cout << "预期: 20000, 实际: " << sharedCounter << std::endl;
-    
-    std::cout << "\n--- unique_lock演示 ---" << std::endl;
-    {
-        std::unique_lock<std::mutex> ul(mtx);
-        std::cout << "锁已获取" << std::endl;
-        // 可以提前解锁
-        ul.unlock();
-        std::cout << "锁已释放" << std::endl;
     }
+
+    int balance;
+    std::mutex mutex;
+};
+
+bool transfer(Account& from, Account& to, int amount) {
+    if (&from == &to || amount <= 0) {
+        return false;
+    }
+    const std::scoped_lock lock(from.mutex, to.mutex);
+    const int maximum = std::numeric_limits<int>::max();
+    if (from.balance < amount || to.balance > maximum - amount) {
+        return false;
+    }
+    from.balance -= amount;
+    to.balance += amount;
+    return true;
 }
+}  // namespace
 
 int main() {
-    mutexDemo();
-    return 0;
+    std::mutex counterMutex;
+    int counter = 0;
+    auto safeIncrement = [&counterMutex, &counter] {
+        for (int i = 0; i < iterations; ++i) {
+            const std::lock_guard<std::mutex> lock(counterMutex);
+            ++counter;
+        }
+    };
+
+    week5::JoiningThreadGroup workers;
+    workers.start(safeIncrement);
+    workers.start(safeIncrement);
+    workers.join_all();
+
+    Account first{100};
+    Account second{100};
+    const bool rejects_same_account = !transfer(first, first, 10);
+    const bool rejects_negative_amount = !transfer(first, second, -1);
+
+    bool rejects_negative_initial_balance = false;
+    try {
+        const Account invalid{-1};
+        static_cast<void>(invalid);
+    } catch (const std::invalid_argument&) {
+        rejects_negative_initial_balance = true;
+    }
+
+    Account overflow_source{1};
+    Account full_destination{std::numeric_limits<int>::max()};
+    const bool rejects_destination_overflow =
+        !transfer(overflow_source, full_destination, 1);
+    const bool overflow_failure_preserves_balances =
+        overflow_source.balance == 1 &&
+        full_destination.balance == std::numeric_limits<int>::max();
+
+    Account boundary_source{1};
+    Account boundary_destination{std::numeric_limits<int>::max() - 1};
+    const bool accepts_exact_upper_boundary =
+        transfer(boundary_source, boundary_destination, 1) &&
+        boundary_source.balance == 0 &&
+        boundary_destination.balance == std::numeric_limits<int>::max();
+
+    week5::JoiningThreadGroup transfers;
+    transfers.start(transfer, std::ref(first), std::ref(second), 10);
+    transfers.start(transfer, std::ref(second), std::ref(first), 20);
+    transfers.join_all();
+
+    const bool passed = counter == 2 * iterations &&
+                        rejects_same_account && rejects_negative_amount &&
+                        rejects_negative_initial_balance &&
+                        rejects_destination_overflow &&
+                        overflow_failure_preserves_balances &&
+                        accepts_exact_upper_boundary &&
+                        first.balance + second.balance == 200 &&
+                        first.balance == 110 && second.balance == 90;
+    std::cout << "counter=" << counter << ", balances=" << first.balance << '+'
+              << second.balance << '\n';
+    std::cout << (passed ? "mutex checks passed\n" : "mutex checks failed\n");
+    return passed ? 0 : 1;
 }

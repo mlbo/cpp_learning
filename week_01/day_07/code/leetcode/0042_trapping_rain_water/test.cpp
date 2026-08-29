@@ -3,14 +3,19 @@
  * @brief LeetCode 42: 接雨水 - 测试代码
  */
 
-#include "solution.cpp"  // 包含实现
+#include "solution.h"
+#include <algorithm>
 #include <iostream>
 #include <vector>
 #include <chrono>
 #include <cassert>
 #include <iomanip>
+#include <limits>
+#include <stdexcept>
 
-using namespace leetcode;
+using leetcode::p0042::Solution;
+
+bool all_tests_passed = true;
 
 // 测试用例结构
 struct TestCase {
@@ -20,14 +25,14 @@ struct TestCase {
 };
 
 // 运行单个测试
-void run_test(Solution& sol, const TestCase& tc, 
-              int (*method)(std::vector<int>&),
+void run_test(const TestCase& tc, int (*method)(std::vector<int>&),
               const std::string& method_name) {
     
     std::vector<int> height = tc.height;  // 复制，避免修改
     int result = method(height);
     
     bool passed = (result == tc.expected);
+    all_tests_passed = all_tests_passed && passed;
     
     std::cout << "    [" << method_name << "] ";
     if (passed) {
@@ -135,33 +140,60 @@ int main() {
             print_height_map(tc.height);
         }
         
-        run_test(sol, tc, &Solution::trap_two_pointers, "双指针");
-        run_test(sol, tc, &Solution::trap_dp, "动态规划");
-        run_test(sol, tc, &Solution::trap_stack, "单调栈");
+        run_test(tc, &Solution::trap_two_pointers, "双指针");
+        run_test(tc, &Solution::trap_dp, "动态规划");
+        run_test(tc, &Solution::trap_stack, "单调栈");
+        run_test(tc, &Solution::trap_by_row, "按行");
         
         // 验证结果一致
-        std::vector<int> h1 = tc.height, h2 = tc.height, h3 = tc.height;
+        std::vector<int> h1 = tc.height, h2 = tc.height, h3 = tc.height, h4 = tc.height;
         int r1 = sol.trap_two_pointers(h1);
         int r2 = sol.trap_dp(h2);
         int r3 = sol.trap_stack(h3);
+        int r4 = sol.trap_by_row(h4);
         
-        if (r1 == r2 && r2 == r3 && r1 == tc.expected) {
+        if (r1 == r2 && r2 == r3 && r3 == r4 && r1 == tc.expected) {
             std::cout << "    所有方法结果一致 ✅\n";
         } else {
             std::cout << "    ⚠️ 方法结果不一致!\n";
+            all_tests_passed = false;
         }
+    }
+
+    const std::vector<int> overflow_case{
+        std::numeric_limits<int>::max(), 0, 0, std::numeric_limits<int>::max()};
+    for (const auto method : {&Solution::trap_two_pointers,
+                              &Solution::trap_dp,
+                              &Solution::trap_stack}) {
+        try {
+            auto input = overflow_case;
+            (void)method(input);
+            all_tests_passed = false;
+            std::cout << "    结果越界契约 ❌\n";
+        } catch (const std::overflow_error&) {
+            std::cout << "    结果越界契约 ✅\n";
+        }
+    }
+
+    try {
+        auto input = overflow_case;
+        (void)sol.trap_by_row(input);
+        all_tests_passed = false;
+        std::cout << "    按行法资源边界 ❌\n";
+    } catch (const std::length_error&) {
+        std::cout << "    按行法资源边界 ✅\n";
     }
     
     // 性能测试
     std::cout << "\n-------------------------------------------\n";
     std::vector<int> large_input(10000);
-    for (int i = 0; i < 10000; ++i) {
-        large_input[i] = i % 100;
+    for (std::size_t i = 0; i < large_input.size(); ++i) {
+        large_input[i] = static_cast<int>(i % 100);
     }
     performance_test(sol, large_input);
     
     std::cout << "\n-------------------------------------------\n";
     std::cout << "✅ 所有测试完成!\n";
     
-    return 0;
+    return all_tests_passed ? 0 : 1;
 }

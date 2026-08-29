@@ -8,9 +8,8 @@
 #include "cpp11_features/function_demo.h"
 #include "cpp11_features/bind_demo.h"
 #include "emcpp/item34_lambda_vs_bind.h"
-
-void testDailyTemperatures();
-void testNextGreaterElement();
+#include "leetcode/0496_next_greater_element/solution.h"
+#include "leetcode/0739_daily_temperatures/solution.h"
 
 int main() {
     std::cout << "========================================" << std::endl;
@@ -35,15 +34,16 @@ int main() {
 
     // 5. LeetCode 739 测试
     std::cout << "\n【5. LeetCode 739: 每日温度】" << std::endl;
-    testDailyTemperatures();
+    const bool lc739Passed = lc739::testDailyTemperatures();
 
     // 6. LeetCode 496 测试
     std::cout << "\n【6. LeetCode 496: 下一个更大元素】" << std::endl;
-    testNextGreaterElement();
+    const bool lc496Passed = lc496::testNextGreaterElement();
 
     std::cout << "\n========================================" << std::endl;
-    std::cout << "  Day 17 学习完成！" << std::endl;
+    const bool allPassed = lc739Passed && lc496Passed;
+    std::cout << "  Day 17 测试" << (allPassed ? "全部通过！" : "存在失败！") << std::endl;
     std::cout << "========================================" << std::endl;
 
-    return 0;
+    return allPassed ? 0 : 1;
 }

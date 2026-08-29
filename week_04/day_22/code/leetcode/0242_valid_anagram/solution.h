@@ -9,6 +9,11 @@
 #include <string>
 
 /**
+ * 本模块三种解法统一接受空串或仅由 'a'..'z' 组成的字符串。
+ * 任一输入含其他字节时抛出 std::invalid_argument；校验先于长度早退。
+ */
+
+/**
  * 测试函数
  */
 void testValidAnagram();
@@ -21,7 +26,7 @@ void testValidAnagram();
 bool isAnagram_hash(const std::string& s, const std::string& t);
 
 /**
- * 方法二：数组解法（最优）
+ * 方法二：小写字母数组解法
  * 时间复杂度: O(n)
  * 空间复杂度: O(1) - 固定26大小数组
  */

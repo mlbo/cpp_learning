@@ -92,7 +92,10 @@ public:
     }
 
     ~Impl() {
-        std::cout << "[Impl] 析构: " << name_ << std::endl;
+        try {
+            std::cout << "[Impl] 析构: " << name_ << std::endl;
+        } catch (...) {
+        }
     }
 
     void doSomething() {
@@ -121,13 +124,16 @@ WidgetGood& WidgetGood::operator=(WidgetGood&& rhs) noexcept = default;
 
 // 拷贝操作需要手动实现深拷贝
 WidgetGood::WidgetGood(const WidgetGood& rhs)
-    : pImpl_(std::make_unique<Impl>(*rhs.pImpl_)) {
+    : pImpl_(rhs.pImpl_ ? std::make_unique<Impl>(*rhs.pImpl_)
+                        : std::make_unique<Impl>()) {
     std::cout << "[WidgetGood] 拷贝构造" << std::endl;
 }
 
 WidgetGood& WidgetGood::operator=(const WidgetGood& rhs) {
     if (this != &rhs) {
-        *pImpl_ = *rhs.pImpl_;
+        auto replacement = rhs.pImpl_ ? std::make_unique<Impl>(*rhs.pImpl_)
+                                      : std::make_unique<Impl>();
+        pImpl_ = std::move(replacement);
     }
     return *this;
 }

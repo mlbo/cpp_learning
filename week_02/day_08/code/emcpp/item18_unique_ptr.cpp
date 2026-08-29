@@ -31,7 +31,7 @@ void printSeparator(const std::string& title = "") {
  * @brief 条款18：使用unique_ptr进行独占所有权的资源管理
  * 
  * 理由：
- * 1. 零开销抽象 - 与原生指针同等性能
+ * 1. 低开销抽象 - 默认无状态删除器时通常与原生指针同样轻量
  * 2. 明确的所有权语义 - 独占所有权
  * 3. 异常安全 - RAII保证资源释放
  * 4. 可定制 - 支持自定义删除器
@@ -188,8 +188,11 @@ Widget::Widget(const std::string& name)
 }
 
 Widget::~Widget() {
-    if (pImpl_) {
-        std::cout << "Widget '" << pImpl_->name << "' 销毁\n";
+    try {
+        if (pImpl_) {
+            std::cout << "Widget '" << pImpl_->name << "' 销毁\n";
+        }
+    } catch (...) {
     }
 }
 
@@ -333,7 +336,7 @@ void demoPerformance() {
   - unique_ptr：单个指针大小（8字节 on 64-bit）
   - shared_ptr：两个指针大小（16字节）+ 控制块开销
   
-结论：unique_ptr是"零开销抽象"的典范
+结论：默认无状态删除器下，unique_ptr通常是零额外开销抽象
 )";
     
     // 简单性能测试
@@ -417,7 +420,7 @@ int main() {
     
     printSeparator("条款18总结");
     std::cout << "核心要点：\n";
-    std::cout << "  1. unique_ptr是零开销的智能指针\n";
+    std::cout << "  1. 默认无状态删除器下，unique_ptr通常是零额外开销\n";
     std::cout << "  2. 表达独占所有权语义\n";
     std::cout << "  3. 适用于工厂函数返回值\n";
     std::cout << "  4. 完美支持Pimpl惯用法\n";

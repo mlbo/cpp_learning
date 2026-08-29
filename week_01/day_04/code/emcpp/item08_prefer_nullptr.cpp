@@ -169,15 +169,10 @@ void demo_threading() {
     std::cout << "问题4: 多线程场景\n";
     std::cout << "═══════════════════════════════════════════════════════════════\n\n";
     
-    // C++17: std::scoped_lock
-    // 如果使用0或NULL，可能会有歧义
-    
-    std::cout << "使用nullptr表示'无互斥量':\n";
-    std::cout << "  auto lock = std::unique_lock<std::mutex>(nullptr);\n";
-    std::cout << "  这是合法的，创建一个不拥有任何互斥量的锁\n\n";
-    
-    // 实际上unique_lock的构造函数接受 mutex* 或 nullptr_t
-    // 使用0或NULL可能导致歧义
+    std::cout << "多线程不会改变 Item 8 的核心规则：\n";
+    std::cout << "  若某个接口用指针表示‘可选的互斥量/上下文’，应传 nullptr。\n";
+    std::cout << "  std::unique_lock<std::mutex> 若要创建不关联互斥量的对象，应使用默认构造：\n";
+    std::cout << "  std::unique_lock<std::mutex> lock;\n\n";
 }
 
 // ============================================================================
@@ -211,8 +206,7 @@ void demo_real_case() {
     registerCallback(nullptr, nullptr);
     
     std::cout << "\n如果使用0:\n";
-    std::cout << "  registerCallback(0, 0);  // 歧义！0是什么？\n";
-    std::cout << "  可能被误解为整数参数\n\n";
+    std::cout << "  registerCallback(0, 0);  // 这个确定签名下能编译，但意图不如nullptr清晰\n\n";
     
     std::cout << "使用nullptr:\n";
     std::cout << "  registerCallback(nullptr, nullptr);  // 清晰！\n";

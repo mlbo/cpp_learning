@@ -37,14 +37,13 @@ public:
         std::cout << "  拷贝构造: " << name_ << std::endl;
     }
     
-    HeavyObject(HeavyObject&& other) noexcept : name_(other.name_ + "_moved") {
+    // 这个教学移动会拼接和改写 string，可能分配，因此不能承诺 noexcept。
+    HeavyObject(HeavyObject&& other) : name_(other.name_ + "_moved") {
         other.name_ = "invalid";
         std::cout << "  移动构造: " << name_ << std::endl;
     }
     
-    ~HeavyObject() {
-        std::cout << "  析构: " << name_ << std::endl;
-    }
+    ~HeavyObject() = default;
     
     const std::string& name() const { return name_; }
     
@@ -68,7 +67,7 @@ void showForwardBehavior(T&& param) {
     std::cout << "\n--- showForwardBehavior ---\n";
     LOG_TYPE("  模板参数", T);
     
-    // 不使用forward：param永远是左值
+    // 不使用 forward：命名参数变量的表达式 param 是左值
     std::cout << "\n  不使用std::forward:\n";
     processObject(param);  // 总是调用左值版本
     
@@ -82,26 +81,30 @@ void showForwardBehavior(T&& param) {
 void demonstrateMoveVsForward() {
     std::cout << "\n【std::move vs std::forward】\n\n";
     
-    std::cout << "1. std::move：无条件转换为右值\n";
-    std::cout << "   用途：明确表示要移动对象的所有权\n\n";
+    std::cout << "1. std::move：无条件产生 xvalue，但不执行移动\n";
+    std::cout << "   用途：明确允许后续代码按右值处理这个对象\n";
+    std::cout << "   边界：不承诺所有权转移、移动构造一定发生或操作一定便宜\n\n";
     
     std::string str1 = "Hello";
     std::cout << "   原始字符串: \"" << str1 << "\"\n";
     std::string str2 = std::move(str1);
-    std::cout << "   std::move后: str1 = \"" << str1 << "\", str2 = \"" << str2 << "\"\n\n";
+    std::cout << "   本次观察: str1 = \"" << str1 << "\", str2 = \"" << str2 << "\"\n";
+    std::cout << "   契约: str1 仍有效但状态未指定，不能把本次显示为空当成保证\n";
+    str1 = "reused";
+    std::cout << "   重新赋值后可继续使用: str1 = \"" << str1 << "\"\n\n";
     
     std::cout << "2. std::forward：条件性转换\n";
     std::cout << "   用途：在模板中保持参数的原始值类别\n\n";
     
     std::cout << "   区别总结:\n";
-    std::cout << "   ┌────────────────┬─────────────────┬─────────────────┐\n";
-    std::cout << "   │     特性       │   std::move     │  std::forward   │\n";
-    std::cout << "   ├────────────────┼─────────────────┼─────────────────┤\n";
-    std::cout << "   │     目的       │ 无条件转右值    │ 条件性转换      │\n";
-    std::cout << "   │     参数       │ 任意类型        │ 需要模板参数T   │\n";
-    std::cout << "   │     返回类型   │ 总是 Type&&     │ 取决于T         │\n";
-    std::cout << "   │     使用场景   │ 明确要移动      │ 转发保持原类型  │\n";
-    std::cout << "   └────────────────┴─────────────────┴─────────────────┘\n";
+    std::cout << "   ┌──────────┬──────────────────────────┬──────────────────────────┐\n";
+    std::cout << "   │   特性   │        std::move         │       std::forward       │\n";
+    std::cout << "   ├──────────┼──────────────────────────┼──────────────────────────┤\n";
+    std::cout << "   │   目的   │ 无条件产生 xvalue        │ 按 T 恢复调用点值类别    │\n";
+    std::cout << "   │ 返回类型 │ remove_reference_t<T>&&  │ T&&，再应用引用折叠      │\n";
+    std::cout << "   │ 结果类别 │ xvalue                   │ 左值或 xvalue            │\n";
+    std::cout << "   │ 使用场景 │ 允许后续考虑右值路径     │ 转发引用继续交给目标函数 │\n";
+    std::cout << "   └──────────┴──────────────────────────┴──────────────────────────┘\n";
 }
 
 // ==================== 正确使用示例 ====================
@@ -113,14 +116,10 @@ void correctUsage(T&& param) {
     processObject(std::forward<T>(param));
 }
 
-// 示例2：错误使用
+// 示例2：固定右值引用参数应使用 std::move 表达“允许继续按右值处理”
 void wrongUsage(int&& param) {
-    // 错误：param已经是右值引用，不需要forward
-    // std::forward<int>(param); // 这是多余的
-    
-    // 正确：直接使用std::move
-    // 或者直接使用，因为在函数内部param是左值
-    std::cout << "  wrongUsage: param是右值引用参数，但在函数内是左值\n";
+    std::cout << "  固定右值引用参数在表达式中仍是左值，值为 " << param << "\n";
+    std::cout << "  这里没有推导出的T需要恢复；继续交给右值接口时用std::move更清楚\n";
 }
 
 // 示例3：make_unique风格的完美转发
@@ -160,8 +159,24 @@ private:
 };
 
 template<typename Func>
-DeferredTask<Func> makeDeferredTask(Func&& func) {
-    return DeferredTask<typename std::decay<Func>::type>(std::forward<Func>(func));
+auto makeDeferredTask(Func&& func) -> DeferredTask<std::decay_t<Func>> {
+    return DeferredTask<std::decay_t<Func>>(std::forward<Func>(func));
+}
+
+bool verify_std_forward_demo_contract() {
+    using MoveResult = decltype(std::move(std::declval<std::string&>()));
+    static_assert(std::is_same_v<MoveResult, std::string&&>);
+
+    int executions = 0;
+    auto callable = [&executions] { ++executions; };
+    auto task = makeDeferredTask(callable);
+    task.execute();
+
+    const std::string expected(128, 'm');
+    std::string source = expected;
+    std::string destination = std::move(source);
+    source = "reused";
+    return executions == 1 && destination == expected && source == "reused";
 }
 
 // ==================== 主演示函数 ====================

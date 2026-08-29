@@ -9,91 +9,54 @@
  * 标签：链表、双指针、快慢指针
  */
 
+#include "solution.h"
+
 #include <iostream>
+#include <memory>
 #include <unordered_set>
 #include <vector>
 
-// 链表节点定义
-struct ListNode {
-    int val;
-    ListNode *next;
-    ListNode(int x) : val(x), next(nullptr) {}
-};
+namespace leetcode_0142 {
 
-class Solution {
-public:
-    /**
-     * @brief 快慢指针法找环入口
-     * 
-     * 数学推导：
-     * 设 a 为头到入环点的距离
-     * 设 b 为入环点到相遇点的距离
-     * 设 c 为相遇点到入环点的距离
-     * 
-     * 慢指针走的距离：a + b
-     * 快指针走的距离：a + n(b+c) + b = a + (n+1)b + nc
-     * 
-     * 快指针是慢指针的两倍：
-     * 2(a + b) = a + (n+1)b + nc
-     * => a = (n-1)(b+c) + c
-     * 
-     * 结论：从相遇点和头同时出发，会在入环点相遇！
-     * 
-     * @param head 链表头节点
-     * @return 环入口节点，无环返回 nullptr
-     * 
-     * 时间复杂度：O(n)
-     * 空间复杂度：O(1)
-     */
-    ListNode *detectCycle(ListNode *head) {
-        if (head == nullptr || head->next == nullptr) {
-            return nullptr;
-        }
-        
-        // 第一步：使用快慢指针找到相遇点
-        ListNode *slow = head;
-        ListNode *fast = head;
-        
-        while (fast != nullptr && fast->next != nullptr) {
-            slow = slow->next;          // 慢指针走一步
-            fast = fast->next->next;    // 快指针走两步
-            
-            if (slow == fast) {
-                // 相遇了，说明有环
-                // 第二步：找环入口
-                ListNode *ptr1 = head;
-                ListNode *ptr2 = slow;
-                
-                while (ptr1 != ptr2) {
-                    ptr1 = ptr1->next;
-                    ptr2 = ptr2->next;
-                }
-                
-                return ptr1;  // 环入口
-            }
-        }
-        
-        return nullptr;  // 无环
+ListNode *Solution::detectCycle(ListNode *head) {
+    if (head == nullptr || head->next == nullptr) {
+        return nullptr;
     }
-    
-    /**
-     * @brief 哈希表法找环入口（简单但用额外空间）
-     */
-    ListNode *detectCycleHash(ListNode *head) {
-        std::unordered_set<ListNode*> visited;
-        
-        ListNode *curr = head;
-        while (curr != nullptr) {
-            if (visited.find(curr) != visited.end()) {
-                return curr;  // 第一次遇到的重复节点就是环入口
+
+    ListNode *slow = head;
+    ListNode *fast = head;
+
+    while (fast != nullptr && fast->next != nullptr) {
+        slow = slow->next;
+        fast = fast->next->next;
+
+        if (slow == fast) {
+            ListNode *fromHead = head;
+            ListNode *fromMeeting = slow;
+            while (fromHead != fromMeeting) {
+                fromHead = fromHead->next;
+                fromMeeting = fromMeeting->next;
             }
-            visited.insert(curr);
-            curr = curr->next;
+            return fromHead;
         }
-        
-        return nullptr;  // 无环
     }
-};
+
+    return nullptr;
+}
+
+ListNode *Solution::detectCycleHash(ListNode *head) {
+    std::unordered_set<ListNode*> visited;
+    ListNode *current = head;
+
+    while (current != nullptr) {
+        if (!visited.insert(current).second) {
+            return current;
+        }
+        current = current->next;
+    }
+
+    return nullptr;
+}
 
 // ============================================
 // 测试辅助函数
@@ -103,16 +66,25 @@ namespace {
 // 简单测试：只创建无环链表用于测试
 ListNode* createList(const std::vector<int>& values) {
     if (values.empty()) return nullptr;
-    
-    ListNode *head = new ListNode(values[0]);
-    ListNode *curr = head;
-    
-    for (size_t i = 1; i < values.size(); ++i) {
-        curr->next = new ListNode(values[i]);
+
+    const auto delete_chain = [](ListNode* node) {
+        while (node) {
+            ListNode* next_node = node->next;
+            delete node;
+            node = next_node;
+        }
+    };
+    std::unique_ptr<ListNode, decltype(delete_chain)> owner(
+        new ListNode(values[0]), delete_chain);
+    ListNode *curr = owner.get();
+
+    for (std::size_t i = 1; i < values.size(); ++i) {
+        auto node = std::make_unique<ListNode>(values[i]);
+        curr->next = node.release();
         curr = curr->next;
     }
-    
-    return head;
+
+    return owner.release();
 }
 
 void freeList(ListNode* head) {
@@ -123,26 +95,7 @@ void freeList(ListNode* head) {
     }
 }
 
-// 安全释放有环链表
-void freeCycleList(ListNode* head, ListNode* cycleStart) {
-    if (head == nullptr) return;
-    
-    // 先打断环
-    if (cycleStart != nullptr) {
-        ListNode* curr = head;
-        int maxIter = 100;
-        while (curr && curr->next != cycleStart && maxIter-- > 0) {
-            curr = curr->next;
-        }
-        if (curr && curr->next == cycleStart) {
-            curr->next = nullptr;
-        }
-    }
-    
-    freeList(head);
-}
-
-void runTest(const std::string& name, 
+bool runTest(const std::string& name,
              const std::vector<int>& values, 
              int pos, 
              int expected) {
@@ -174,6 +127,7 @@ void runTest(const std::string& name,
     
     freeList(head);
     std::cout << "\n";
+    return actual == expected;
 }
 
 } // anonymous namespace
@@ -181,7 +135,7 @@ void runTest(const std::string& name,
 // ============================================
 // 主演示函数
 // ============================================
-void test_leetcode_142() {
+bool test_leetcode_142() {
     std::cout << "\n【LeetCode 142: 环形链表 II】\n";
     std::cout << "\n快慢指针数学推导:\n";
     std::cout << "  设 a = 头到入环点距离\n";
@@ -195,13 +149,14 @@ void test_leetcode_142() {
     std::cout << "\n-------------------- 测试用例 (无环链表) --------------------\n";
     
     // 测试无环链表用例
-    runTest("无环链表", {1, 2, 3, 4}, -1, -1);
-    runTest("单节点无环", {1}, -1, -1);
-    runTest("空链表", {}, -1, -1);
+    bool all_passed = true;
+    all_passed = runTest("无环链表", {1, 2, 3, 4}, -1, -1) && all_passed;
+    all_passed = runTest("单节点无环", {1}, -1, -1) && all_passed;
+    all_passed = runTest("空链表", {}, -1, -1) && all_passed;
     
     std::cout << "-------------------- 测试完成 --------------------\n";
     
-    // 演示有环链表检测（不释放，仅展示）
+    // 构造有环链表演示；使用后会先打断环，再释放全部节点。
     std::cout << "\n【有环链表示例】\n";
     ListNode* n1 = new ListNode(3);
     ListNode* n2 = new ListNode(2);
@@ -214,10 +169,13 @@ void test_leetcode_142() {
     
     Solution sol;
     ListNode* entrance = sol.detectCycle(n1);
-    if (entrance != nullptr) {
+    if (entrance == n2 && sol.detectCycleHash(n1) == n2) {
         std::cout << "  链表 [3->2->0->-4], 环在索引1 (节点值为2)\n";
         std::cout << "  检测到环入口值: " << entrance->val << "\n";
         std::cout << "  ✅ 环检测正确\n";
+    } else {
+        std::cout << "  ❌ 环入口检测错误\n";
+        all_passed = false;
     }
     
     // 打断环后释放
@@ -227,4 +185,7 @@ void test_leetcode_142() {
     std::cout << "\n【方法对比】\n";
     std::cout << "  快慢指针: O(1) 空间，O(n) 时间\n";
     std::cout << "  哈希表:   O(n) 空间，O(n) 时间\n";
+    return all_passed;
 }
+
+} // namespace leetcode_0142

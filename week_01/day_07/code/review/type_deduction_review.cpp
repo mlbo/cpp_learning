@@ -33,6 +33,10 @@ void auto_deduction_demo() {
     auto& b = ref_x;          // const int& (保留const)
     auto* c = &x;             // int*
     const auto d = x;         // const int
+    (void)a;
+    (void)b;
+    (void)c;
+    (void)d;
 
     std::cout << "  const int& ref_x = x;\n";
     std::cout << "  auto a = ref_x;     → int (忽略引用和顶层const)\n";
@@ -40,7 +44,7 @@ void auto_deduction_demo() {
     std::cout << "  auto* c = &x;       → int*\n";
     std::cout << "  const auto d = x;   → const int\n";
 
-    // 情况2: 通用引用 (universal reference)
+    // 情况2: 转发引用（早期资料也称 universal reference）
     auto&& r1 = x;            // int& (x是左值)
     auto&& r2 = 42;           // int&& (42是右值)
 
@@ -58,6 +62,8 @@ void auto_deduction_demo() {
     
     std::cout << "\n  auto e = {1, 2, 3};  → std::initializer_list<int>\n";
     std::cout << "  auto f = {1};        → std::initializer_list<int>\n";
+    (void)e;
+    (void)f;
 }
 
 // ============================================================================
@@ -72,6 +78,8 @@ void decltype_demo() {
     
     decltype(x) a = x;        // int
     decltype((x)) b = x;      // int& (注意双括号!)
+    (void)a;
+    (void)b;
     
     std::cout << "  int x = 42;\n";
     std::cout << "  decltype(x) a = x;    → int\n";
@@ -136,7 +144,7 @@ void template_type_deduction_demo() {
     std::cout << "  template_deduction_ref(cx): ";
     template_deduction_ref(cx);
 
-    std::cout << "\n情况3: 通用引用 (ParamType = T&&)\n";
+    std::cout << "\n情况3: 转发引用 (ParamType = T&&)\n";
     std::cout << "  template_deduction_universal(x): ";
     template_deduction_universal(x);  // T = int&
     std::cout << "  template_deduction_universal(42): ";
@@ -158,6 +166,7 @@ void practical_usage_demo() {
     std::cout << "  // 1. 迭代器\n";
     std::cout << "  std::vector<int> vec = {1, 2, 3, 4, 5};\n";
     std::cout << "  auto it = vec.begin();  // 自动推导迭代器类型\n";
+    (void)it;
 
     // 2. 智能指针
     auto ptr = std::make_unique<int>(42);
@@ -199,6 +208,9 @@ void common_pitfalls_demo() {
     std::cout << "  auto x1 = 42;     → int\n";
     std::cout << "  auto x2(42);      → int\n";
     std::cout << "  auto x3 = {42};   → initializer_list<int>\n";
+    (void)x1;
+    (void)x2;
+    (void)x3;
 
     // 陷阱2: vector<bool>代理类型
     std::cout << "\n  // 陷阱2: vector<bool> 代理类型\n";
@@ -217,6 +229,7 @@ void common_pitfalls_demo() {
     std::cout << "  int arr[5] = {1, 2, 3, 4, 5};\n";
     std::cout << "  auto arr_copy = arr;  → int* (数组退化为指针)\n";
     std::cout << "  使用 auto& arr_ref = arr; 保留数组类型\n";
+    (void)arr_copy;
 }
 
 // ============================================================================

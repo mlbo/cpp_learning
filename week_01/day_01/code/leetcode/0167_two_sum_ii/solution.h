@@ -10,6 +10,6 @@ public:
     std::vector<int> twoSum(std::vector<int>& numbers, int target);
 };
 
-#endif
-
 } // namespace LC0167
+
+#endif

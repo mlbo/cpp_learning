@@ -10,19 +10,26 @@
  */
 
 #include <iostream>
+#include <limits>
 #include <string>
 
 // 声明各模块的运行函数
 extern void run_smart_ptr_guide();
+extern void run_raw_vs_smart();
+extern void run_custom_deleter();
 extern void run_raii_demo();
+extern bool run_raii_contract_tests();
+extern void run_heap_memory();
+extern bool run_memory_pool_contract_tests();
+extern void run_memory_leak();
 
 // LeetCode 测试函数声明
 namespace leetcode_24 {
-    void run_tests();
+    bool run_tests();
 }
 
 namespace leetcode_25 {
-    void run_tests();
+    bool run_tests();
 }
 
 // ============================================
@@ -48,16 +55,53 @@ void print_menu() {
 // 主函数
 // ============================================
 
-int main() {
+bool run_all() {
+    std::cout << "\n===== 运行全部演示 =====\n";
+    run_smart_ptr_guide();
+    run_raw_vs_smart();
+    run_custom_deleter();
+    run_raii_demo();
+    run_heap_memory();
+    run_memory_leak();
+    const bool day24_ok = leetcode_24::run_tests();
+    const bool day25_ok = leetcode_25::run_tests();
+    std::cout << "\n===== 全部演示完成 =====\n";
+    return day24_ok && day25_ok;
+}
+
+int main(int argc, char* argv[]) {
     std::cout << "========================================\n";
     std::cout << "  Day 12: 智能指针总结 & RAII原则\n";
     std::cout << "========================================\n";
     
+    if (argc > 1 && std::string(argv[1]) == "--all") {
+        return run_all() ? 0 : 1;
+    }
+    if (argc > 1 && std::string(argv[1]) == "--resource-contracts") {
+        const bool raii_ok = run_raii_contract_tests();
+        const bool memory_pool_ok = run_memory_pool_contract_tests();
+        return raii_ok && memory_pool_ok ? 0 : 1;
+    }
+    if (argc > 1) {
+        std::cerr << "未知参数: " << argv[1]
+                  << "（可用参数: --all, --resource-contracts）\n";
+        return 2;
+    }
+
     while (true) {
         print_menu();
         
-        int choice;
-        std::cin >> choice;
+        int choice = 0;
+        if (!(std::cin >> choice)) {
+            if (std::cin.eof()) {
+                std::cout << "\n输入结束，退出菜单。\n";
+                return 0;
+            }
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "请输入0到5之间的整数。\n";
+            continue;
+        }
         
         switch (choice) {
             case 1:
@@ -69,20 +113,15 @@ int main() {
                 break;
                 
             case 3:
-                leetcode_24::run_tests();
+                (void)leetcode_24::run_tests();
                 break;
                 
             case 4:
-                leetcode_25::run_tests();
+                (void)leetcode_25::run_tests();
                 break;
                 
             case 5:
-                std::cout << "\n===== 运行全部演示 =====\n";
-                run_smart_ptr_guide();
-                run_raii_demo();
-                leetcode_24::run_tests();
-                leetcode_25::run_tests();
-                std::cout << "\n===== 全部演示完成 =====\n";
+                (void)run_all();
                 break;
                 
             case 0:

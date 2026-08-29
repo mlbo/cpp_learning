@@ -45,7 +45,7 @@ void advantage1_Initialization() {
     
     // 使用变量避免警告
     x1 = 0;
-    (void)x3; (void)x4;
+    (void)x1; (void)x3; (void)x4;
     
     cout << endl << "【结论】" << endl;
     cout << "auto变量必须初始化，可以避免使用未定义值" << endl;
@@ -62,10 +62,10 @@ void advantage2_TypeTruncation() {
     
     // 问题示例：类型截断
     double pi = 3.141592653589793;
-    int piInt = pi;  // 隐式转换，精度丢失！
+    int piInt = static_cast<int>(pi);  // 有意转换，仍会丢失小数部分
     
     cout << "double pi = 3.141592653589793;" << endl;
-    cout << "int piInt = pi;  // 隐式转换" << endl;
+    cout << "int piInt = static_cast<int>(pi);  // 明确接受截断" << endl;
     cout << "结果: piInt = " << piInt << " (精度丢失)" << endl;
     
     // 使用auto避免
@@ -77,13 +77,13 @@ void advantage2_TypeTruncation() {
     cout << endl << "【vector::size()问题】" << endl;
     vector<int> vec(100);
     
-    unsigned size1 = vec.size();  // 可能警告
-    auto size2 = vec.size();      // 正确类型
+    // unsigned size1 = vec.size();  // 某些平台会发生窄化
+    auto size = vec.size();            // 与容器的 size_type 精确一致
     
     cout << "vector<int> vec(100);" << endl;
-    cout << "unsigned size1 = vec.size();  // 可能警告" << endl;
-    cout << "auto size2 = vec.size();      // 正确：size_type" << endl;
-    cout << "size1 = " << size1 << ", size2 = " << size2 << endl;
+    cout << "unsigned size1 = vec.size();  // 某些平台可能窄化" << endl;
+    cout << "auto size = vec.size();       // 正确：size_type" << endl;
+    cout << "size = " << size << endl;
     
     cout << endl << "【结论】" << endl;
     cout << "auto可以避免隐式类型转换导致的精度丢失" << endl;
@@ -233,6 +233,8 @@ void advantage5_TemplateTypes() {
 // 注意事项
 // =============================================================================
 
+int computeValue();
+
 void cautions() {
     cout << "=== 使用auto的注意事项 ===" << endl << endl;
     
@@ -258,8 +260,8 @@ void cautions() {
     cout << "原因：vector<bool>特化返回代理对象，不是引用" << endl;
     cout << endl;
     cout << "解决方案：" << endl;
-    cout << "bool b = bools[0];  // 显式类型" << endl;
-    cout << "或 auto b = bools[0];  // 值拷贝" << endl;
+    cout << "bool b = bools[0];       // 立即转换成独立 bool 值" << endl;
+    cout << "auto proxy = bools[0];  // 仍是代理，不是 bool 值拷贝" << endl;
     
     // 陷阱3：统一初始化
     cout << endl << "【陷阱3：统一初始化】" << endl;

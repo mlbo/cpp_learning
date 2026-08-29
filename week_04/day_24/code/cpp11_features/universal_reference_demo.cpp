@@ -6,10 +6,12 @@
  * 也被称为转发引用 (Forwarding Reference)。
  * 
  * 核心要点：
- * 1. 只有在类型推导发生时，T&& 才是通用引用
+ * 1. 函数模板形参是被推导、未加cv的模板参数T之T&&时，才是转发引用
  * 2. 通用引用可以绑定到左值或右值
  * 3. 引用折叠决定最终类型
  */
+
+#include "cpp11_features/universal_reference_demo.h"
 
 #include <iostream>
 #include <string>
@@ -22,6 +24,20 @@
 // 打印类型信息的辅助宏
 #define PRINT_TYPE(expr) \
     std::cout << "  " << #expr << " 类型: " << typeid(expr).name() << std::endl
+
+namespace day24::universal_reference_lesson {
+
+OverloadRoute selectOverload(int) noexcept {
+    return OverloadRoute::Integer;
+}
+
+ValueCategoryRoute forwardingTarget(int&) noexcept {
+    return ValueCategoryRoute::Lvalue;
+}
+
+ValueCategoryRoute forwardingTarget(int&&) noexcept {
+    return ValueCategoryRoute::Rvalue;
+}
 
 // 使用 type_traits 检查引用类型
 template<typename T>
@@ -48,6 +64,7 @@ void printRefType(const std::string& varName) {
 template<typename T>
 void universalRefDemo(T&& arg) {
     std::cout << "\n--- 通用引用函数调用 ---\n";
+    std::cout << "  当前参数值: " << arg << "\n";
     
     // 打印 T 的类型信息
     printRefType<T>("模板参数 T");
@@ -58,9 +75,13 @@ void universalRefDemo(T&& arg) {
     
     // 尝试修改（如果是左值引用，修改会影响原值）
     if constexpr (std::is_lvalue_reference_v<T>) {
-        std::cout << "  可以修改原值（左值引用）\n";
+        if constexpr (std::is_const_v<std::remove_reference_t<T>>) {
+            std::cout << "  实参来自 const 左值，只能读取\n";
+        } else {
+            std::cout << "  实参来自可修改左值；绑定本身不改变所有权\n";
+        }
     } else {
-        std::cout << "  可以移动资源（右值引用）\n";
+        std::cout << "  实参来自右值；是否移动由后续目标重载和类型契约决定\n";
     }
 }
 
@@ -104,14 +125,14 @@ void vectorRefDemo(std::vector<T>&& arg) {
 // ==================== auto 与通用引用 ====================
 
 /**
- * @brief 演示 auto&& 作为通用引用
+ * @brief 演示 auto&& 从普通表达式推导时的转发引用行为
  * 
- * auto&& 也是通用引用，遵循相同的规则：
+ * auto&& 从普通表达式推导时遵循相同规则；直接列表初始化是专门例外：
  * - auto 会进行类型推导
  * - auto&& 可以绑定到左值或右值
  */
 void autoUniversalRefDemo() {
-    std::cout << "\n=== auto&& 通用引用演示 ===\n";
+    std::cout << "\n=== auto&& 对普通表达式的推导演示 ===\n";
     
     int x = 42;
     
@@ -155,12 +176,9 @@ public:
     Widget(Widget&& other) noexcept 
         : name_(std::move(other.name_)), id_(other.id_) {
         other.id_ = 0;
-        std::cout << "  Widget 移动构造\n";
     }
     
-    ~Widget() {
-        std::cout << "  Widget 析构: " << name_ << "\n";
-    }
+    ~Widget() = default;
     
     void print() const {
         std::cout << "  Widget[" << name_ << ", id=" << id_ << "]\n";
@@ -187,7 +205,7 @@ Widget createWidget(T&& name, int id) {
 
 // ==================== 主演示函数 ====================
 
-void runUniversalRefDemo() {
+void run() {
     std::cout << "\n";
     std::cout << "========================================\n";
     std::cout << "   Day 24: 通用引用演示\n";
@@ -210,6 +228,23 @@ void runUniversalRefDemo() {
     
     std::cout << "\n传入 std::move 结果:\n";
     universalRefDemo(std::move(lvalue));
+
+    std::cout << "\n真实重载决议与转发路线:\n";
+    short shortValue = 7;
+    int routeValue = 42;
+    std::cout << "  int 字面量选择: "
+              << (selectOverload(42) == OverloadRoute::Integer
+                      ? "非模板 int 重载" : "转发引用模板")
+              << "\n";
+    std::cout << "  short 左值选择: "
+              << (selectOverload(shortValue) == OverloadRoute::ForwardingTemplate
+                      ? "转发引用模板" : "非模板 int 重载")
+              << "\n";
+    std::cout << "  左值/右值转发路线: "
+              << (forwardingCall(routeValue) == ValueCategoryRoute::Lvalue ? "左值" : "错误")
+              << "/"
+              << (forwardingCall(42) == ValueCategoryRoute::Rvalue ? "右值" : "错误")
+              << "\n";
     
     // 2. 字符串类型演示
     std::cout << "\n=== 2. 字符串类型演示 ===\n";
@@ -264,4 +299,10 @@ void runUniversalRefDemo() {
     std::cout << "\n========================================\n";
     std::cout << "   通用引用演示完成\n";
     std::cout << "========================================\n";
+}
+
+} // namespace day24::universal_reference_lesson
+
+void runUniversalRefDemo() {
+    day24::universal_reference_lesson::run();
 }

@@ -73,6 +73,7 @@ void demo_arrays() {
     std::cout << "C数组: ";
     for (int i : arr2) std::cout << i << " ";
     std::cout << "\n";
+    (void)arr1;
 
     // 场景 7：std::array（推荐替代C数组）
     std::array<int, 5> stdArr1 = {1, 2, 3, 4, 5};
@@ -80,6 +81,7 @@ void demo_arrays() {
     std::cout << "std::array: ";
     for (int i : stdArr2) std::cout << i << " ";
     std::cout << "\n";
+    (void)stdArr1;
 
     // 场景 8：动态数组初始化
     int* dynamicArr = new int[5]{1, 2, 3, 4, 5};  // C++11 支持
@@ -138,13 +140,13 @@ struct Point {
     int x, y;
 };
 
-class Widget {
+class UniformInitWidget {
 public:
-    Widget() : id_{0}, name_{"default"} {}
-    Widget(int id, std::string name) : id_{id}, name_{std::move(name)} {}
+    UniformInitWidget() : id_{0}, name_{"default"} {}
+    UniformInitWidget(int id, std::string name) : id_{id}, name_{std::move(name)} {}
 
     void print() const {
-        std::cout << "Widget(id=" << id_ << ", name=" << name_ << ")\n";
+        std::cout << "UniformInitWidget(id=" << id_ << ", name=" << name_ << ")\n";
     }
 
 private:
@@ -161,12 +163,12 @@ void demo_class_types() {
     std::cout << "Point: (" << p1.x << "," << p1.y << ") (" << p2.x << "," << p2.y << ")\n";
 
     // 场景 13：类类型初始化
-    Widget w1;                    // 默认构造
-    Widget w2{};                  // 默认构造（避免歧义）
-    Widget w3{42, "test"};        // 参数化构造
-    Widget w4 = {42, "test2"};    // 拷贝列表初始化
+    UniformInitWidget w1;                    // 默认构造
+    UniformInitWidget w2{};                  // 默认构造（避免歧义）
+    UniformInitWidget w3{42, "test"};        // 参数化构造
+    UniformInitWidget w4 = {42, "test2"};    // 拷贝列表初始化
 
-    std::cout << "Widget: ";
+    std::cout << "UniformInitWidget: ";
     w3.print();
 }
 
@@ -206,10 +208,10 @@ void demo_member_init() {
 void demo_special_cases() {
     std::cout << "\n=== 场景 15：特殊场景初始化 ===\n";
 
-    // 场景 15.1：不可拷贝对象的初始化
+    // 场景 15.1：atomic 的初始化（注意 C++ 版本差异）
     std::atomic<int> a1{0};       // OK
-    // std::atomic<int> a2 = 0;  // 错误！不可拷贝
-    std::cout << "atomic: " << a1.load() << "\n";
+    std::atomic<int> a2 = 0;      // C++17 保证拷贝消除，因此可行；C++11/14 不可行
+    std::cout << "atomic: " << a1.load() << ", " << a2.load() << "\n";
 
     // 场景 15.2：unique_ptr 初始化
     std::unique_ptr<int> up1{new int{42}};
@@ -221,6 +223,7 @@ void demo_special_cases() {
     std::pair<int, std::string> p1{1, "hello"};
     auto t1 = std::make_tuple(1, 2.0, "three");
     std::cout << "pair: (" << p1.first << ", " << p1.second << ")\n";
+    std::cout << "tuple 首元素: " << std::get<0>(t1) << "\n";
 }
 
 // ============================================================
@@ -232,22 +235,22 @@ void demo_narrowing_conversion() {
 
     // 场景 16：double 到 int 的窄化
     double d = 3.14;
-    int i1 = d;      // OK，但有数据丢失（i1 = 3）
-    int i2(d);       // OK，但有数据丢失
+    int i1 = static_cast<int>(d);  // 显式接受小数部分被丢弃
+    int i2(static_cast<int>(d));
     // int i3{d};    // 错误！花括号禁止窄化转换
     // int i4 = {d}; // 错误！
-    std::cout << "double->int: " << i1 << " (警告：数据丢失)\n";
+    std::cout << "double->int: " << i1 << ", " << i2 << " (显式接受数据丢失)\n";
 
     // 场景 17：long long 到 int 的窄化
     long long ll = 1000000000000LL;
-    int x1 = ll;     // OK，但有数据丢失
+    int x1 = static_cast<int>(ll);  // 显式转换，结果由实现定义
     // int x2{ll};    // 错误！窄化转换
-    std::cout << "long long->int: 编译器会警告\n";
+    std::cout << "long long->int: " << x1 << " (显式转换后的实现定义结果)\n";
 
-    // 场景 18：int 到 double（不是窄化，允许）
+    // 场景 18：运行期 int 到 double 在 C++17 列表初始化中属于窄化，显式转换
     int n = 42;
     double d1{static_cast<double>(n)};    // OK
-    std::cout << "int->double: " << d1 << " (安全转换)\n";
+    std::cout << "int->double: " << d1 << " (已显式表达转换意图)\n";
 }
 
 // ============================================================

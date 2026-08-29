@@ -1,10 +1,12 @@
 # Day 28：第四周复习
 
+> **学习定位**：本日用缓存设计题把哈希表、双向链表、所有权和复杂度连接起来，并二次复盘 Item 23-30。进入并发前，必须能解释对象怎样移动、谁仍拥有资源以及何时析构。
+
 ## 📅 学习目标
 
 - [ ] 复习哈希表的核心概念与实现原理
 - [ ] 巩固移动语义、右值引用的理解与应用
-- [ ] 回顾通用引用与完美转发的核心要点
+- [ ] 回顾转发引用（旧称通用引用）与完美转发的核心要点
 - [ ] 掌握EMC++ Item 9, 23-30的核心思想
 - [ ] 完成LeetCode 146 (LRU缓存) 和 460 (LFU缓存)
 - [ ] 总结本周底层知识：CPU缓存与内存对齐
@@ -26,10 +28,11 @@ mindmap
         扩容策略
       LRU缓存
         哈希表+双向链表
-        O（1）查找与删除
+        哈希平均O（1）定位
+        已知节点O（1）移动删除
       LFU缓存
         频率计数
-        多级缓存结构
+        频率桶+桶内LRU
     C++11特性
       右值引用
         左值与右值
@@ -38,9 +41,11 @@ mindmap
       移动语义
         资源转移
         性能优化
+        Rule of Zero
         Rule of Five
-      通用引用
-        T&&推导
+      转发引用
+        精确未加cv的T&&推导
+        auto&&列表例外
         引用折叠
       完美转发
         std::forward
@@ -53,11 +58,11 @@ mindmap
         std::move与std::forward
         移动语义使用场景
       Item 26-28
-        通用引用与重载
+        转发引用与重载
         引用折叠规则
       Item 29-30
-        完美转发实践
-        移动语义陷阱
+        Item 29移动成本假设
+        Item 30转发失败边界
     底层知识
       CPU缓存
         缓存行
@@ -67,6 +72,20 @@ mindmap
         对齐要求
         数据布局优化
 ```
+
+### 复习页的使用方法
+
+Day 28 不再作为值类别、移动特殊成员或完美转发的另一个主讲版本。先合上 Day 22-27 README，完成下表；不能回答时，再回到唯一主讲位置查缺补漏：
+
+| 回忆任务 | 必须说出的证据 | 主讲位置 |
+|----------|--------------------|----------|
+| 哈希表为什么“平均 O(1)” | 哈希/等价一致、负载因子受控、最坏冲突退化 | [Day 22](../day_22/README.md#day22-unordered-contract) |
+| `std::move` 为什么不等于移动 | 它产生 xvalue，后续重载和类型能力决定复制/移动/消除 | [Day 23](../day_23/README.md#day23-move-forward) |
+| moved-from 对象能做什么 | 类型契约、可析构/重新赋值、只调用前置条件满足的操作 | [Day 23](../day_23/README.md#day23-special-members) |
+| 什么时候 `T&&` 是转发引用 | 本次调用正在推导未加 cv 的模板参数，形参是精确 `T&&` | [Day 24](../day_24/README.md#day24-forwarding-reference) |
+| 包装器何时转发 | 只在最后一次交付时转发，不重复消费，不伪造寿命延长 | [Day 25](../day_25/README.md#day25-forwarding-boundaries) |
+
+本日新增的学习量是把上述规则放进哈希表、LRU 和 LFU 的所有权图、异常提交边界和测试契约，而不是再读一遍术语定义。
 
 ---
 
@@ -100,6 +119,18 @@ graph TB
 
 在实际使用哈希表时，开发者经常会遇到一些典型问题。首先是键类型的选择：自定义类型作为键时，必须提供哈希函数和相等比较函数。其次是装载因子的控制：当装载因子过高时，哈希表性能会显著下降，需要及时扩容。另外，迭代顺序的不确定性也是一个需要注意的点，标准库的`std::unordered_map`不保证元素的遍历顺序。
 
+<a id="day28-hash-exception"></a>
+
+### 教学哈希表的异常契约
+
+`code/data_structure/simple_hash_table.h` 中的 `SimpleHashTable<K, V, Hash>` 是泛型教学类型，所以模板定义必须放在头文件中：调用方只有看到完整定义，才能用自定义键、值和会抛异常的 Hash 实例化并测试。把模板只藏在 `.cpp` 中虽然能让本文件自己的演示编译，却会让外部测试无法覆盖真实泛型边界。
+
+该类型的 `insert` 提供**强异常保证**：哈希计算、键比较、节点分配或键值复制失败时，表中的旧键值、`size()`、`bucketCount()` 和桶链拓扑保持不变，新键不会半提交。用户提供的 Hash 或键相等比较在外部对象、日志、计数器上产生的副作用无法由容器回滚；同时 Hash 必须在键存储期间保持稳定，并对相等键产生相同哈希值，相等比较也不能改写已存键。`find` 与 `erase` 在哈希或比较失败时也不修改表；键和值的析构函数则应遵守普通 C++ 容器要求，不向外抛异常。
+
+rehash 的实现分成两阶段：prepare 阶段先分配新桶和 O(n) 迁移计划，并计算全部旧键的新桶位置，期间完全不改写旧节点的 `next`；全部成功后，commit 阶段才执行不分配、不调用用户代码的指针重连和桶数组交换。更新已有键也先构造完整替代节点，再替换旧节点，避免一个会“先改一半再抛出”的 `V::operator=` 破坏旧值。代价是扩容本来就需要 O(n) 时间之外，还会临时使用 O(n) 的迁移计划；这是用额外空间换清晰强保证的教学取舍，而不是声称这份简化实现可替代标准库容器。
+
+CTest `day28_hash_table_exception_contracts` 使用可控抛异常 Hash 复现终审探针，并检查失败前后的旧键、桶数和元素数；它还注入值复制失败，确保“测试全绿”确实覆盖失败路径，而不是只运行成功示例。
+
 ### 最佳实践
 
 ```cpp
@@ -132,168 +163,82 @@ map.emplace(1, "one");  // 原地构造，更高效
 
 ## 📖 知识点复习二：移动语义
 
-### 核心概念回顾
+### 主动回忆表
 
-移动语义是C++11引入的重要特性，它允许资源的所有权从一个对象转移到另一个对象，而不是进行昂贵的深拷贝。这一特性对于提升程序性能有着重要意义，尤其是在处理大型对象（如容器、智能指针）时效果显著。
+完整语义以 [Day 23](../day_23/README.md#day23-special-members) 为准。本节只将这些规则映射到缓存项目中可观察的设计决策：
 
-理解移动语义首先要区分左值（Lvalue）和右值（Rvalue）。左值是指有名字、有内存地址的对象，可以取地址，生命周期延续到作用域结束。右值是指临时对象、字面量或即将被销毁的对象，通常是无名临时变量，只能出现在赋值表达式右侧。C++11引入了右值引用`T&&`，专门用于绑定右值，这是实现移动语义的基础。
+| 缓存中的场景 | 应用的移动规则 | 必须验证的反例/失败路径 |
+|----------------|--------------------|--------------------------|
+| 缓存按值拥有键和值 | 入口可先按值接收，提交时再移入节点 | `const` 输入可能复制；不要把“调用了 `std::move`”当成已移动证据 |
+| 节点用标准成员管理资源 | 优先 Rule of Zero | 不为了打日志手写析构/移动并意外抑制隐式操作 |
+| 教学节点直接拥有裸指针 | 拷贝要么深拷贝、要么删除；移动后两个对象都可安全析构 | 自移动、重复释放、分配失败后旧值被破坏 |
+| 容器扩容或内部重组 | 只在真正不抛时承诺 `noexcept` | 移动可能抛且复制可用时，容器为维持强保证可选择复制 |
+| 函数返回局部对象 | 直接 `return object;`，让复制消除/隐式移动参与 | `return std::move(object);` 可阻碍 NRVO，不能当成“更现代”的固定写法 |
 
-```mermaid
-graph LR
-    A[值类别] --> B[左值 Lvalue]
-    A --> C[右值 Rvalue]
-    B --> D[有名字/有地址]
-    B --> E[可取地址]
-    C --> F[临时对象/字面量]
-    C --> G[即将销毁]
-    D --> H[左值引用 T&]
-    F --> I["右值引用 T&&"]
-```
+### moved-from 状态的可用性边界
 
-### std::move 与 std::forward
+“有效但状态未指定”表示类型不变量仍成立，对象可析构、可重新赋值，也可调用当下前置条件可以证明满足的操作；它不表示“任意成员函数都安全”。例如 moved-from `vector` 可以调用 `clear()` 或重新赋值，但在没有先证明它非空时不能调用 `front()`。自定义缓存节点若承诺移动后为空，那是该类型自己的更强契约，不能倒推成所有标准库类型都为空。
 
-`std::move`是一个类型转换工具，它将左值转换为右值引用，告知编译器"这个对象可以被移动"。需要注意的是，`std::move`本身不执行任何移动操作，它只是一个类型转换。实际的移动发生在移动构造函数或移动赋值运算符中。
+### 异常安全检查
 
-`std::forward`用于完美转发，它能够保持参数的值类别（左值或右值）。这在模板编程中特别重要，可以确保传递给其他函数的参数保持其原始的值类别属性。
+对 LRU/LFU 的一次插入，可能抛异常的步骤包括节点分配、键值构造、哈希项插入和频率桶分配。强保证的设计顺序是“prepare：构造全部可能失败的新状态；commit：只执行不抛的链接、指针替换与计数更新”。若先淘汰旧节点，再为新节点分配内存，分配失败时就会出现“`put` 报错但缓存已丢数据”，这正是本日应注入的反例。
 
-### 移动构造与移动赋值
-
-移动构造函数和移动赋值运算符是实现移动语义的关键。移动操作应该将资源从源对象"偷"过来，并将源对象置于有效但未定义的状态。通常这意味着将源对象的指针置空、计数器归零等。
-
-```cpp
-class String {
-private:
-    char* data_;
-    size_t size_;
-
-public:
-    // 移动构造函数
-    String(String&& other) noexcept
-        : data_(other.data_), size_(other.size_) {
-        other.data_ = nullptr;  // 源对象置空
-        other.size_ = 0;
-    }
-
-    // 移动赋值运算符
-    String& operator=(String&& other) noexcept {
-        if (this != &other) {
-            delete[] data_;           // 释放原有资源
-            data_ = other.data_;      // 接管资源
-            size_ = other.size_;
-            other.data_ = nullptr;    // 源对象置空
-            other.size_ = 0;
-        }
-        return *this;
-    }
-
-    // 析构函数
-    ~String() {
-        delete[] data_;
-    }
-};
-```
-
-### Rule of Five
-
-如果类需要自定义析构函数、拷贝构造函数或拷贝赋值运算符，那么它几乎肯定也需要移动构造函数和移动赋值运算符。这就是著名的"Rule of Five"。现代C++提供了`= default`和`= delete`语法来简化这些特殊成员函数的定义。
-
-```cpp
-class Resource {
-public:
-    // 默认构造
-    Resource() = default;
-
-    // 拷贝操作
-    Resource(const Resource&) = delete;            // 禁用拷贝
-    Resource& operator=(const Resource&) = delete; // 禁用拷贝赋值
-
-    // 移动操作
-    Resource(Resource&&) noexcept = default;       // 默认移动构造
-    Resource& operator=(Resource&&) noexcept = default; // 默认移动赋值
-
-    // 析构函数
-    ~Resource() = default;
-};
-```
-
-### 最佳实践
-
-1. **优先使用`std::move`转移所有权**：当对象即将被销毁或不再需要时，使用移动语义转移其资源。
-2. **标记移动操作为`noexcept`**：这允许标准容器在重新分配内存时使用移动而非拷贝。
-3. **理解何时编译器会自动生成移动操作**：如果类没有声明任何拷贝操作、移动操作或析构函数，编译器会自动生成默认的移动操作。
-4. **注意返回值优化（RVO）**：在返回局部对象时，编译器通常会进行拷贝省略，此时手动`std::move`反而会阻碍优化。
+**复习练习**：为一次满容量 `put` 画出所有权和 prepare/commit 边界，在“新节点分配”、“哈希插入”和“新频率桶分配”三处分别注入异常。每次失败后检查键集合、值、LRU/LFU 顺序、`size` 和 `minFreq`，不只检查程序是否崩溃。
 
 ---
 
-## 📖 知识点复习三：通用引用与完美转发
+## 📖 知识点复习三：转发引用与完美转发
 
-### 核心概念回顾
+### 决策表：先识别，再转发
 
-通用引用（Universal Reference）是Scott Meyers提出的概念，指的是在类型推导上下文中出现的`T&&`形式。通用引用之所以"通用"，是因为它可以绑定到左值或右值，具体取决于初始化表达式的值类别。
+完整推导规则以 [Day 24](../day_24/README.md#day24-forwarding-reference) 为准，生命周期、多次转发和异常透传以 [Day 25](../day_25/README.md#day25-forwarding-boundaries) 为准。Day 28 只检查是否能把下列场景归入正确分支：
 
-通用引用出现在两种场景中：函数模板参数`template<typename T> void func(T&& arg)`和`auto&&`变量声明。关键在于类型推导必须发生。如果`T`是已知的类型，那么`T&&`就是普通的右值引用，而不是通用引用。
+| 声明/调用 | 是否转发引用 | 正确处理 |
+|-----------|----------------|----------|
+| `template<class T> void f(T&&)`，调用点推导 `T` | 是 | 若要交给下游重载集，用 `std::forward<T>` |
+| `void f(std::string&&)` | 否，固定右值引用 | 函数内要继续交付时用 `std::move` |
+| `template<class T> void f(const T&&)` | 否 | 只绑定 const 右值，通常不是理想的消费接口 |
+| `template<class T> void f(std::vector<T>&&)` | 否 | 虽推导内层 `T`，形参不是精确 `T&&` |
+| `auto&& values = {1, 2, 3}` | 否 | `auto` 走 `initializer_list` 特殊推导 |
 
-### 引用折叠规则
-
-引用折叠是理解通用引用的关键机制。当模板实例化或类型推导导致引用的引用出现时，编译器会应用引用折叠规则：
-- `T& &`、`T& &&`、`T&& &` 都折叠为 `T&`
-- 只有 `T&& &&` 折叠为 `T&&`
-
-简而言之，只有两个右值引用叠加才会产生右值引用，其他任何情况都会产生左值引用。这解释了为什么通用引用可以绑定到左值——当传入左值时，`T`被推导为`U&`，经过引用折叠后变成`U&`。
-
-```mermaid
-graph TB
-    A["T&& 形式"] --> B{"类型推导?"}
-    B -->|"是"| C["通用引用"]
-    B -->|"否"| D["右值引用"]
-    C --> E["可绑定左值和右值"]
-    D --> F["只能绑定右值"]
-```
-
-### 完美转发
-
-完美转发是指在函数模板中将参数原封不动地传递给另一个函数，保持参数原有的值类别（左值或右值）和const/volatile属性。`std::forward`是实现完美转发的关键工具。
+下面是闭卷自测，不重讲推导步骤：先手写三个 `assert` 的预期，再用编译器检查“有名形参是 lvalue，最后一次交付才恢复调用者值类别”。
 
 ```cpp
-template<typename T>
-void wrapper(T&& arg) {
-    // 完美转发：保持arg的原始值类别
-    actual_function(std::forward<T>(arg));
-}
+#include <cassert>
+#include <utility>
 
-// 使用示例
-void actual_function(int& x) { std::cout << "左值\n"; }
-void actual_function(int&& x) { std::cout << "右值\n"; }
+enum class Category { lvalue, rvalue };
+
+Category classify(int&) noexcept { return Category::lvalue; }
+Category classify(int&&) noexcept { return Category::rvalue; }
+
+template <typename T>
+Category deliver(T&& value)
+    noexcept(noexcept(classify(std::forward<T>(value)))) {
+    return classify(std::forward<T>(value));
+}
 
 int main() {
-    int a = 10;
-    wrapper(a);           // 输出"左值"
-    wrapper(10);          // 输出"右值"
-    wrapper(std::move(a)); // 输出"右值"
+    int key = 7;
+    assert(deliver(key) == Category::lvalue);
+    assert(deliver(7) == Category::rvalue);
+    assert(deliver(std::move(key)) == Category::rvalue);
 }
 ```
 
-### 常见陷阱
+### 转发失败的诊断表
 
-1. **通用引用与重载的交互**：当通用引用出现在重载函数中时，它几乎总是最佳匹配，这可能导致意外行为。解决方案包括使用不同的函数名、标签分发、或限制模板参数。
+| 现象 | 根因 | 修复 |
+|------|------|------|
+| `fwd({1, 2, 3})` 无法推导 | 裸大括号列表没有可供普通模板推导的单一表达式类型 | 先构造明确容器或提供专门 `initializer_list` 接口 |
+| `fwd(0)` 未选空指针路径 | `0/NULL` 保留整数类型 | 使用 `nullptr` |
+| 重载函数名/函数模板名无法推导 | 缺少唯一的目标类型或实例 | 显式选择函数指针类型和模板实例 |
+| 位域无法绑定 | 位域不能绑定到所需非 const 引用 | 先复制到普通对象 |
+| 静态 const 整型成员在链接时失败 | 引用绑定产生 ODR-use | 提供定义，或 C++17 使用 `inline static constexpr` |
 
-2. **完美转发失败的情况**：花括号初始化列表、0和NULL作为空指针、静态常量整型成员等情况下，完美转发可能无法按预期工作。
+缓存的 `put` 接口本来就要拥有键和值时，先选择按值接收并在内部移动，往往比暴露无约束 `T&&` 更简单：左值付出一次复制，右值可移动或直接构造形参，也不会劫持整数 ID、复制构造或其他重载。只有测量证明按值成本不可接受，且能明确约束可构造类型时，才升级为转发接口。
 
-3. **std::move的滥用**：不要对返回的局部对象使用`std::move`，这会阻碍RVO（返回值优化）。
-
-```cpp
-// 错误示例：阻碍RVO
-std::string createString() {
-    std::string s = "hello";
-    return std::move(s);  // 不必要，反而阻碍优化
-}
-
-// 正确做法：让编译器处理
-std::string createString() {
-    std::string s = "hello";
-    return s;  // RVO或隐式移动
-}
-```
+**复习练习**：对缓存 `put(key, value)` 比较 `const T&`、按值和受约束转发三种设计，分别列出左值、临时量、`const` 对象、不可复制类型和隐式转换输入的路径。选择一种作为公开接口，必须同时说明所有权、重载决议风险和异常提交点。
 
 ---
 
@@ -301,36 +246,44 @@ std::string createString() {
 
 ### CPU缓存基础
 
-现代CPU的多级缓存结构对程序性能有着深远影响。理解缓存的工作原理可以帮助我们编写更高效的代码。CPU缓存通常分为L1、L2、L3三级，L1最接近CPU核心，速度最快但容量最小；L3距离最远，速度较慢但容量较大。
+现代CPU的多级缓存结构对程序性能有着深远影响。理解缓存的工作原理可以帮助我们编写更高效的代码。常见处理器具有 L1、L2 和最后级缓存，但容量、共享拓扑和延迟都由具体处理器决定；只能通过目标机器资料或测量取得事实，不能把示意数字当成语言保证。
 
-缓存以"缓存行"（Cache Line，通常64字节）为单位工作。当CPU访问内存中的一个字节时，整个缓存行的数据都会被加载到缓存中。这就是为什么顺序访问数组比随机访问要快得多的原因——顺序访问可以利用空间局部性，每次缓存行加载都能服务后续多次访问。
+缓存通常以缓存行（Cache Line）为传输和一致性管理单位，64 字节是许多桌面与服务器处理器上的常见实验值，但并非所有机器固定如此。顺序访问常能利用空间局部性，不过真实收益还受预取器、工作集、步长和编译器生成代码影响。
 
 ```mermaid
 graph TB
     subgraph "CPU缓存层次"
-        A[CPU核心] --> B["L1缓存<br/>32KB-64KB<br/>~1ns延迟"]
-        B --> C["L2缓存<br/>256KB-1MB<br/>~4ns延迟"]
-        C --> D["L3缓存<br/>4MB-64MB<br/>~12ns延迟"]
-        D --> E["主内存<br/>数GB<br/>~100ns延迟"]
+        A[CPU核心] --> B["L1缓存<br/>容量与延迟依处理器而变"]
+        B --> C["L2缓存<br/>可能私有也可能共享"]
+        C --> D["最后级缓存<br/>拓扑依处理器而变"]
+        D --> E["主内存<br/>延迟受平台与负载影响"]
     end
 ```
 
 ### 内存对齐
 
-内存对齐是指数据在内存中的起始地址必须满足特定的边界要求。对齐的主要原因是硬件访问效率：大多数CPU在对齐的地址上访问数据效率最高，有些架构甚至在不对齐的访问上会抛出异常。
+内存对齐是指对象起始地址满足该类型的 `alignof(T)` 要求。`alignof(T)`、`sizeof(T)` 与硬件缓存行边界是三件不同的事：类型对齐不等于对象大小，对象大小满足类型对齐也不代表它从真实缓存行边界开始。
 
-C++中可以使用`alignas`关键字指定对齐要求，使用`alignof`操作符查询类型的对齐要求。合理的内存布局可以提高缓存利用率，减少伪共享（False Sharing）问题。
+C++中可以使用 `alignas` 指定更严格的类型或对象对齐，使用 `alignof` 查询类型要求；`sizeof(T)` 还会包含成员与尾部填充。若要把 64 字节当作伪共享实验参数，需要同时控制起始对齐和布局跨度，并另行确认目标硬件的真实缓存行大小。
 
 ```cpp
-// 内存对齐示例
-struct AlignedStruct {
-    alignas(16) double data[4];  // 16字节对齐
+// 类型对齐示例：只承诺16字节对齐，不假定对象大小。
+struct alignas(16) AlignedStruct {
+    double data[4];
     int value;
-    char padding[12];  // 填充到64字节缓存行边界
 };
 
-static_assert(alignof(AlignedStruct) == 16, "Alignment check");
-static_assert(sizeof(AlignedStruct) == 64, "Size check for cache line");
+static_assert(alignof(AlignedStruct) >= 16, "type alignment check");
+static_assert(sizeof(AlignedStruct) % alignof(AlignedStruct) == 0,
+              "array elements must keep their alignment");
+
+// 64只是本次布局实验参数；即使这些断言成立，也不能证明硬件缓存行就是64字节。
+struct alignas(64) CacheLineExperiment {
+    unsigned char bytes[64];
+};
+
+static_assert(alignof(CacheLineExperiment) >= 64, "experiment alignment check");
+static_assert(sizeof(CacheLineExperiment) >= 64, "experiment span check");
 ```
 
 ---
@@ -387,27 +340,27 @@ get(4)→4     [4, 3, 1]     // 访问4，移到前面
 
 **为什么选择 LRU？**
 1. **局部性原理**：程序访问具有时间和空间局部性，最近访问的数据很可能再次被访问
-2. **实现高效**：使用哈希表 + 双向链表可实现 O(1) 的所有操作
-3. **性能均衡**：在各种访问模式下表现稳定
+2. **实现成本可控**：在哈希表平均常数时间的假设下，哈希表 + 双向链表可让核心操作达到平均 O(1)
+3. **策略易解释**：它直接追踪最近性，但命中效果仍取决于真实访问模式，不能脱离工作负载断言最优
 
 **LRU 的核心操作复杂度要求**：
-- `get(key)`: O(1) — 需要哈希表快速定位
-- `put(key, value)`: O(1) — 需要快速插入和可能的淘汰
+- `get(key)`: 平均 O(1) — 依赖哈希表快速定位
+- `put(key, value)`: 平均 O(1) — 依赖哈希表插入并在已知节点位置完成淘汰
 
 **数据结构组合的设计智慧**：
 ```
 单一数据结构的局限：
 ┌─────────────────────────────────────────────────────┐
-│ 哈希表：O(1)查找 ✓   但无法维护访问顺序 ✗           │
+│ 哈希表：平均O(1)查找 ✓   但无法维护访问顺序 ✗       │
 │ 链表：维护顺序 ✓     但查找O(n) ✗                   │
-│ 数组：查找O(1) ✓     但删除/移动O(n) ✗              │
+│ 数组：按下标O(1) ✓   按key查找及中间移动常为O(n) ✗  │
 └─────────────────────────────────────────────────────┘
 
 组合方案：
 ┌─────────────────────────────────────────────────────┐
 │ 哈希表：key → Node指针（快速定位节点）              │
-│ 双向链表：维护访问顺序（O(1)移动/删除节点）          │
-│ 结果：查找O(1) + 顺序维护O(1) ✓                     │
+│ 双向链表：已知节点指针时O(1)移动/删除                │
+│ 结果：哈希平均O(1)定位 + 链表O(1)维护顺序            │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -417,127 +370,63 @@ get(4)→4     [4, 3, 1]     // 访问4，移到前面
 
 #### 解题思路
 
-LRU缓存需要支持两个核心操作：快速查找（O(1)）和维护访问顺序。这恰好需要两种数据结构的配合：
-1. **哈希表**：提供O(1)的键值查找
-2. **双向链表**：维护访问顺序，支持O(1)的节点移动和删除
+LRU缓存需要支持两个核心操作：快速查找和维护访问顺序。这需要两种数据结构配合，并依赖哈希表平均常数时间这一通常假设：
+1. **哈希表**：平均 O(1) 定位键；碰撞严重或遭遇对抗输入时可能退化
+2. **双向链表**：已经拿到节点指针时，O(1) 完成移动和删除
 
 ```mermaid
 graph LR
     subgraph "哈希表 + 双向链表"
         H["哈希表<br/>key → Node*"]
         L["双向链表<br/>head ↔ 最近使用 ↔ ... ↔ 最久使用 ↔ tail"]
-        H -->|"O(1)查找"| L
+        H -->|"平均O(1)查找"| L
     end
 ```
 
-#### 代码实现
+#### 真实实现与可编译契约示例
+
+LRU 的唯一实现源是 `code/leetcode/0146_lru_cache/solution.h` 与 `solution.cpp`。README 不复制私有节点和链表实现；下面程序只使用真实公开接口验证非正容量、更新不增容、成功访问改变顺序以及淘汰契约。
 
 ```cpp
-// 文件位置：code/leetcode/0146_lru_cache/solution.cpp
+// 保存为 /tmp/lru_readme_contract.cpp；编译时必须链接仓库真实 solution.cpp。
+#include "code/leetcode/0146_lru_cache/solution.h"
 
-#include <unordered_map>
+#include <type_traits>
 
-// 双向链表节点
-struct DListNode {
-    int key;
-    int value;
-    DListNode* prev;
-    DListNode* next;
-    DListNode(int k, int v) : key(k), value(v), prev(nullptr), next(nullptr) {}
-};
+static_assert(!std::is_copy_constructible_v<LRUCache>);
+static_assert(!std::is_move_constructible_v<LRUCache>);
 
-class LRUCache {
-private:
-    int capacity_;
-    int size_;
-    DListNode* head_;  // 虚拟头节点
-    DListNode* tail_;  // 虚拟尾节点
-    std::unordered_map<int, DListNode*> cache_;
-
-    // 将节点移到链表头部（最近使用）
-    void moveToHead(DListNode* node) {
-        removeNode(node);
-        addToHead(node);
+int main() {
+    LRUCache disabled(-1);
+    disabled.put(1, 1);
+    if (disabled.capacity() != 0 || disabled.size() != 0 || disabled.get(1) != -1) {
+        return 1;
     }
 
-    // 从链表中移除节点
-    void removeNode(DListNode* node) {
-        node->prev->next = node->next;
-        node->next->prev = node->prev;
+    LRUCache cache(2);
+    cache.put(1, 10);
+    cache.put(2, 20);
+    cache.put(1, 11); // 更新既改变新旧顺序，也不得增加大小。
+    if (cache.size() != 2 || cache.get(1) != 11) {
+        return 2;
     }
 
-    // 将节点添加到链表头部
-    void addToHead(DListNode* node) {
-        node->prev = head_;
-        node->next = head_->next;
-        head_->next->prev = node;
-        head_->next = node;
-    }
+    cache.put(3, 30); // 刚访问过1，因此淘汰更旧的2。
+    return cache.get(2) == -1 && cache.get(1) == 11 && cache.get(3) == 30 ? 0 : 3;
+}
+```
 
-    // 移除链表尾部节点（最久未使用）
-    DListNode* removeTail() {
-        DListNode* node = tail_->prev;
-        removeNode(node);
-        return node;
-    }
-
-public:
-    LRUCache(int capacity) : capacity_(capacity), size_(0) {
-        head_ = new DListNode(0, 0);
-        tail_ = new DListNode(0, 0);
-        head_->next = tail_;
-        tail_->prev = head_;
-    }
-
-    ~LRUCache() {
-        DListNode* curr = head_;
-        while (curr) {
-            DListNode* next = curr->next;
-            delete curr;
-            curr = next;
-        }
-    }
-
-    int get(int key) {
-        auto it = cache_.find(key);
-        if (it == cache_.end()) {
-            return -1;
-        }
-        // 命中，移到头部
-        DListNode* node = it->second;
-        moveToHead(node);
-        return node->value;
-    }
-
-    void put(int key, int value) {
-        auto it = cache_.find(key);
-        if (it != cache_.end()) {
-            // 已存在，更新值并移到头部
-            DListNode* node = it->second;
-            node->value = value;
-            moveToHead(node);
-        } else {
-            // 不存在，创建新节点
-            DListNode* newNode = new DListNode(key, value);
-            cache_[key] = newNode;
-            addToHead(newNode);
-            ++size_;
-
-            if (size_ > capacity_) {
-                // 超出容量，淘汰尾部节点
-                DListNode* removed = removeTail();
-                cache_.erase(removed->key);
-                delete removed;
-                --size_;
-            }
-        }
-    }
-};
+```bash
+c++ -std=c++17 -Wall -Wextra -Wpedantic -Werror -I. \
+  /tmp/lru_readme_contract.cpp \
+  code/leetcode/0146_lru_cache/solution.cpp \
+  -o /tmp/lru_readme_contract
+/tmp/lru_readme_contract
 ```
 
 #### 复杂度分析
 
-- 时间复杂度：`get` 和 `put` 操作都是 O(1)
+- 时间复杂度：在哈希表平均 O(1) 的前提下，`get` 和 `put` 都是平均 O(1)；最坏情况受哈希容器行为影响
 - 空间复杂度：O(capacity)，用于存储缓存条目
 
 ---
@@ -583,15 +472,16 @@ put(4,4)         [(3,3,2), (4,4,1)]    // 1和3频率相同，淘汰最久未使
 |------|-----|-----|
 | 淘汰依据 | 最近访问时间 | 访问频率 |
 | 适合场景 | 时间局部性强的数据 | 热点数据明显 |
-| 空间效率 | 较低（可能淘汰热点） | 较高（保留热点） |
+| 容量与元数据 | 至多保存 capacity 个条目，另有哈希与链表元数据 | 同样是 O(capacity)，频率桶通常需要更多元数据 |
+| 策略倾向 | 更重视最近访问，可能丢失长期热点 | 更重视累计频率，可能滞留历史热点 |
 | 实现复杂度 | 中等 | 较高 |
-| 对突发流量 | 表现好 | 可能表现差 |
+| 对访问模式变化 | 通常更快反映近期变化 | 未老化的历史计数可能反应较慢 |
 
 **LFU 的优缺点分析**：
 
 **优点**：
-- 长期热点数据会被保留，不会被偶发的大量新数据挤掉
-- 对于访问模式稳定的应用，缓存命中率高
+- 长期热点数据通常更不容易被少量偶发访问挤掉
+- 对于频率分布稳定的负载，命中率可能优于只看最近性的策略；仍需用真实工作负载测量
 
 **缺点**：
 - 新数据需要"热身"才能获得较高优先级
@@ -619,7 +509,7 @@ put(4,4)         [(3,3,2), (4,4,1)]    // 1和3频率相同，淘汰最久未使
 ```
 
 **为什么 LFU 需要三层结构？**
-- 哈希表：O(1) 查找节点
+- 哈希表：在哈希假设下平均 O(1) 查找节点，最坏可能退化
 - 频率映射：快速定位最小频率的节点
 - 双向链表：维护同频率节点的 LRU 顺序
 
@@ -643,141 +533,108 @@ graph TB
     end
 ```
 
-#### 代码实现
+#### 真实实现与可编译契约示例
+
+LFU 的唯一实现源是 `code/leetcode/0460_lfu_cache/solution.h` 与 `solution.cpp`。README 不再复制一份容易漂移的私有 `Node/DList` 实现；下面代码直接包含真实公开头，并链接真实实现来验证公开接口、非正容量、空桶回收和频率饱和后的同频 LRU 语义。
 
 ```cpp
-// 文件位置：code/leetcode/0460_lfu_cache/solution.cpp
+// 保存为 /tmp/lfu_readme_contract.cpp；这是一段契约验证程序，不是另一份 LFU 实现。
+#include "code/leetcode/0460_lfu_cache/solution.h"
 
-#include <unordered_map>
+#include <type_traits>
 
-struct Node {
-    int key, value, freq;
-    Node* prev;
-    Node* next;
-    Node(int k, int v) : key(k), value(v), freq(1), prev(nullptr), next(nullptr) {}
-};
+static_assert(std::is_unsigned_v<LFUCache::Frequency>);
 
-class DList {
-private:
-    Node* head_;
-    Node* tail_;
-    int size_;
-
-public:
-    DList() : size_(0) {
-        head_ = new Node(0, 0);
-        tail_ = new Node(0, 0);
-        head_->next = tail_;
-        tail_->prev = head_;
+int main() {
+    LFUCache disabled(-1);
+    disabled.put(1, 1);
+    if (disabled.capacity() != 0 || disabled.size() != 0 || disabled.get(1) != -1) {
+        return 1;
     }
 
-    ~DList() {
-        Node* curr = head_;
-        while (curr) {
-            Node* next = curr->next;
-            delete curr;
-            curr = next;
-        }
+    LFUCache minimumCeiling(1, 0); // 上界0按真实构造契约规范化为1。
+    minimumCeiling.put(9, 90);
+    minimumCeiling.get(9);
+    minimumCeiling.get(9);
+    if (minimumCeiling.minFreq() != 1 || minimumCeiling.frequencyBucketCount() != 1) {
+        return 2;
     }
 
-    bool isEmpty() const { return size_ == 0; }
+    LFUCache cache(2, 3); // 测试专用上界；默认上界是 uint64_t 最大值。
+    cache.put(1, 10);
+    cache.put(2, 20);
+    cache.get(1);
+    cache.get(1);
+    cache.get(2);
+    cache.get(2);
+    cache.get(1); // 两个键都饱和于3；访问1后，2成为同频桶内最旧节点。
 
-    void addToHead(Node* node) {
-        node->prev = head_;
-        node->next = head_->next;
-        head_->next->prev = node;
-        head_->next = node;
-        ++size_;
+    if (cache.minFreq() != 3 || cache.frequencyBucketCount() != 1) {
+        return 3;
     }
 
-    void removeNode(Node* node) {
-        node->prev->next = node->next;
-        node->next->prev = node->prev;
-        --size_;
-    }
+    cache.put(3, 30); // 淘汰同频且更旧的键2；插入结束后不得留下空桶。
+    const bool valuesCorrect =
+        cache.get(2) == -1 && cache.get(1) == 10 && cache.get(3) == 30;
+    const bool stateBounded =
+        cache.size() == 2 && cache.frequencyBucketCount() <= cache.size();
+    return valuesCorrect && stateBounded ? 0 : 4;
+}
+```
 
-    Node* removeTail() {
-        if (isEmpty()) return nullptr;
-        Node* node = tail_->prev;
-        removeNode(node);
-        return node;
-    }
-};
+在 `week_04/day_28` 目录按下面命令保存并验证该片段；必须同时编译 `solution.cpp`，这样检查的是仓库真实实现而不是文档替身。
 
-class LFUCache {
-private:
-    int capacity_;
-    int minFreq_;
-    std::unordered_map<int, Node*> keyMap_;         // key → Node
-    std::unordered_map<int, DList*> freqMap_;       // freq → DList
-
-    void increaseFreq(Node* node) {
-        // 从旧频率链表中移除
-        int oldFreq = node->freq;
-        freqMap_[oldFreq]->removeNode(node);
-
-        // 更新最小频率
-        if (oldFreq == minFreq_ && freqMap_[oldFreq]->isEmpty()) {
-            ++minFreq_;
-        }
-
-        // 添加到新频率链表
-        node->freq = oldFreq + 1;
-        int newFreq = node->freq;
-        if (freqMap_.find(newFreq) == freqMap_.end()) {
-            freqMap_[newFreq] = new DList();
-        }
-        freqMap_[newFreq]->addToHead(node);
-    }
-
-public:
-    LFUCache(int capacity) : capacity_(capacity), minFreq_(0) {}
-
-    int get(int key) {
-        if (keyMap_.find(key) == keyMap_.end()) {
-            return -1;
-        }
-        Node* node = keyMap_[key];
-        increaseFreq(node);
-        return node->value;
-    }
-
-    void put(int key, int value) {
-        if (capacity_ == 0) return;
-
-        auto it = keyMap_.find(key);
-        if (it != keyMap_.end()) {
-            // 已存在，更新值并增加频率
-            Node* node = it->second;
-            node->value = value;
-            increaseFreq(node);
-        } else {
-            // 不存在，创建新节点
-            if (keyMap_.size() == capacity_) {
-                // 淘汰频率最低且最久未使用的节点
-                DList* minList = freqMap_[minFreq_];
-                Node* removed = minList->removeTail();
-                keyMap_.erase(removed->key);
-                delete removed;
-            }
-
-            Node* newNode = new Node(key, value);
-            keyMap_[key] = newNode;
-            minFreq_ = 1;
-            
-            if (freqMap_.find(1) == freqMap_.end()) {
-                freqMap_[1] = new DList();
-            }
-            freqMap_[1]->addToHead(newNode);
-        }
-    }
-};
+```bash
+c++ -std=c++17 -Wall -Wextra -Wpedantic -Werror -I. \
+  /tmp/lfu_readme_contract.cpp \
+  code/leetcode/0460_lfu_cache/solution.cpp \
+  -o /tmp/lfu_readme_contract
+/tmp/lfu_readme_contract
 ```
 
 #### 复杂度分析
 
-- 时间复杂度：`get` 和 `put` 操作都是 O(1)
-- 空间复杂度：O(capacity)
+- 时间复杂度：`get` 和 `put` 在哈希表平均 O(1) 的前提下都是平均 O(1)
+- 空间复杂度：O(capacity)；一次升频会先创建新桶再删除空旧桶，瞬时映射项最多为 `capacity + 1`，每次公开操作结束后不保留空桶，非空频率桶数不超过真实缓存节点数
+
+### 缓存实现的所有权与边界契约
+
+LRU 中，`LRUCache` 独占真实节点和两个哨兵，哈希表只保存借用指针；因此析构沿链表释放一次即可，复制和移动都显式禁用，避免浅拷贝后重复释放。LFU 中，`LFUCache` 独占所有真实节点，每个 `DList` 只拥有自己的头尾哨兵并借用真实节点；析构时先释放真实节点，再用 `delete` 释放每个 `DList`，而 `DList` 析构不得遍历或释放借来的真实节点。仅写 `pointer->~DList()` 只调用析构函数却不归还 `new DList` 的存储，不是正确的释放方式。
+
+失败路径也必须保持这些关系：LFU 升频先创建新桶，成功后才从旧桶摘链；更新已有键先完成可能分配的新频率桶，再提交不抛的整数值更新。满容量插入新键时先取得节点、频率桶和哈希项，若分配失败就删除临时节点与新建空桶且不淘汰旧键；全部成功后才按插入前保存的最小频率执行摘链淘汰。这个顺序让分配异常不会留下空桶、半迁移节点或提前丢失的缓存项。
+
+容量小于等于零统一规范化为零，此时 `put` 是无操作、`get` 返回 `-1`、`size()` 保持零。每次 LRU 的成功 `get` 都会改变新旧顺序，例如 `[3,1]` 再 `get(1)` 后成为 `[1,3]`，随后插入 4 应淘汰 3；测试必须按完整操作序列推导，不能只凭插入先后猜测。每次 LFU 节点升频时，旧链表移除、新链表插入、空桶删除和 `minFreq` 更新必须作为一个整体维持不变量。频率使用 `std::uint64_t`；默认上界是其最大值，双参数构造仅用于有限步测试且把上界 0 规范化为 1，到达上界后不再递增但仍更新同频桶内的 LRU 顺序，从而避免溢出并保留淘汰语义。
+
+### EMC++ Item 9、23–30 完整复盘
+
+| Item | 正确主题 | 本周应用 |
+|------|----------|----------|
+| 9 | 优先使用别名声明而非 `typedef` | alias template 直接产生目标类型；旧式 typedef 元函数要包类模板并写 `typename ...::type`，而 `_t` 风格别名能去掉这层语法噪声 |
+| 23 | 理解 `std::move` 与 `std::forward` | `move` 无条件产生 xvalue，`forward` 按推导结果有条件恢复值类别，二者本身都不搬资源 |
+| 24 | 区分转发引用与右值引用 | 函数形参须为被推导、未加 cv 的模板参数 `T` 之 `T&&` 才是转发引用；已知类型的 `Widget&&` 是右值引用，命名后表达式仍是左值 |
+| 25 | 右值引用用 `move`，转发引用用 `forward` | 需要继续交付时，右值引用形参用 `move` 延续右值许可，转发引用用 `forward` 恢复调用者原来的值类别；二者都不保证目标实际搬资源 |
+| 26 | 避免对转发引用重载 | `std::string&` 可比 `const std::string&` 少一次限定转换，字符串字面量也可能被贪婪模板直接接走；同为精确匹配时普通非模板仍优先 |
+| 27 | 熟悉转发引用重载的替代方案 | 从不同函数名、`const T&`、按值接收开始，确有分类需求再使用标签分发或 SFINAE/约束 |
+| 28 | 理解引用折叠 | 只要有 `&` 参与就是 `&`，只有 `&&` 与 `&&` 才得到 `&&` |
+| 29 | 假定移动不存在、不便宜、未被使用 | 类型可能只有复制；`std::array` 与 SSO 字符串可能逐元素处理；`const` 源或可抛移动在拷贝可用时可能走拷贝路径 |
+| 30 | 熟悉完美转发失败情形 | 大括号列表、`0/NULL`、仅声明静态 const 整型成员、重载函数名/函数模板名和位域构成五类边界；修复后仍要真实调用目标接口验证路线 |
+
+Item 29 的结论不是“不要移动”，而是不能在泛型设计和复杂度承诺中先验地把移动算作常数时间。Item 30 中 `auto values = {1,2,3}` 推导出 `std::initializer_list<int>` 是 `auto` 的特殊规则，不代表普通函数模板也能从裸大括号列表推导；`nullptr` 的类型是 `std::nullptr_t`，不是指针类型，但能安全转换到目标指针类型。完美转发助手必须真实调用目标函数，并用目标重载的输出验证左值仍到 `const&`/`&`、右值仍到 `&&`，只打印 `T` 的名字不能证明转发正确。
+
+### 缓存项目卡
+
+1. **需求与用例**：在哈希表平均常数时间假设下支持平均 O(1) 的 `get/put`；LRU 淘汰最久未访问项，LFU 先淘汰最低频项、同频再淘汰最久未访问项。
+2. **输入输出和失败方式**：整数键值，未命中返回 `-1`；非正容量不保存数据；测试断言失败时进程必须返回非零。
+3. **数据与不变量**：哈希表中的每个键恰好对应一个真实节点；链表前后指针互相一致；LRU 的尾端是最旧节点；LFU 的 `minFreq` 指向当前最小非空频率，且 `freqMap` 不保留空桶；可能抛出的资源取得发生在摘链和淘汰之前。
+4. **最小接口**：保留构造、`get`、`put` 和用于学习测试的只读 `size/capacity/minFreq/frequencyBucketCount`，有限频率上界构造重载只用于在可控步数内验证饱和边界，链表拼接、移除与升频都封装为私有操作。
+5. **所有权与生命周期**：缓存独占真实节点，链表或哈希表中的裸指针只是索引；哨兵由所属链表释放；类禁用浅复制和移动。
+6. **文件和 target**：每道缓存题都以 `solution.h` 公布接口、`solution.cpp` 实现，`day28_lru_cache/day28_lfu_cache` 是库 target，`day28_lc0146/day28_lc0460` 是只包含头文件并链接库的测试 target。
+7. **测试**：覆盖官方序列、重复更新、访问顺序、同频 LRU、容量 1/0/负数、10000 次连续升频和可控饱和边界；CTest 负责非零失败传播，ASan/UBSan 负责发现 UAF、double free 和未定义行为。
+8. **设计取舍复盘**：教学实现保留裸指针以展示 O(1) 链表操作，但用清晰的唯一所有者和禁用复制锁住风险；生产代码还应评估泛型键值、异常安全、并发控制和指标观测。
+
+### 今日工程动作：画提交边界与所有权图并让工具验证
+
+先在纸上给每种节点画一条且仅一条“拥有”箭头，再把索引中的裸指针标成“借用”，并为 rehash、升频和淘汰分别画出 prepare/commit 分界。每次修改这些路径，都运行普通 CTest 与 `-DENABLE_SANITIZERS=ON` 构建；其中 `day28_hash_table_exception_contracts` 必须证明 Hash 或值复制抛异常后旧状态不变。测试打印失败还不够，必须返回非零，自动化系统才能阻止错误继续传播。
 
 ---
 
@@ -795,8 +652,8 @@ public:
    - `std::move` 做了什么？它真的"移动"了吗？
    - 什么情况下应该定义移动构造函数？
 
-3. **通用引用**
-   - 什么是通用引用？它和右值引用有什么区别？
+3. **转发引用**
+   - 什么是转发引用？它和右值引用有什么区别？
    - 引用折叠规则是什么？
    - 为什么需要完美转发？
 
@@ -822,9 +679,19 @@ public:
 
 # 或者手动编译
 mkdir build && cd build
-cmake ..
-make
+cmake -DBUILD_TESTING=ON ..
+cmake --build .
+ctest --output-on-failure
 ./day_28_main
+
+# ASan 与 UBSan 分开统计，避免把两种仪器化结果混成一个数字
+cmake -S .. -B ../build_asan -DBUILD_TESTING=ON -DENABLE_ASAN=ON
+cmake --build ../build_asan
+cmake -E chdir ../build_asan ctest -LE strict-no-sanitizer --output-on-failure
+
+cmake -S .. -B ../build_ubsan -DBUILD_TESTING=ON -DENABLE_UBSAN=ON
+cmake --build ../build_ubsan
+cmake -E chdir ../build_ubsan ctest -LE strict-no-sanitizer --output-on-failure
 ```
 
 ---
@@ -839,16 +706,16 @@ make
 | 链地址法 | Separate Chaining | 用链表解决冲突的方法 |
 | 开放寻址法 | Open Addressing | 探测下一个位置的方法 |
 | 装载因子 | Load Factor | 元素数量/桶数量 |
-| 左值 | Lvalue | 有名字、有地址的对象 |
-| 右值 | Rvalue | 临时对象或字面量 |
-| 右值引用 | Rvalue Reference | T&&，绑定右值的引用 |
-| 移动语义 | Move Semantics | 资源所有权转移的机制 |
-| 通用引用 | Universal Reference | 可绑定左值或右值的T&& |
+| 左值 | Lvalue | 具有身份的表达式；变量名、解引用表达式是常见例子 |
+| 右值 | Rvalue | 纯右值与将亡值的总称，包括字面量、临时结果和 `std::move(x)` 产生的 xvalue |
+| 右值引用 | Rvalue Reference | 非转发语境中的 `U&&`（如 `std::string&&`），可绑定 prvalue 或 xvalue；命名后的变量表达式仍是左值 |
+| 移动语义 | Move Semantics | 允许类型按契约复用或转移资源的机制 |
+| 转发引用 | Forwarding Reference | 函数调用中被推导且未加 cv 限定的模板参数 `T` 的精确 `T&&` 形参，可记录左值或右值来源；`auto&&` 从非列表初始化式推导时也属于转发引用 |
 | 引用折叠 | Reference Collapsing | 引用之引用的推导规则 |
 | 完美转发 | Perfect Forwarding | 保持参数原始值类别的转发 |
 | LRU | Least Recently Used | 最近最少使用淘汰策略 |
 | LFU | Least Frequently Used | 最不经常使用淘汰策略 |
-| 缓存行 | Cache Line | CPU缓存的最小单位 |
+| 缓存行 | Cache Line | 某级缓存分配、传输和一致性跟踪使用的固定大小数据块；大小由具体硬件决定 |
 | 内存对齐 | Memory Alignment | 数据地址满足特定边界要求 |
 
 ---
@@ -864,7 +731,7 @@ make
 4. **常见错误提醒**：
    - 不要滥用`std::move`，尤其是在返回局部对象时
    - 使用自定义类型作为哈希表键时，记得提供哈希函数和相等比较
-   - 注意移动操作要标记`noexcept`，以便标准容器优化
+   - 只有移动操作确实不会抛异常时才标记 `noexcept`；正确承诺有利于标准容器选择移动路径
 
 ---
 
@@ -877,3 +744,11 @@ make
 5. [Effective Modern C++ - Item 9, 23-30](https://www.aristeia.com/EMC++.html)
 6. [LeetCode 146 - LRU缓存](https://leetcode.cn/problems/lru-cache/)
 7. [LeetCode 460 - LFU缓存](https://leetcode.cn/problems/lfu-cache/)
+
+## 恰好五句复盘
+
+1. 缓存设计先从用例和淘汰规则出发，再选择哈希表与双向链表组合，而不是先堆数据结构。
+2. LRU 的每次成功访问都会改变顺序，LFU 的每次访问则同时改变频率桶与桶内新旧顺序。
+3. 手写容器既要给节点唯一所有者，也要让 rehash 先完成全部可失败准备再提交链表拓扑。
+4. Item 23–30 把值类别、重载决议、移动假设与完美转发失败连接成了一条完整推理链。
+5. 本周用可失败的 CTest 和 Sanitizer 验证了接口边界与生命周期，下周遇到更大结构仍沿用同一张项目卡。

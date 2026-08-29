@@ -36,7 +36,11 @@ cd "$BUILD_DIR"
 # 运行 CMake 配置
 echo -e "${BLUE}配置 CMake...${NC}"
 cmake .. \
-    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_TESTS=ON \
+    -DENABLE_SANITIZERS="${ENABLE_SANITIZERS:-OFF}" \
+    -DENABLE_ASAN="${ENABLE_ASAN:-OFF}" \
+    -DENABLE_UBSAN="${ENABLE_UBSAN:-OFF}" \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 # 编译
@@ -56,6 +60,7 @@ if [ $? -eq 0 ]; then
     echo -e "${NC}"
     
     ./day_24_demo
+    ctest --output-on-failure
     
     echo ""
     echo -e "${GREEN}"

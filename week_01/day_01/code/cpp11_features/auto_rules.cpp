@@ -14,9 +14,11 @@
  */
 
 #include <iostream>
-#include <vector>
-#include <typeinfo>
 #include <initializer_list>
+#include <map>
+#include <string>
+#include <typeinfo>
+#include <vector>
 
 using namespace std;
 
@@ -73,6 +75,8 @@ void caseOne_ReferenceOrPointer() {
     cout << endl << "【关键点】" << endl;
     cout << "• 引用和指针声明会保留const" << endl;
     cout << "• 表达式的引用性在匹配前被忽略" << endl;
+    (void)r1; (void)r2; (void)r3;
+    (void)p1; (void)p2; (void)p3; (void)p4;
     
     cout << endl;
 }
@@ -126,6 +130,8 @@ void caseTwo_UniversalReference() {
     cout << "  && + &  -> &" << endl;
     cout << "  && + && -> &&" << endl;
     cout << "结论：只要有左值引用参与，结果就是左值引用" << endl;
+    (void)ur1; (void)ur2; (void)ur3;
+    (void)ur4; (void)ur5; (void)ur6;
     
     cout << endl;
 }
@@ -183,6 +189,7 @@ void caseThree_ByValue() {
     cout << "int* const p1;       // p1是顶层const（指针本身）" << endl;
     cout << "const int* p2;       // p2是底层const（指向的对象）" << endl;
     cout << "const int* const p3; // 既有顶层又有底层const" << endl;
+    (void)v1; (void)v2; (void)v3; (void)arr; (void)v4;
     
     cout << endl;
 }
@@ -207,10 +214,10 @@ void exception_InitializerList() {
     cout << "  auto x3 = {42};      // initializer_list<int>" << endl;
     cout << "  auto x4 = {1,2,3};   // initializer_list<int>" << endl;
     
-    // C++17规则变更
-    cout << endl << "【C++17规则变更】" << endl;
-    cout << "  auto x5{42};    // C++11: initializer_list<int>" << endl;
-    cout << "                  // C++17: int（单个元素）" << endl;
+    // 本教程采用 C++17：单元素直接列表初始化推导元素类型
+    cout << endl << "【直接列表初始化（本教程采用 C++17）】" << endl;
+    cout << "  auto x5{42};    // int（单个元素）" << endl;
+    cout << "  不依赖早期编译器对该规则的历史实现差异" << endl;
     cout << "  auto x6{1,2};   // C++17编译错误（多元素需要=）" << endl;
     
     // 模板对比
@@ -222,6 +229,7 @@ void exception_InitializerList() {
     cout << endl;
     cout << "但auto可以：" << endl;
     cout << "  auto x = {1,2,3};  // OK，initializer_list<int>" << endl;
+    (void)x1; (void)x2; (void)x3; (void)x4;
     
     cout << endl;
 }

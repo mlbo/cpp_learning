@@ -15,6 +15,8 @@
 #include <string>
 #include <functional>
 
+#include "../../../common/noexcept_output.h"
+
 // ============================================================
 // 演示类：跟踪对象生命周期
 // ============================================================
@@ -26,7 +28,9 @@ public:
     }
     
     ~Widget() {
-        std::cout << "  [Widget 析构] " << name_ << "\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  [Widget 析构] " << name_ << "\n";
+        });
     }
     
     void doSomething() {
@@ -77,7 +81,7 @@ void demoSharedOwnership() {
     
     std::cout << "\n  共享所有权的优势：\n";
     std::cout << "  • 自动管理：最后一个所有者离开时自动释放\n";
-    std::cout << "  • 安全：不会悬空指针\n";
+    std::cout << "  • 生命周期：只要仍持有一个副本，对象就不会被销毁\n";
     std::cout << "  • 明确意图：代码清晰表达共享语义\n";
 }
 
@@ -121,10 +125,10 @@ void demoDoubleDeletion() {
 
 // 自定义资源类型
 struct FileCloser {
-    void operator()(FILE* f) const {
+    void operator()(FILE* f) const noexcept {
         if (f) {
             fclose(f);
-            std::cout << "  [文件已关闭]\n";
+            week2_support::write_noexcept([] { std::cout << "  [文件已关闭]\n"; });
         }
     }
 };
@@ -135,10 +139,12 @@ void demoCustomDeleter() {
     std::cout << "--- 管理文件句柄 ---\n";
     {
         // 使用自定义删除器管理 FILE*
-        auto fileDeleter = [](FILE* f) {
+        auto fileDeleter = [](FILE* f) noexcept {
             if (f) {
                 fclose(f);
-                std::cout << "  [Lambda 删除器：文件已关闭]\n";
+                week2_support::write_noexcept([] {
+                    std::cout << "  [Lambda 删除器：文件已关闭]\n";
+                });
             }
         };
         
@@ -195,7 +201,9 @@ public:
     }
     
     ~ProperWidget() {
-        std::cout << "  [ProperWidget 析构] " << name_ << "\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  [ProperWidget 析构] " << name_ << "\n";
+        });
     }
     
     // 返回指向自身的 shared_ptr

@@ -5,6 +5,7 @@ project(cpp_day_11 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # 编译选项
 add_compile_options(
@@ -12,6 +13,7 @@ add_compile_options(
     -Wextra
     -Wpedantic
     -Wconversion
+    -Wsign-conversion
     -Wshadow
 )
 
@@ -37,6 +39,12 @@ add_executable(item22_pimpl
     code/emcpp/item22_pimpl.cpp
 )
 
+# Pimpl异常保证与noexcept契约测试
+add_executable(pimpl_contract_test
+    code/cpp11_features/pimpl_contract_test.cpp
+    code/cpp11_features/pimpl_widget.cpp
+)
+
 # LeetCode 23: 合并K个升序链表
 add_executable(leetcode_23
     code/leetcode/0023_merge_k_lists/solution.cpp
@@ -58,3 +66,6 @@ enable_testing()
 
 add_test(NAME TestLeetCode23 COMMAND leetcode_23)
 add_test(NAME TestLeetCode61 COMMAND leetcode_61)
+add_test(NAME Item22Smoke COMMAND item22_pimpl)
+add_test(NAME PimplContract COMMAND pimpl_contract_test)
+add_test(NAME Day11Smoke COMMAND day_11_main --all)

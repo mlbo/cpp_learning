@@ -8,16 +8,19 @@
  * 支持多种节点类型：单链表、双向链表、带虚拟头节点的链表。
  */
 
-#ifndef LIST_NODE_H
-#define LIST_NODE_H
+#ifndef WEEK_02_DAY_08_LIST_NODE_H
+#define WEEK_02_DAY_08_LIST_NODE_H
 
+#include <initializer_list>
 #include <iostream>
-#include <vector>
 #include <memory>
+#include <vector>
 
 // ============================================================
 // 单链表节点定义
 // ============================================================
+
+namespace day08_lists {
 
 /**
  * @brief 单链表节点结构
@@ -59,11 +62,15 @@ struct DoublyListNode {
         : val(x), prev(nullptr), next(nullptr) {}
 };
 
+} // namespace day08_lists
+
 // ============================================================
 // 链表基本操作声明
 // ============================================================
 
 namespace list_ops {
+
+using day08_lists::ListNode;
 
 // ==================== 创建与销毁 ====================
 
@@ -359,4 +366,4 @@ void printUniqueList(const UniqueListNode* head);
 
 } // namespace modern_list
 
-#endif // LIST_NODE_H
+#endif // WEEK_02_DAY_08_LIST_NODE_H

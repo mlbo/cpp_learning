@@ -35,54 +35,8 @@ public:
         std::cout << "[WidgetImpl] 构造: " << name << ", id=" << id << std::endl;
     }
 
-    // 析构函数
-    ~WidgetImpl() {
-        std::cout << "[WidgetImpl] 析构: " << name_ << std::endl;
-    }
-
-    // 拷贝构造
-    WidgetImpl(const WidgetImpl& other)
-        : name_(other.name_)
-        , id_(other.id_)
-        , data_(other.data_)
-        , lookup_(other.lookup_) {
-        std::cout << "[WidgetImpl] 拷贝构造" << std::endl;
-    }
-
-    // 移动构造
-    WidgetImpl(WidgetImpl&& other) noexcept
-        : name_(std::move(other.name_))
-        , id_(other.id_)
-        , data_(std::move(other.data_))
-        , lookup_(std::move(other.lookup_)) {
-        other.id_ = 0;
-        std::cout << "[WidgetImpl] 移动构造" << std::endl;
-    }
-
-    // 拷贝赋值
-    WidgetImpl& operator=(const WidgetImpl& other) {
-        if (this != &other) {
-            name_ = other.name_;
-            id_ = other.id_;
-            data_ = other.data_;
-            lookup_ = other.lookup_;
-        }
-        std::cout << "[WidgetImpl] 拷贝赋值" << std::endl;
-        return *this;
-    }
-
-    // 移动赋值
-    WidgetImpl& operator=(WidgetImpl&& other) noexcept {
-        if (this != &other) {
-            name_ = std::move(other.name_);
-            id_ = other.id_;
-            data_ = std::move(other.data_);
-            lookup_ = std::move(other.lookup_);
-            other.id_ = 0;
-        }
-        std::cout << "[WidgetImpl] 移动赋值" << std::endl;
-        return *this;
-    }
+    // string/vector/map已经管理好资源，Impl遵循Rule of Zero：不声明析构、
+    // 拷贝或移动操作。编译器会按成员能力生成相应操作和真实异常规格。
 
     // ========== 公共接口实现 ==========
 

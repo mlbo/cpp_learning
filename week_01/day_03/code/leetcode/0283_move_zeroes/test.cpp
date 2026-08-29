@@ -10,6 +10,10 @@
 
 namespace leetcode_0283 {
 
+namespace {
+int failure_count = 0;
+}
+
 void print_vector(const std::vector<int>& v) {
     std::cout << "[";
     for (size_t i = 0; i < v.size(); ++i) {
@@ -24,6 +28,7 @@ std::string check_result(const std::vector<int>& result,
     if (result == expected) {
         return "✓ 通过";
     }
+    ++failure_count;
     return "✗ 失败";
 }
 
@@ -79,7 +84,8 @@ void compare_methods(const std::vector<int>& original) {
     std::cout << "\n";
 }
 
-void run_tests() {
+int run_tests() {
+    failure_count = 0;
     std::cout << "╔══════════════════════════════════════════════════════════╗\n";
     std::cout << "║          LeetCode 283: 移动零 - 测试                     ║\n";
     std::cout << "╚══════════════════════════════════════════════════════════╝\n\n";
@@ -157,6 +163,7 @@ void run_tests() {
     std::cout << "  空间复杂度: O(1) - 原地操作\n";
     std::cout << "  特点: 减少了不必要的自交换\n";
     std::cout << "══════════════════════════════════════════════════════════\n";
+    return failure_count;
 }
 
 } // namespace leetcode_0283

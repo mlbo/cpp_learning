@@ -16,6 +16,8 @@
 #include <queue>
 #include <optional>
 #include <functional>
+#include <climits>
+#include <string>
 
 // ============================================================
 // 二叉树节点定义

@@ -1,8 +1,14 @@
 # Day 31: 二叉搜索树 (BST)
 
+> **学习定位**：树线利用有序性质缩小搜索范围；并发线利用条件变量避免忙等。重点是 BST 上下界和条件变量谓词，二者都不能只检查一次局部条件就假定整体正确。
+
+> **共性入口**：BST 范围如何沿祖先收紧见 [形象化指南的 Day 31](../树与并发专题形象化题解指南.md#day31-visual)；条件变量、future 共享状态来源和析构边界的完整机制见 [C++ 并发编程教程](../../tutorials/CPP并发编程教程.md)；Item 38 主讲见 [Effective Modern C++ 教程](../../tutorials/Effective_Modern_CPP教程.md)。本日只展开“全局上下界”“受锁谓词”和“可关闭队列”。
+
+> **前后关系**：上一日 [Day 30](../day_30/README.md) 用 mutex 保护主动访问；下一日 [Day 32](../day_32/README.md) 把 DFS 推广到图，并比较条件变量/future 与 atomic 的同步粒度。
+
 ## 📅 学习目标
 
-今天是 C++ 35天学习计划的第31天，我们将深入学习二叉搜索树这一重要的数据结构，同时掌握 C++11 的条件变量和 EMC++ Item 38 关于线程句柄析构行为的知识。二叉搜索树是一种特殊的二叉树，它通过维护特定的排序性质，实现了高效的查找、插入和删除操作。在实际开发中，BST 是许多高级数据结构（如 set、map）的基础，也是理解红黑树、AVL 树等自平衡树的前提。通过今天的学习，你将掌握 BST 的核心操作原理、条件变量在多线程编程中的应用，以及线程句柄析构的关键细节。
+今天是 C++ 35天学习计划的第31天，我们将深入学习二叉搜索树这一重要的数据结构，同时掌握 C++11 的条件变量和 EMC++ Item 38 关于线程句柄析构行为的知识。二叉搜索树通过维护有序不变量缩小查找方向；平衡搜索树是 `set`、`map` 一类有序关联容器的常见实现基础，但 C++ 标准只规定接口和复杂度，不规定必须采用红黑树。通过今天的学习，你将掌握 BST 的核心操作原理、条件变量在多线程编程中的应用，以及线程句柄析构的关键细节。
 
 ---
 
@@ -10,7 +16,15 @@
 
 ### BST 定义与核心性质
 
-二叉搜索树（Binary Search Tree，简称 BST）是一种特殊的二叉树数据结构，它具有以下核心性质：对于树中的任意节点，其左子树中所有节点的值都**小于**该节点的值，而右子树中所有节点的值都**大于**该节点的值。这一性质被称为 BST 不变性，它保证了中序遍历 BST 会得到一个有序序列。BST 的每个节点最多有两个子节点，分别称为左孩子和右孩子，这种结构使得查找、插入和删除操作的时间复杂度在理想情况下为 O(log n)。
+二叉搜索树（Binary Search Tree，简称 BST）是一种特殊的二叉树数据结构，它具有以下核心性质：对于树中的任意节点，其左子树中所有节点的值都**小于**该节点的值，而右子树中所有节点的值都**大于**该节点的值。这是覆盖整棵子树的全局不变量，不只是“左孩子小、右孩子大”的局部关系。它保证中序遍历得到严格递增序列；操作代价由树高 `h` 决定，查找、插入和删除都是 O(h)，只有树较平衡时 `h` 才接近 O(log n)。
+
+### 先写清重复值契约
+
+“相等时放哪边”不是实现细节，而是数据结构接口的一部分。本日代码采用**集合语义**：节点值严格满足 `left < node < right`，插入重复值返回失败，LC 98 也把重复值判为非法。另一种合法设计是把相等值固定放左边或右边，或者在节点内维护 `count`，但插入、删除、验证和文档必须使用同一规则；混用规则会让中序判断、上下界和删除都失去一致性。
+
+### 树高、退化与替代方案
+
+普通 BST 不会自动平衡。按 `1, 2, 3, 4, ...` 插入时，每个节点都只有右孩子，树会退化成链表：时间复杂度从 O(log n) 变为 O(n)，递归算法还会增加栈溢出风险。因此不能把“每次比较排除一半”当作 BST 的无条件保证；需要稳定对数复杂度时，应选 `std::map`/`std::set` 所代表的平衡关联容器，或学习 AVL、红黑树，批量静态数据也可以排序后用二分查找。
 
 ```mermaid
 graph TD
@@ -32,7 +46,7 @@ graph TD
 
 ### BST 的查找操作
 
-查找操作是 BST 最基础的操作，它充分利用了 BST 的有序性质。从根节点开始，将目标值与当前节点值比较：如果相等则找到目标；如果目标值较小，则在左子树中继续查找；如果目标值较大，则在右子树中继续查找。如果到达空节点仍未找到，说明目标值不存在于树中。这种查找方式类似于二分查找，每次比较都能排除约一半的搜索空间。
+查找操作是 BST 最基础的操作，它充分利用了 BST 的有序性质。从根节点开始，将目标值与当前节点值比较：如果相等则找到目标；如果目标值较小，则在左子树中继续查找；如果目标值较大，则在右子树中继续查找。如果到达空节点仍未找到，说明目标值不存在于树中。它和二分查找都利用有序性排除一个方向，但只有平衡 BST 才能近似每次排除一半节点。
 
 ```mermaid
 graph TD
@@ -50,7 +64,7 @@ graph TD
 **查找时间复杂度分析**：
 - 最佳情况（平衡树）：O(log n)
 - 最坏情况（退化为链表）：O(n)
-- 平均情况：O(log n)
+- 典型随机形状：期望 O(log n)，但它不是最坏情况保证
 
 ### BST 的插入操作
 
@@ -123,10 +137,10 @@ graph TD
 ### BST 的应用场景
 
 BST 在实际开发中有广泛的应用：
-- **关联容器**：C++ STL 的 `std::set` 和 `std::map` 通常基于红黑树实现
-- **数据库索引**：B+ 树是 BST 的变体，广泛用于数据库索引
+- **关联容器**：`std::set` 和 `std::map` 要满足标准规定的有序接口与对数级复杂度，常见实现采用红黑树，但标准不指定具体树型
+- **数据库索引**：B/B+ 树是多路搜索树，不是二叉树；它们通过更高分支因子适配页式存储和外存访问
 - **符号表**：编译器中的符号表常使用 BST 实现
-- **优先队列**：虽然常用堆实现，但 BST 也可以支持优先队列操作
+- **有序集合原型**：普通 BST 适合讲清顺序、前驱/后继和范围查询；需要最坏界时应换成自平衡结构
 
 ---
 
@@ -150,8 +164,8 @@ sequenceDiagram
     
     P->>M: lock()
     P->>B: 生产数据
-    P->>CV: notify_one()
     P->>M: unlock()
+    P->>CV: notify_one()
     
     C->>M: lock()
     C->>CV: wait(lock, predicate)
@@ -172,6 +186,8 @@ sequenceDiagram
 1. **基本形式**：`wait(unique_lock<mutex>& lock)` - 释放锁并进入等待状态，被唤醒后重新获取锁
 2. **谓词形式**：`wait(unique_lock<mutex>& lock, Predicate pred)` - 等待直到谓词为真，内部实现了"虚假唤醒"处理
 
+下块是已持有 `std::unique_lock<std::mutex> lock` 时的局部对比片段，**不可单独编译**；省略 `<condition_variable>`、`<mutex>` 以及受同一把锁保护的 `cv`/`buffer` 定义。
+
 ```cpp
 // 不推荐：可能产生虚假唤醒问题
 cv.wait(lock);  // 被唤醒后需要手动检查条件
@@ -186,10 +202,18 @@ cv.wait(lock, []{ return !buffer.empty(); });
 3. 被唤醒后重新获取锁，再次检查谓词
 4. 循环直到谓词为真
 
+谓词不是条件变量“内部保存的通知”，而是受互斥量保护的共享状态，例如 `!queue.empty()` 或 `closed`。`notify_one()` 本身不携带数据，也不记住历史通知：如果通知发生时没有等待者，通知会消失；但只要通知者先在同一把锁下修改状态，后来到达的等待者会先检查谓词并直接继续，这就不会发生业务层面的“丢失唤醒”。反过来，若状态修改没有和等待者使用同一把 mutex 协调，即使随后通知也可能留下“检查旧状态后入睡”的窗口。
+
+无谓词的 `wait(lock)` 还允许**虚假唤醒**，即没有对应通知也返回，所以正确等价形式永远是 `while (!predicate()) cv.wait(lock);`。不能写成 `if`，因为唤醒后锁重新竞争期间，其他消费者可能已经取走数据，谓词会再次变假。超时等待也应使用 `wait_for(lock, duration, predicate)` 或 `wait_until` 的谓词重载，并把超时视为正常结果而非正确性协议。
+
+### 停止协议也是接口契约
+
+生产者只推数据而消费者无限 `wait`，程序就没有完整的生命周期。本日 `CloseableQueue` 明确约定：`close()` 在锁内设置 `closed`，随后 `notify_all()`；消费者等待 `closed || !queue.empty()`，先排空关闭前的数据，最终用 `std::nullopt` 表示结束；关闭后的 `push` 返回失败。`push` 与 `close` 通过同一把锁决定队列状态的先后：入队先取得锁就属于已接受数据，必须被 drain；关闭先取得锁则队列保持不变且 push 返回失败。当前接口按值接收 `T value`，因此调用者传入右值时，实参可能在进入函数体、检查 `closed` 之前就已移动进形参；“拒绝不修改队列”不等于“拒绝一定保留调用者实参”，需要这种更强保证时必须另行设计接口并测试。这样消费者测试无需 `sleep_for` 猜测调度顺序，也不会把“某线程大概已经等起来了”当成前置条件。
+
 ### notify_one() 与 notify_all()
 
 - **notify_one()**：唤醒一个等待的线程，适用于只有一个线程需要响应的情况
-- **notify_all()**：唤醒所有等待的线程，适用于多个线程可能被条件满足的情况
+- **notify_all()**：唤醒所有等待的线程，适用于关闭、配置切换等所有等待者都必须重新检查状态的情况；被唤醒不等于获得锁或谓词为真，每个线程仍要竞争锁并复查谓词
 
 ```mermaid
 graph LR
@@ -209,13 +233,15 @@ graph LR
 ### 使用注意事项
 
 1. **必须在持有锁时调用 wait()**：wait 需要知道当前线程持有哪个锁
-2. **使用谓词形式的 wait**：避免虚假唤醒导致的问题
-3. **notify 可以在锁外调用**：减少临界区持有时间
-4. **条件变量只能与 unique_lock 配合**：不能使用 lock_guard
+2. **使用谓词形式的 wait**：同时处理虚假唤醒和通知早于等待的情况
+3. **先在锁内改变谓词，再按协议通知**：通知通常可放在解锁后以减少刚唤醒线程再次阻塞的机会，但是否在锁内通知要结合对象销毁、等待者注册和具体接口生命周期证明，不能背成绝对规则
+4. **`std::condition_variable` 的 wait 使用 `unique_lock`**：等待过程中必须临时解锁并在返回前重新加锁，`lock_guard` 不提供这种操作
 
 ---
 
 ## 📖 知识点三：EMC++ Item 38 - 了解不同线程句柄的析构行为
+
+<a id="item-38"></a>
 
 ### 条款核心思想
 
@@ -223,9 +249,11 @@ Item 38 强调理解不同线程句柄类型（`std::thread`、`std::future` 等
 
 ### std::thread 的析构行为
 
-`std::thread` 在析构时会调用 `std::terminate()` 终止程序，如果该线程对象是 joinable 状态（即关联了一个正在执行的线程）。这是一种防御性设计，防止程序员忘记处理线程的结束状态。因此，在销毁 `std::thread` 对象之前，必须调用 `join()` 或 `detach()`。
+`std::thread` 在析构时会调用 `std::terminate()`，如果该句柄仍是 joinable 状态。joinable 的准确含义是“仍关联一个尚未被 `join` 或 `detach` 的执行线程”；即使线程函数已经返回，句柄在 `join` 前仍然 joinable。它不是“线程此刻正在运行”的状态查询，因此销毁前必须按所有权协议 `join` 或在极少数已证明生命周期安全的场景 `detach`。
 
 ```cpp
+#include <thread>
+
 void dangerous_code() {
     std::thread t([]{ 
         // 执行一些任务
@@ -237,16 +265,22 @@ void dangerous_code() {
 
 **正确做法**：
 ```cpp
+#include <thread>
+
 void safe_code() {
     std::thread t([]{ /* 任务 */ });
-    t.join();  // 或 t.detach()
+    t.join();
     // 现在 t 不再 joinable，安全析构
 }
 ```
 
+`detach()` 也会令句柄不再 joinable，但它把执行线程与所有者分离：线程捕获的引用、指针、日志对象或进程退出顺序都更难证明安全，因此不能把它当成“忘记 join 的通用修补”。C++17 可用拥有 `std::thread` 的 RAII 包装器保证所有退出路径都 join；C++20 则优先考虑 `std::jthread`，它还提供停止令牌，但停止仍需任务主动配合。
+
 ### std::future 的析构行为
 
-`std::future` 的析构行为与 `std::thread` 完全不同。当 `std::future` 析构时，如果共享状态是最后引用，它会等待异步操作完成。这意味着如果你忘记获取结果，析构函数会阻塞直到异步操作完成。
+`std::future` 的析构行为与 `std::thread` 不同。future 析构通常只是释放它对共享状态的引用；**关键例外**是共享状态来自 `std::async`、任务实际按 `std::launch::async` 运行、状态尚未就绪并且当前句柄释放了最后一个引用时，该释放操作可能等待异步线程完成。来自 `std::promise` 或 `std::packaged_task` 的 future 析构不会因为生产者未完成而普遍阻塞；若 promise 在未满足状态时先销毁，等待方随后会观察到 `broken_promise`。
+
+`std::launch::deferred` 是另一个常见误区：任务只在某个等待函数（如 `get()` 或 `wait()`）被调用时，才在调用等待函数的线程中惰性执行；如果 future 直接析构，任务不会为了析构而执行。默认策略 `std::async(f)` 可以由实现选择 async 或 deferred，所以当并发执行语义是接口契约时要显式写 `std::launch::async`。本日代码不靠耗时测量断言析构是否阻塞，因为调度时间不是稳定测试信号，而是分别验证来源、策略和结果观察方式。
 
 ```mermaid
 graph TD
@@ -256,8 +290,8 @@ graph TD
     end
     
     subgraph "std::future 析构"
-    F1[最后引用共享状态] -->|析构| F2[等待异步操作完成]
-    F3[非最后引用] -->|析构| F4[仅释放引用]
+    F1[最后引用 async 启动的共享状态] -->|释放| F2[可能等待线程完成]
+    F3[promise/packaged_task 或非最后引用] -->|析构| F4[释放引用]
     end
     
     style T2 fill:#f55,stroke:#333
@@ -270,29 +304,33 @@ graph TD
 |---------|---------|------|
 | `std::thread` (joinable) | 调用 `std::terminate()` | 程序崩溃 |
 | `std::thread` (非 joinable) | 正常销毁 | 无 |
-| `std::future` (最后引用) | 阻塞等待异步完成 | 意外阻塞 |
-| `std::future` (非最后引用) | 释放引用 | 无 |
-| `std::shared_future` | 仅释放引用 | 无 |
+| `std::future` / `shared_future`（最后关联 async 状态） | 可能等待异步线程完成 | 意外阻塞 |
+| 关联 promise / packaged_task 的 future | 释放引用 | 不自动等待生产者完成 |
+| 非最后一个共享状态引用 | 释放引用 | 任务由其他句柄继续观察 |
 
 ### RAII 包装器设计
 
 为了安全地管理线程句柄，可以设计 RAII 包装器：
 
 ```cpp
-class ThreadGuard {
-    std::thread& t;
+#include <thread>
+#include <utility>
+
+class JoiningThread {
+    std::thread t;
 public:
-    explicit ThreadGuard(std::thread& t_) : t(t_) {}
-    ~ThreadGuard() {
+    explicit JoiningThread(std::thread t_) : t(std::move(t_)) {}
+    ~JoiningThread() {
         if (t.joinable()) {
-            t.join();  // 析构时自动 join
+            t.join();
         }
     }
-    // 禁止拷贝
-    ThreadGuard(const ThreadGuard&) = delete;
-    ThreadGuard& operator=(const ThreadGuard&) = delete;
+    JoiningThread(const JoiningThread&) = delete;
+    JoiningThread& operator=(const JoiningThread&) = delete;
 };
 ```
+
+拥有句柄比只保存外部引用更容易说明生命周期，但析构 join 也可能长时间等待，所以还必须定义任务的停止协议，不能只定义“最终回收”。
 
 ---
 
@@ -339,32 +377,41 @@ graph TD
 - 右子节点范围变为 `(当前节点值, max_val)`
 - 如果节点值不在范围内，则不是有效的 BST
 
+范围必须沿祖先链不断收紧。例如根为 10、左孩子为 5、5 的右孩子为 12 时，12 大于父节点 5，却越过祖先给整个左子树规定的上界 10，因此非法。本日严格 BST 使用开区间 `(lower, upper)`；边界类型用比节点值更宽的 `std::int64_t`，避免 `INT_MIN`/`INT_MAX` 与哨兵重合。
+
 **方法二：中序遍历验证**
 - BST 的中序遍历结果是严格递增的
 - 遍历时检查当前节点值是否大于前一个节点值
 
 #### 代码实现
 
+在线评测给出的 `TreeNode*` 是平台管理生命周期的观察指针；本地工程不能假定有人替自己回收节点，因此实际示例让父节点用 `std::unique_ptr` 独占孩子，算法只接收 `const TreeNode*` 观察树而不取得所有权。两种表示不改变上下界算法，但接口契约更清楚：算法不删除、不转移、也不保存传入节点。
+
+下块是 LeetCode `int val` 节点接口的局部解法，**不可单独编译**；省略 `<cstdint>`、`<limits>` 和 `TreeNode` 定义。当节点类型改为 `int64_t` 时，应使用可选边界或中序比较，避免把同类型极值当严格开区间哨兵。
+
 ```cpp
 // 方法一：递归 + 范围验证
 class Solution {
 public:
     bool isValidBST(TreeNode* root) {
-        return validate(root, LONG_MIN, LONG_MAX);
+        return validate(root,
+                        std::numeric_limits<std::int64_t>::lowest(),
+                        std::numeric_limits<std::int64_t>::max());
     }
     
 private:
-    bool validate(TreeNode* node, long long min_val, long long max_val) {
+    bool validate(TreeNode* node, std::int64_t min_val, std::int64_t max_val) {
         if (node == nullptr) return true;
+        const std::int64_t value = node->val;
         
         // 检查当前节点是否在有效范围内
-        if (node->val <= min_val || node->val >= max_val) {
+        if (value <= min_val || value >= max_val) {
             return false;
         }
         
         // 递归检查左右子树，更新范围
-        return validate(node->left, min_val, node->val) &&
-               validate(node->right, node->val, max_val);
+        return validate(node->left, min_val, value) &&
+               validate(node->right, value, max_val);
     }
 };
 
@@ -451,6 +498,8 @@ BST 的搜索非常直观，利用 BST 的性质：
 
 #### 代码实现
 
+下块是 LeetCode `TreeNode*` 接口的局部搜索片段，**不可单独编译**；省略 `TreeNode { int val; TreeNode* left; TreeNode* right; }` 定义，返回的非空指针仍由原树所有者保管。
+
 ```cpp
 // 方法一：递归实现
 class Solution {
@@ -499,16 +548,13 @@ public:
 
 ## 🚀 运行代码
 
-### 编译与运行
+### 今日工程动作：让接口契约进入自动测试
 
 ```bash
 # 进入 day_31 目录
-cd /home/z/my-project/download/week_05/day_31
+cd week_05/day_31
 
-# 添加执行权限
-chmod +x build_and_run.sh
-
-# 编译并运行
+# 脚本已随仓库保存为可执行文件，直接编译并运行
 ./build_and_run.sh
 ```
 
@@ -519,6 +565,8 @@ chmod +x build_and_run.sh
 2. **条件变量示例**：生产者-消费者模型
 3. **EMC++ Item 38**：线程句柄析构行为
 4. **LeetCode 题解**：LC 98 和 LC 700 的验证
+
+脚本每次删除并重建 `build/`，以 C++17 Release 配置和 `-Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Werror` 编译，再运行 6 个 CTest；任一断言失败都会让对应程序返回非零并使脚本失败。执行时不要只观察示例输出，还要从 CTest 的失败状态确认接口契约确实进入了自动测试。
 
 ---
 
@@ -551,12 +599,12 @@ chmod +x build_and_run.sh
 
 4. **线程句柄析构**：
    - `std::thread` 在 joinable 状态析构会终止程序
-   - `std::future` 析构可能阻塞等待异步完成
+   - 只有在释放特定 `std::async(std::launch::async, ...)` 共享状态的最后关联句柄等条件下，`std::future` 的释放才可能等待异步完成
    - 使用 RAII 包装器是最佳实践
 
 5. **刷题技巧**：
    - LC 98：不要只比较父子，要用范围验证或中序遍历
-   - LC 700：迭代实现比递归更高效，推荐掌握
+   - LC 700：迭代实现避免递归调用栈，在极深的树上更容易控制栈风险；实际性能差异需要测量
 
 ---
 
@@ -567,10 +615,21 @@ chmod +x build_and_run.sh
    - 《算法导论》第12章 - 二叉搜索树
 
 2. **在线资源**：
-   - [cppreference - condition_variable](https://en.cppreference.com/w/cpp/thread/condition_variable)
+   - [C++ working draft：condition variables](https://eel.is/c++draft/thread.condition)
+   - [cppreference：`std::condition_variable`](https://en.cppreference.com/w/cpp/thread/condition_variable.html)
+   - [cppreference：`std::future`](https://en.cppreference.com/w/cpp/thread/future.html)
+   - [C++ Core Guidelines CP.42：不要在没有条件时等待](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#rconc-wait)
    - [LeetCode 98 题解](https://leetcode.cn/problems/validate-binary-search-tree/)
    - [LeetCode 700 题解](https://leetcode.cn/problems/search-in-a-binary-search-tree/)
 
-3. **视频教程**：
-   - MIT 6.006 - Binary Search Trees
-   - C++ Concurrency in Action - Condition Variables
+3. **教材**：
+   - Stanley B. Lippman 等，*C++ Primer*（关联容器与对象生命周期）
+   - Anthony Williams, *C++ Concurrency in Action*（条件变量与基于任务的并发）
+
+## 每日复盘（恰好五句）
+
+1. 我能用沿祖先传播的开区间解释为什么只比较父子节点不能验证 BST。
+2. 我能先声明重复值契约，并说明有序插入如何让普通 BST 退化到 O(n)。
+3. 我能把条件变量理解为“共享状态加互斥量加通知”，并用谓词同时处理丢失通知和虚假唤醒。
+4. 我能为阻塞队列定义关闭后的 push、排空和消费者退出协议，而不依赖 sleep 猜测时序。
+5. 我能准确区分 joinable thread、async future、promise future 与 deferred future 的析构边界。

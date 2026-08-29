@@ -1,6 +1,6 @@
 /**
  * @file item28_perfect_forward.cpp
- * @brief EMC++ Item 28: 理解引用折叠的上下文
+ * @brief EMC++ Item 28 补充：理解引用折叠的四种上下文
  * 
  * 引用折叠发生在四种上下文中：
  * 1. 模板实例化
@@ -17,6 +17,8 @@
 #include <utility>
 #include <vector>
 #include <memory>
+
+namespace day24::item28_contexts {
 
 // ==================== 辅助工具 ====================
 
@@ -49,6 +51,7 @@ struct TemplateContext {
     using RefType = T&&;
     
     static void analyze(T&& arg) {
+        std::cout << "  参数值: " << arg << "\n";
         std::cout << "  T = " << getTypeName<T>() << "\n";
         std::cout << "  T&& = " << getTypeName<T&&>() << "\n";
     }
@@ -61,6 +64,7 @@ struct TemplateContext<int&> {
     using RefType = int&;  // int& && → int&
     
     static void analyze(int& arg) {
+        std::cout << "  参数值: " << arg << "\n";
         std::cout << "  特化版本: T = int&\n";
         std::cout << "  T&& = int& (折叠结果)\n";
     }
@@ -90,21 +94,21 @@ void demonstrateTemplateContext() {
 /**
  * @brief 演示 auto 类型推导中的引用折叠
  * 
- * auto&& 是通用引用，遵循与 T&& 相同的推导规则
+ * auto&& 从普通表达式推导时遵循与转发引用相同的折叠规则；大括号列表是例外
  */
 void demonstrateAutoContext() {
     std::cout << "\n=== 上下文 2: auto 类型推导 ===\n";
     
     int x = 10;
     int& lr = x;
-    int&& rr = 20;  // 注意：rr 本身是左值！
+    int&& rr = 20;  // 注意：变量类型是 int&&，表达式 rr 是左值！
     
     std::cout << "\n原始变量类型:\n";
     SHOW_TYPE(x);      // int
     SHOW_TYPE(lr);     // int&
     SHOW_TYPE(rr);     // int&& (变量声明类型)
     
-    std::cout << "\nauto&& 通用引用推导:\n";
+    std::cout << "\nauto&& 对普通表达式的推导:\n";
     
     auto&& ref1 = x;           // 左值 → auto = int&, ref1 = int&
     auto&& ref2 = lr;          // 左值 → auto = int&, ref2 = int&
@@ -268,7 +272,6 @@ public:
     Resource(Resource&& other) noexcept
         : name_(std::move(other.name_)), data_(other.data_) {
         other.data_ = 0;
-        std::cout << "  Resource 移动构造\n";
     }
     
     void print() const {
@@ -315,7 +318,7 @@ void demonstratePerfectForward() {
 
 // ==================== 主演示函数 ====================
 
-void runItem28Demo() {
+void run() {
     std::cout << "\n";
     std::cout << "========================================\n";
     std::cout << "   EMC++ Item 28: 理解引用折叠的上下文\n";
@@ -342,4 +345,10 @@ void runItem28Demo() {
     std::cout << "     - decltype 表达式\n";
     std::cout << "  2. 规则始终一致：有左值引用 → 左值引用\n";
     std::cout << "  3. 理解这些上下文是掌握完美转发的关键\n";
+}
+
+} // namespace day24::item28_contexts
+
+void runItem28ContextsDemo() {
+    day24::item28_contexts::run();
 }

@@ -109,6 +109,7 @@ void lambdaGenericDemo() {
     auto sumTwo = [](auto a, auto b) {
         return a + b;
     };
-    
+
+    std::cout << "  sum(1, 2, 3, 4) = " << sum(1, 2, 3, 4) << std::endl;
     std::cout << "  sumTwo(10, 20) = " << sumTwo(10, 20) << std::endl;
 }

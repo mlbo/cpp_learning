@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <iostream>
 #include "solution.h"
+#include "../../../../common/integer_contracts.h"
 
 namespace LC0001 {
 
@@ -22,11 +23,11 @@ namespace LC0001 {
 // ============================================
 
 std::vector<int> Solution::twoSum_bruteForce(std::vector<int>& nums, int target) {
-    int n = static_cast<int>(nums.size());
-    for (int i = 0; i < n - 1; ++i) {
-        for (int j = i + 1; j < n; ++j) {
-            if (nums[i] + nums[j] == target) {
-                return {i, j};
+    for (std::size_t i = 0; i < nums.size(); ++i) {
+        for (std::size_t j = i + 1; j < nums.size(); ++j) {
+            const auto sum = static_cast<std::int64_t>(nums[i]) + nums[j];
+            if (sum == static_cast<std::int64_t>(target)) {
+                return {week01::checked_index(i), week01::checked_index(j)};
             }
         }
     }
@@ -38,15 +39,19 @@ std::vector<int> Solution::twoSum_bruteForce(std::vector<int>& nums, int target)
 // ============================================
 
 std::vector<int> Solution::twoSum(std::vector<int>& nums, int target) {
-    std::unordered_map<int, int> numToIndex;  // 值 -> 索引
+    std::unordered_map<int, std::size_t> numToIndex;  // 值 -> 索引
+    numToIndex.reserve(nums.size());
     
-    for (int i = 0; i < static_cast<int>(nums.size()); ++i) {
-        int complement = target - nums[i];
+    for (std::size_t i = 0; i < nums.size(); ++i) {
+        const auto complement = static_cast<std::int64_t>(target) - nums[i];
         
-        // 查找补数是否已在哈希表中
-        auto it = numToIndex.find(complement);
-        if (it != numToIndex.end()) {
-            return {it->second, i};  // 返回补数的索引和当前索引
+        // 补数超出 int 时，数组中不可能存在该值；不要先做有符号溢出的 int 减法。
+        if (complement >= std::numeric_limits<int>::min() &&
+            complement <= std::numeric_limits<int>::max()) {
+            const auto it = numToIndex.find(static_cast<int>(complement));
+            if (it != numToIndex.end()) {
+                return {week01::checked_index(it->second), week01::checked_index(i)};
+            }
         }
         
         // 将当前值存入哈希表
@@ -62,27 +67,27 @@ std::vector<int> Solution::twoSum(std::vector<int>& nums, int target) {
 
 std::vector<int> Solution::twoSum_optimized(std::vector<int>& nums, int target) {
     // 预留空间减少rehash
-    std::unordered_map<int, int> map;
+    std::unordered_map<int, std::size_t> map;
     map.reserve(nums.size());
     
-    for (size_t i = 0; i < nums.size(); ++i) {
+    for (std::size_t i = 0; i < nums.size(); ++i) {
         // C++11写法（注释）:
         // std::pair<std::unordered_map<int,int>::iterator, bool> ret =
         //     map.insert(std::make_pair(nums[i], static_cast<int>(i)));
         // auto it = ret.first; bool inserted = ret.second;
-        auto [it, inserted] = map.insert({nums[i], static_cast<int>(i)});
-        if (!inserted && nums[i] * 2 == target) {
-            // 处理相同元素的情况 [3, 3], target = 6
-            return {it->second, static_cast<int>(i)};
-        }
+        map.try_emplace(nums[i], i);  // 保留第一次出现的位置
     }
     
     // 第二次遍历查找
-    for (size_t i = 0; i < nums.size(); ++i) {
-        int complement = target - nums[i];
-        auto it = map.find(complement);
-        if (it != map.end() && it->second != static_cast<int>(i)) {
-            return {static_cast<int>(i), it->second};
+    for (std::size_t i = 0; i < nums.size(); ++i) {
+        const auto complement = static_cast<std::int64_t>(target) - nums[i];
+        if (complement < std::numeric_limits<int>::min() ||
+            complement > std::numeric_limits<int>::max()) {
+            continue;
+        }
+        const auto it = map.find(static_cast<int>(complement));
+        if (it != map.end() && it->second != i) {
+            return {week01::checked_index(i), week01::checked_index(it->second)};
         }
     }
     
@@ -99,11 +104,11 @@ std::vector<int> Solution::twoSum_optimized(std::vector<int>& nums, int target) 
  * - 空间复杂度：O(1) - 只用常数空间
  * 
  * 哈希表法：
- * - 时间复杂度：O(n) - 一次遍历，每次查找O(1)
+ * - 时间复杂度：平均 O(n)；哈希冲突严重时可能退化
  * - 空间复杂度：O(n) - 哈希表存储
  * 
  * 优化版：
- * - 时间复杂度：O(n) - 两次遍历
+ * - 时间复杂度：平均 O(n)；哈希冲突严重时可能退化
  * - 空间复杂度：O(n) - 哈希表存储
  */
 

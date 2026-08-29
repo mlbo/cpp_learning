@@ -14,6 +14,10 @@
 #include <string>
 #include <fstream>
 
+#include "../../../common/noexcept_output.h"
+
+namespace {
+
 // ============================================
 // 辅助打印
 // ============================================
@@ -30,7 +34,9 @@ public:
         std::cout << "  Resource(" << id_ << ") 构造\n";
     }
     ~Resource() {
-        std::cout << "  Resource(" << id_ << ") 析构\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  Resource(" << id_ << ") 析构\n";
+        });
     }
 private:
     int id_;
@@ -39,37 +45,32 @@ private:
 // 泄漏原因1：忘记释放
 void leak_forget_delete() {
     std::cout << "\n--- 原因1: 忘记 delete ---\n";
-    Resource* p = new Resource(1);
-    std::cout << "  创建了资源，但忘记释放\n";
-    // delete p;  // 注释掉，造成泄漏
-    std::cout << "  【泄漏】资源未释放\n";
+    std::cout << "  错误模式: Resource* p = new Resource(1); // 没有delete\n";
+    auto safe_demo = std::make_unique<Resource>(1);
+    (void)safe_demo;
+    std::cout << "  演示程序用unique_ptr承载对象，避免为了教学真的泄漏\n";
 }
 
 // 泄漏原因2：异常导致跳过释放
 void leak_exception() {
     std::cout << "\n--- 原因2: 异常导致跳过 delete ---\n";
-    Resource* p = new Resource(2);
+    auto safe_demo = std::make_unique<Resource>(2);
+    (void)safe_demo;
     try {
         std::cout << "  执行可能抛出异常的操作...\n";
         throw std::runtime_error("模拟异常");
-        delete p;  // 永远不会执行
     } catch (const std::exception& e) {
         std::cout << "  捕获异常: " << e.what() << "\n";
-        std::cout << "  【泄漏】delete 被跳过\n";
+        std::cout << "  原始裸指针写法会跳过delete；本演示由unique_ptr安全释放\n";
     }
 }
 
 // 泄漏原因3：指针覆盖
 void leak_pointer_overwrite() {
     std::cout << "\n--- 原因3: 指针被覆盖 ---\n";
-    Resource* p = new Resource(3);
-    std::cout << "  分配资源 id=3\n";
-    
-    p = new Resource(4);  // 覆盖指针，原资源泄漏
-    std::cout << "  分配资源 id=4，覆盖了原指针\n";
-    std::cout << "  【泄漏】资源 id=3 丢失引用\n";
-    
-    delete p;  // 只释放了 id=4 的资源
+    auto owner = std::make_unique<Resource>(3);
+    std::cout << "  错误的裸指针覆盖会丢失id=3；unique_ptr赋值会先释放旧资源\n";
+    owner = std::make_unique<Resource>(4);
 }
 
 // 泄漏原因4：循环引用
@@ -79,7 +80,9 @@ public:
         std::cout << "  Node(" << value_ << ") 构造\n";
     }
     ~Node() {
-        std::cout << "  Node(" << value_ << ") 析构\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  Node(" << value_ << ") 析构\n";
+        });
     }
     
     std::shared_ptr<Node> next;
@@ -99,10 +102,11 @@ void leak_circular_reference() {
         node1->next = node2;
         node2->prev = node1;  // 循环引用！
         
-        std::cout << "  离开作用域...\n";
-        // 两个节点都不会被释放！
+        std::cout << "  若直接离开作用域，两个节点都不会被释放\n";
+        node2->prev.reset();  // 演示结束前主动断环，避免测试程序真实泄漏
+        std::cout << "  演示程序主动断环；真实设计应把反向关系改为weak_ptr\n";
     }
-    std::cout << "  【泄漏】循环引用导致无法释放\n";
+    std::cout << "  循环引用风险已演示，资源已安全释放\n";
 }
 
 // 正确做法：使用 weak_ptr 打破循环
@@ -112,7 +116,9 @@ public:
         std::cout << "  SafeNode(" << value_ << ") 构造\n";
     }
     ~SafeNode() {
-        std::cout << "  SafeNode(" << value_ << ") 析构\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  SafeNode(" << value_ << ") 析构\n";
+        });
     }
     
     std::shared_ptr<SafeNode> next;
@@ -141,7 +147,7 @@ void no_leak_weak_ptr() {
 void demo_leak_causes() {
     PRINT_SECTION("1. 内存泄漏的常见原因");
     
-    std::cout << "\n  注意：以下演示会造成内存泄漏，仅作教学目的\n";
+    std::cout << "\n  注意：以下展示泄漏模式，但不会故意让测试程序真实泄漏\n";
     
     leak_forget_delete();
     leak_exception();
@@ -347,8 +353,10 @@ void print_summary() {
 )";
 }
 
+} // namespace
+
 // ============================================
-// 主函数
+// 对外演示入口
 // ============================================
 
 void run_memory_leak() {

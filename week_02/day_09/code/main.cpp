@@ -5,7 +5,7 @@
  * 今日主题：
  * 1. 链表操作技巧（快慢指针、虚拟头节点）
  * 2. shared_ptr 详解
- * 3. EMC++ 条款 19-20
+ * 3. EMC++ Item 19 与 shared_ptr 机制/成本
  * 4. LeetCode 21、141
  */
 
@@ -19,7 +19,7 @@ void demoFastSlowPointer();
 
 // C++11特性模块
 void demoSharedPtrBasic();
-void demoSharedPtrAdvanced();
+bool demoSharedPtrAdvanced();
 void demoCircularReference();
 
 // EMC++模块
@@ -41,7 +41,7 @@ int main() {
 ║                                                              ║
 ║  数据结构：快慢指针、虚拟头节点                                ║
 ║  C++11特性：shared_ptr详解                                   ║
-║  EMC++条款：19-20（shared_ptr资源管理）                       ║
+║  EMC++条款：Item 19（shared_ptr共享所有权）                   ║
 ║  LeetCode：21题、141题                                       ║
 ╚══════════════════════════════════════════════════════════════╝
 )";
@@ -51,27 +51,27 @@ int main() {
     demoFastSlowPointer();
     
     printSection("Part 2: 虚拟头节点技巧");
-    std::cout << "dummy_node 示例已拆分为独立模块，不在 day_09_demo 中执行。\n";
+    std::cout << "该示例使用不同的教学节点类型，请运行 day09_dummy_node_demo。\n";
     
     // ========== C++11特性演示 ==========
     printSection("Part 3: shared_ptr 基础用法");
     demoSharedPtrBasic();
     
     printSection("Part 4: shared_ptr 高级特性");
-    demoSharedPtrAdvanced();
+    const bool threadSafetyPassed = demoSharedPtrAdvanced();
     
     printSection("Part 5: 循环引用问题预览");
     demoCircularReference();
     
     // ========== EMC++演示 ==========
-    printSection("Part 6: EMC++ 条款19-20");
+    printSection("Part 6: EMC++ Item 19 与机制/成本补充");
     demoItem19Item20();
     
     // ========== LeetCode题解 ==========
     printSection("Part 7: LeetCode 题解");
     std::cout << "请单独运行以下可执行文件查看题解测试：\n";
-    std::cout << "  - week_02/day_09/build/leetcode_0021（如单独配置）\n";
-    std::cout << "  - week_02/day_09/build/leetcode_0141（如单独配置）\n";
+    std::cout << "  - week_02/day_09/build/leetcode_0021_tests\n";
+    std::cout << "  - week_02/day_09/build/leetcode_0141_tests\n";
     
     // ========== 总结 ==========
     printSection("今日总结");
@@ -79,15 +79,15 @@ int main() {
 ✓ 快慢指针：找中点、判环、找环入口
 ✓ 虚拟头节点：统一边界条件处理
 ✓ shared_ptr：引用计数、控制块、make_shared
-✓ EMC++ 19-20：共享所有权管理与性能权衡
+✓ EMC++ Item 19：共享所有权管理、控制块与性能权衡
 ✓ LeetCode 21：链表合并（迭代/递归）
 ✓ LeetCode 141：快慢指针判环
 
 预习 Day 10：
 - weak_ptr 与循环引用解决
-- EMC++ 条款21-22
+- EMC++ Item 20（weak_ptr）与 Item 21（make 函数）
 - LeetCode 142、234
 )";
 
-    return 0;
+    return threadSafetyPassed ? 0 : 1;
 }

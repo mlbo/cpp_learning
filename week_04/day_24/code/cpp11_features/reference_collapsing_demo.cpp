@@ -18,6 +18,8 @@
 #include <type_traits>
 #include <utility>
 
+namespace day24::reference_collapsing_lesson {
+
 // ==================== 辅助函数 ====================
 
 /**
@@ -49,6 +51,7 @@ void printTypeTraits(const std::string& typeName) {
 template<typename T>
 void templateCollapseDemo(T&& arg) {
     std::cout << "\n--- 模板实例化中的引用折叠 ---\n";
+    std::cout << "传入的值: " << arg << "\n";
     
     std::cout << "传入参数后:\n";
     printTypeTraits<T>("模板参数 T");
@@ -102,7 +105,7 @@ void aliasCollapseDemo() {
 /**
  * @brief 演示 auto 类型推导中的引用折叠
  * 
- * auto&& 是通用引用，会发生引用折叠
+ * auto&& 从普通表达式推导时会记录值类别并发生引用折叠；大括号列表是专门例外
  */
 void autoCollapseDemo() {
     std::cout << "\n=== auto 类型推导中的引用折叠 ===\n";
@@ -232,7 +235,7 @@ void printFoldingRules() {
 
 // ==================== 主演示函数 ====================
 
-void runReferenceCollapsingDemo() {
+void run() {
     std::cout << "\n";
     std::cout << "========================================\n";
     std::cout << "   Day 24: 引用折叠演示\n";
@@ -272,4 +275,10 @@ void runReferenceCollapsingDemo() {
     std::cout << "\n========================================\n";
     std::cout << "   引用折叠演示完成\n";
     std::cout << "========================================\n";
+}
+
+} // namespace day24::reference_collapsing_lesson
+
+void runReferenceCollapsingDemo() {
+    day24::reference_collapsing_lesson::run();
 }

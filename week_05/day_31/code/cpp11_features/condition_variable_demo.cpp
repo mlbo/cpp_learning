@@ -1,96 +1,89 @@
-/**
- * 条件变量(Condition Variable)演示
- * 用于线程间的等待/通知机制
- */
-
-#include <iostream>
-#include <thread>
-#include <mutex>
 #include <condition_variable>
+#include <iostream>
+#include <mutex>
+#include <optional>
 #include <queue>
+#include <thread>
+#include <utility>
+#include <vector>
 
-// 生产者-消费者示例
-void producerConsumerDemo() {
-    std::cout << "=== 条件变量演示：生产者-消费者 ===" << std::endl;
-    
-    std::queue<int> dataQueue;
-    std::mutex mtx;
-    std::condition_variable cv;
-    bool finished = false;
-    
-    // 生产者线程
-    std::thread producer([&]() {
-        for (int i = 1; i <= 5; ++i) {
-            {
-                std::lock_guard<std::mutex> lock(mtx);
-                dataQueue.push(i);
-                std::cout << "生产: " << i << std::endl;
-            }
-            cv.notify_one();  // 通知消费者
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-        
-        {
-            std::lock_guard<std::mutex> lock(mtx);
-            finished = true;
-        }
-        cv.notify_one();
-    });
-    
-    // 消费者线程
-    std::thread consumer([&]() {
-        while (true) {
-            std::unique_lock<std::mutex> lock(mtx);
-            cv.wait(lock, [&]{ return !dataQueue.empty() || finished; });
-            
-            while (!dataQueue.empty()) {
-                int data = dataQueue.front();
-                dataQueue.pop();
-                std::cout << "消费: " << data << std::endl;
-            }
-            
-            if (finished) break;
-        }
-    });
-    
-    producer.join();
-    consumer.join();
-    
-    std::cout << "生产者-消费者演示完成" << std::endl;
-}
+#include "joining_thread_group.h"
 
-// 线程安全队列
-template<typename T>
-class ThreadSafeQueue {
+template <typename T>
+class CloseableQueue {
 public:
-    void push(T value) {
+    bool push(T value) {
         {
-            std::lock_guard<std::mutex> lock(mtx_);
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (closed_) {
+                return false;
+            }
             queue_.push(std::move(value));
         }
-        cv_.notify_one();
+        ready_.notify_one();
+        return true;
     }
-    
-    T pop() {
-        std::unique_lock<std::mutex> lock(mtx_);
-        cv_.wait(lock, [this]{ return !queue_.empty(); });
+
+    std::optional<T> wait_pop() {
+        std::unique_lock<std::mutex> lock(mutex_);
+        ready_.wait(lock, [this] { return closed_ || !queue_.empty(); });
+
+        if (queue_.empty()) {
+            return std::nullopt;
+        }
         T value = std::move(queue_.front());
         queue_.pop();
         return value;
     }
-    
-    bool empty() const {
-        std::lock_guard<std::mutex> lock(mtx_);
-        return queue_.empty();
+
+    void close() {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            closed_ = true;
+        }
+        ready_.notify_all();
     }
 
 private:
-    mutable std::mutex mtx_;
-    std::condition_variable cv_;
+    std::mutex mutex_;
+    std::condition_variable ready_;
     std::queue<T> queue_;
+    bool closed_{false};
 };
 
 int main() {
-    producerConsumerDemo();
-    return 0;
+    int failures = 0;
+    const auto expect = [&failures](bool condition, const char* message) {
+        if (!condition) {
+            std::cerr << "FAIL: " << message << '\n';
+            ++failures;
+        }
+    };
+
+    CloseableQueue<int> queue;
+    std::vector<int> consumed;
+
+    week5::JoiningThreadGroup threads;
+    threads.start([&queue, &consumed] {
+        while (const std::optional<int> value = queue.wait_pop()) {
+            consumed.push_back(*value);
+        }
+    });
+
+    threads.start([&queue] {
+        for (int value = 1; value <= 5; ++value) {
+            static_cast<void>(queue.push(value));
+        }
+        queue.close();
+    });
+
+    threads.join_all();
+
+    expect(consumed == std::vector<int>({1, 2, 3, 4, 5}),
+           "消费者应按 FIFO 顺序读完关闭前的数据");
+    expect(!queue.push(6), "关闭后的 push 应按接口契约失败");
+    expect(!queue.wait_pop().has_value(), "关闭且排空后 wait_pop 应返回结束信号");
+
+    std::cout << "条件变量谓词、先通知后等待兼容性与关闭协议测试完成。\n";
+    return failures == 0 ? 0 : 1;
 }

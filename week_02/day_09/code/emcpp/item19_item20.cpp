@@ -1,9 +1,9 @@
 /**
  * @file item19_item20.cpp
- * @brief EMC++ 条款19-20：shared_ptr 资源管理与性能考虑
+ * @brief EMC++ Item 19：shared_ptr 资源管理及其机制与性能补充
  * 
  * 条款19：使用 shared_ptr 管理共享所有权的资源
- * 条款20：shared_ptr 的性能考虑
+ * 注意：EMC++ Item 20 实际讲 weak_ptr；本文件后半是 Item 19 的机制补充。
  * 
  * 核心要点：
  * 1. shared_ptr 提供共享所有权语义
@@ -21,6 +21,8 @@
 #include <functional>
 #include <iomanip>
 
+#include "../../../common/noexcept_output.h"
+
 // ============================================================
 // 演示类：跟踪对象生命周期
 // ============================================================
@@ -32,7 +34,9 @@ public:
     }
     
     ~Widget() {
-        std::cout << "  [Widget 析构] " << name_ << "\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  [Widget 析构] " << name_ << "\n";
+        });
     }
     
     void doSomething() const {
@@ -74,7 +78,7 @@ void demoSharedOwnership() {
     
     std::cout << "\n  共享所有权的优势：\n";
     std::cout << "  • 自动管理：最后一个所有者离开时自动释放\n";
-    std::cout << "  • 安全：不会悬空指针\n";
+    std::cout << "  • 生命周期：只要仍持有一个副本，对象就不会被销毁\n";
     std::cout << "  • 明确意图：代码清晰表达共享语义\n";
 }
 
@@ -115,10 +119,10 @@ void demoDoubleDeletion() {
 // ============================================================
 
 struct FileCloser {
-    void operator()(FILE* f) const {
+    void operator()(FILE* f) const noexcept {
         if (f) {
             fclose(f);
-            std::cout << "  [文件已关闭]\n";
+            week2_support::write_noexcept([] { std::cout << "  [文件已关闭]\n"; });
         }
     }
 };
@@ -128,10 +132,12 @@ static void demoCustomDeleter() {
     
     std::cout << "--- 管理文件句柄 ---\n";
     {
-        auto fileDeleter = [](FILE* f) {
+        auto fileDeleter = [](FILE* f) noexcept {
             if (f) {
                 fclose(f);
-                std::cout << "  [Lambda 删除器：文件已关闭]\n";
+                week2_support::write_noexcept([] {
+                    std::cout << "  [Lambda 删除器：文件已关闭]\n";
+                });
             }
         };
         
@@ -165,7 +171,9 @@ public:
     }
     
     ~ProperWidget() {
-        std::cout << "  [ProperWidget 析构] " << name_ << "\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  [ProperWidget 析构] " << name_ << "\n";
+        });
     }
     
     std::shared_ptr<ProperWidget> getShared() {
@@ -198,11 +206,11 @@ void demoEnableSharedFromThis() {
 }
 
 // ============================================================
-// 条款20 要点1：shared_ptr 的大小
+// Item 19 机制补充1：shared_ptr 的大小
 // ============================================================
 
 void demoSizeComparison() {
-    std::cout << "\n【条款20 要点1：shared_ptr 的大小】\n\n";
+    std::cout << "\n【Item 19 机制补充1：shared_ptr 的大小】\n\n";
     
     std::cout << "  各类指针的大小比较：\n";
     std::cout << "  ┌─────────────────────────────────────────────────┐\n";
@@ -218,11 +226,11 @@ void demoSizeComparison() {
 }
 
 // ============================================================
-// 条款20 要点2：控制块与 make_shared
+// Item 19 机制补充2：控制块与 make_shared
 // ============================================================
 
 void demoControlBlockAllocation() {
-    std::cout << "\n【条款20 要点2：控制块与 make_shared】\n\n";
+    std::cout << "\n【Item 19 机制补充2：控制块与 make_shared】\n\n";
     
     std::cout << "--- 方法1：new + shared_ptr（两次分配）---\n";
     std::cout << "  分配1: 为对象分配内存\n";
@@ -242,7 +250,7 @@ void demoControlBlockAllocation() {
 }
 
 // ============================================================
-// 条款20 要点3：性能基准测试
+// Item 19 机制补充3：性能基准测试
 // ============================================================
 
 class Timer {
@@ -266,7 +274,7 @@ public:
 };
 
 void demoPerformanceBenchmark() {
-    std::cout << "\n【条款20 要点3：性能基准测试】\n\n";
+    std::cout << "\n【Item 19 机制补充3：性能基准测试】\n\n";
     
     const int N = 100000;
     
@@ -329,15 +337,15 @@ void demoPerformanceBenchmark() {
 }
 
 // ============================================================
-// 条款20 要点4：函数参数传递优化
+// Item 19 机制补充4：函数参数传递优化
 // ============================================================
 
-void passByValue(std::shared_ptr<TrackedObject> sp) {}
-void passByConstRef(const std::shared_ptr<TrackedObject>& sp) {}
-void passByRvalue(std::shared_ptr<TrackedObject>&& sp) {}
+void passByValue(std::shared_ptr<TrackedObject> sp) { (void)sp; }
+void passByConstRef(const std::shared_ptr<TrackedObject>& sp) { (void)sp; }
+void passByRvalue(std::shared_ptr<TrackedObject>&& sp) { (void)sp; }
 
 void demoParameterPassing() {
-    std::cout << "\n【条款20 要点4：函数参数传递优化】\n\n";
+    std::cout << "\n【Item 19 机制补充4：函数参数传递优化】\n\n";
     
     auto sp = std::make_shared<TrackedObject>(42);
     const int N = 1000000;
@@ -366,8 +374,8 @@ void demoParameterPassing() {
     std::cout << "  ┌─────────────────────────────────────────────────────┐\n";
     std::cout << "  │ 场景                    │ 参数类型                 │\n";
     std::cout << "  ├─────────────────────────────────────────────────────┤\n";
-    std::cout << "  │ 只读访问，不涉及所有权   │ const shared_ptr<T>&    │\n";
-    std::cout << "  │ 需要存储/转移所有权      │ shared_ptr<T> (值传递)  │\n";
+    std::cout << "  │ 只访问所指对象           │ const T&                │\n";
+    std::cout << "  │ 可能保存共享所有权       │ shared_ptr<T> (值传递)  │\n";
     std::cout << "  │ 明确转移所有权           │ shared_ptr<T>&&         │\n";
     std::cout << "  └─────────────────────────────────────────────────────┘\n";
 }
@@ -378,7 +386,7 @@ void demoParameterPassing() {
 
 void demoItem19Item20() {
     std::cout << "╔══════════════════════════════════════════════════════════╗\n";
-    std::cout << "║     EMC++ 条款19-20：shared_ptr 资源管理与性能            ║\n";
+    std::cout << "║    EMC++ Item 19：shared_ptr 资源管理与机制/性能补充      ║\n";
     std::cout << "╚══════════════════════════════════════════════════════════╝\n\n";
     
     // 条款19
@@ -387,13 +395,13 @@ void demoItem19Item20() {
     demoCustomDeleter();
     demoEnableSharedFromThis();
     
-    // 条款20
+    // Item 19 的机制与性能补充
     demoSizeComparison();
     demoControlBlockAllocation();
     demoPerformanceBenchmark();
     demoParameterPassing();
     
-    std::cout << "\n\n条款19-20 总结：\n";
+    std::cout << "\n\nItem 19 与机制补充总结：\n";
     std::cout << "┌─────────────────────────────────────────────────────────┐\n";
     std::cout << "│  【条款19】                                             │\n";
     std::cout << "│  1. shared_ptr 提供自动的共享所有权管理                  │\n";
@@ -402,11 +410,11 @@ void demoItem19Item20() {
     std::cout << "│  4. 需要 this 的 shared_ptr 时，继承                     │\n";
     std::cout << "│     enable_shared_from_this                             │\n";
     std::cout << "├─────────────────────────────────────────────────────────┤\n";
-    std::cout << "│  【条款20】                                             │\n";
-    std::cout << "│  1. shared_ptr 大小是裸指针的两倍                        │\n";
+    std::cout << "│  【Item 19 的机制与性能补充】                           │\n";
+    std::cout << "│  1. shared_ptr 在常见实现中通常是两个指针大小             │\n";
     std::cout << "│  2. 优先使用 make_shared 减少内存分配                    │\n";
     std::cout << "│  3. 引用计数原子操作有开销                               │\n";
-    std::cout << "│  4. 移动比拷贝更高效                                    │\n";
-    std::cout << "│  5. 函数参数：只读用 const&，转移用值或&&                │\n";
+    std::cout << "│  4. 移动不增加引用计数；实际性能应按真实调用路径测量       │\n";
+    std::cout << "│  5. 只借用对象传T引用；可能保存共享所有权时按值传递       │\n";
     std::cout << "└─────────────────────────────────────────────────────────┘\n";
 }

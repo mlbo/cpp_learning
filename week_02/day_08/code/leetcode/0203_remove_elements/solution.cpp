@@ -23,7 +23,9 @@
 
 #include "solution.h"
 
-namespace leetcode {
+using day08_lists::ListNode;
+
+namespace leetcode_0203 {
 
 /**
  * @brief 方法一：虚拟头节点法（推荐）
@@ -123,7 +125,7 @@ ListNode* removeElementsRecursive(ListNode* head, int val) {
     }
 }
 
-} // namespace leetcode
+} // namespace leetcode_0203
 
 // ============================================================
 // 测试代码
@@ -134,7 +136,8 @@ ListNode* removeElementsRecursive(ListNode* head, int val) {
 
 using namespace list_ops;
 
-void testRemoveElements() {
+bool testRemoveElements() {
+    bool allPassed = true;
     std::cout << "======== LeetCode 203: 移除链表元素 测试 ========\n";
     
     // 测试用例1
@@ -144,14 +147,16 @@ void testRemoveElements() {
     printList(head1);
     std::cout << "val = 6\n";
     
-    ListNode* result1 = leetcode::removeElements(head1, 6);
+    ListNode* result1 = leetcode_0203::removeElements(head1, 6);
     std::cout << "输出: ";
     printList(result1);
     std::cout << "预期: 1 -> 2 -> 3 -> 4 -> 5 -> nullptr\n";
     
     std::vector<int> expected1 = {1, 2, 3, 4, 5};
     std::vector<int> actual1 = toVector(result1);
-    std::cout << "结果: " << (actual1 == expected1 ? "✓ 通过" : "✗ 失败") << "\n";
+    const bool passed1 = actual1 == expected1;
+    allPassed = allPassed && passed1;
+    std::cout << "结果: " << (passed1 ? "✓ 通过" : "✗ 失败") << "\n";
     deleteList(result1);
     
     // 测试用例2：空链表
@@ -159,11 +164,13 @@ void testRemoveElements() {
     ListNode* head2 = nullptr;
     std::cout << "输入: []\nval = 1\n";
     
-    ListNode* result2 = leetcode::removeElements(head2, 1);
+    ListNode* result2 = leetcode_0203::removeElements(head2, 1);
     std::cout << "输出: ";
     printList(result2);
     std::cout << "预期: nullptr\n";
-    std::cout << "结果: " << (result2 == nullptr ? "✓ 通过" : "✗ 失败") << "\n";
+    const bool passed2 = result2 == nullptr;
+    allPassed = allPassed && passed2;
+    std::cout << "结果: " << (passed2 ? "✓ 通过" : "✗ 失败") << "\n";
     
     // 测试用例3：所有节点都删除
     std::cout << "\n【测试用例3：所有节点都删除】\n";
@@ -172,11 +179,13 @@ void testRemoveElements() {
     printList(head3);
     std::cout << "val = 7\n";
     
-    ListNode* result3 = leetcode::removeElements(head3, 7);
+    ListNode* result3 = leetcode_0203::removeElements(head3, 7);
     std::cout << "输出: ";
     printList(result3);
     std::cout << "预期: nullptr\n";
-    std::cout << "结果: " << (result3 == nullptr ? "✓ 通过" : "✗ 失败") << "\n";
+    const bool passed3 = result3 == nullptr;
+    allPassed = allPassed && passed3;
+    std::cout << "结果: " << (passed3 ? "✓ 通过" : "✗ 失败") << "\n";
     
     // 测试用例4：头节点需要删除
     std::cout << "\n【测试用例4：头节点需要删除】\n";
@@ -185,14 +194,16 @@ void testRemoveElements() {
     printList(head4);
     std::cout << "val = 1\n";
     
-    ListNode* result4 = leetcode::removeElements(head4, 1);
+    ListNode* result4 = leetcode_0203::removeElements(head4, 1);
     std::cout << "输出: ";
     printList(result4);
     std::cout << "预期: 2 -> 3 -> nullptr\n";
     
     std::vector<int> expected4 = {2, 3};
     std::vector<int> actual4 = toVector(result4);
-    std::cout << "结果: " << (actual4 == expected4 ? "✓ 通过" : "✗ 失败") << "\n";
+    const bool passed4 = actual4 == expected4;
+    allPassed = allPassed && passed4;
+    std::cout << "结果: " << (passed4 ? "✓ 通过" : "✗ 失败") << "\n";
     deleteList(result4);
     
     // 测试用例5：没有节点需要删除
@@ -202,20 +213,23 @@ void testRemoveElements() {
     printList(head5);
     std::cout << "val = 4\n";
     
-    ListNode* result5 = leetcode::removeElements(head5, 4);
+    ListNode* result5 = leetcode_0203::removeElements(head5, 4);
     std::cout << "输出: ";
     printList(result5);
     std::cout << "预期: 1 -> 2 -> 3 -> nullptr\n";
     
     std::vector<int> expected5 = {1, 2, 3};
     std::vector<int> actual5 = toVector(result5);
-    std::cout << "结果: " << (actual5 == expected5 ? "✓ 通过" : "✗ 失败") << "\n";
+    const bool passed5 = actual5 == expected5;
+    allPassed = allPassed && passed5;
+    std::cout << "结果: " << (passed5 ? "✓ 通过" : "✗ 失败") << "\n";
     deleteList(result5);
     
-    std::cout << "\n======== 测试完成 ========\n";
+    std::cout << "\n======== " << (allPassed ? "全部测试通过" : "存在失败用例")
+              << " ========\n";
+    return allPassed;
 }
 
 int main() {
-    testRemoveElements();
-    return 0;
+    return testRemoveElements() ? 0 : 1;
 }

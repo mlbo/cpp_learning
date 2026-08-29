@@ -3,7 +3,7 @@
  * 
  * Lambda的优势：
  * 1. 更好的可读性
- * 2. 更好的性能
+ * 2. 更透明的调用与转换规则
  * 3. 更强的表达能力
  * 4. 支持泛型（C++14）
  */
@@ -16,6 +16,8 @@
 #include <memory>
 
 using namespace std::placeholders;
+
+namespace {
 
 // 示例函数
 void setSound(std::chrono::seconds duration, const std::string& sound, int volume) {
@@ -32,6 +34,8 @@ public:
         std::cout << "  Widget " << name << " 处理: " << value << std::endl;
     }
 };
+
+}  // namespace
 
 void item34Demo() {
     std::cout << "╔══════════════════════════════════════╗" << std::endl;
@@ -66,7 +70,7 @@ void item34Demo() {
     auto bindCopy = std::bind(setSound, std::chrono::seconds(1), sound, 50);
     sound = "Changed";
     std::cout << "  bind拷贝后修改原变量:" << std::endl;
-    bindCopy(sound);  // 使用的是拷贝的"Alert"
+    bindCopy();  // 使用的是拷贝的"Alert"
     
     // Lambda: 可以选择值捕获或引用捕获
     auto lambdaRef = [&sound]() {
@@ -79,25 +83,26 @@ void item34Demo() {
     // ========== 3. 移动语义 ==========
     std::cout << "\n--- 3. 移动语义支持 ---" << std::endl;
     
-    auto ptr = std::make_unique<Widget>("MyWidget");
+    auto lambdaPtr = std::make_unique<Widget>("LambdaWidget");
     
     // Lambda: 支持移动捕获（C++14）
-    auto lambdaMove = [w = std::move(ptr)](int value) {
+    auto lambdaMove = [w = std::move(lambdaPtr)](int value) {
         w->doSomething(value);
     };
     std::cout << "  Lambda移动捕获:" << std::endl;
     lambdaMove(42);
     
     // std::bind: C++11也可以通过bind实现类似效果
+    auto bindPtr = std::make_unique<Widget>("BindWidget");
     auto bindMove = std::bind(
         [](std::unique_ptr<Widget>& w, int value) {
             w->doSomething(value);
         },
-        std::move(ptr),
+        std::move(bindPtr),
         _1
     );
-    // 但ptr已经被移动，bindMove无法使用
-    std::cout << "  std::bind移动后原指针为空" << std::endl;
+    std::cout << "  std::bind按值保存移动进入的参数；调用时它作为左值传给目标:" << std::endl;
+    bindMove(84);
     
     // ========== 4. 泛型支持（C++14） ==========
     std::cout << "\n--- 4. 泛型支持 ---" << std::endl;
@@ -112,18 +117,18 @@ void item34Demo() {
     std::cout << "    double: " << genericLambda(1.5, 2.5) << std::endl;
     std::cout << "    string: " << genericLambda(std::string("Hello"), std::string(" World")) << std::endl;
     
-    // std::bind: 不支持泛型
-    std::cout << "  std::bind不支持泛型Lambda" << std::endl;
+    std::cout << "  bind也可能借助占位符接受不同实参类型，但转换与参数重排隐藏在绑定规则中。" << std::endl;
     
     // ========== 5. 总结 ==========
     std::cout << "\n--- 5. 总结 ---" << std::endl;
     std::cout << "  Lambda优势：" << std::endl;
     std::cout << "    1. 可读性好：代码意图清晰" << std::endl;
-    std::cout << "    2. 性能更好：可能内联，无间接调用" << std::endl;
+    std::cout << "    2. 规则透明：参数类型、转换和转发写在函数体中" << std::endl;
     std::cout << "    3. 表达力强：支持移动捕获、泛型" << std::endl;
     std::cout << "    4. 灵活性高：可选择捕获方式" << std::endl;
     std::cout << "\n  std::bind使用场景：" << std::endl;
     std::cout << "    1. C++11中需要移动捕获时" << std::endl;
     std::cout << "    2. 需要参数重排时（但Lambda也可以做到）" << std::endl;
     std::cout << "    3. 与旧代码兼容时" << std::endl;
+    std::cout << "  注意：Lambda更便于优化，但并不保证在所有程序里一定更快。" << std::endl;
 }

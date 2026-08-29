@@ -1,15 +1,16 @@
 /**
  * @file item20_performance.cpp
- * @brief EMC++ 条款20：shared_ptr 的性能考虑
+ * @brief shared_ptr 性能专题（EMC++ Item 19 的机制补充）
  * 
  * 核心要点：
- * 1. shared_ptr 的大小是裸指针的两倍
+ * 1. shared_ptr 在常见实现中通常是裸指针的两倍大小
  * 2. 控制块需要动态分配内存
  * 3. 引用计数操作是原子的（有开销）
  * 4. make_shared 可以减少内存分配次数
  * 5. 移动语义比拷贝更高效
  */
 
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <chrono>
@@ -163,7 +164,7 @@ void demoPerformanceBenchmark() {
     
     std::cout << "\n  结论：\n";
     std::cout << "  • make_shared 比 new + shared_ptr 更快\n";
-    std::cout << "  • 移动比拷贝更高效（无原子操作）\n";
+    std::cout << "  • 移动通常不增减引用计数，但这段微基准不能代替真实场景测量\n";
     std::cout << "  • unique_ptr 是最快的智能指针\n";
 }
 
@@ -185,7 +186,7 @@ void demoAtomicOverhead() {
     std::cout << "    }\n\n";
     
     std::cout << "  原子操作的开销：\n";
-    std::cout << "  • 通常比普通操作慢 2-10 倍\n";
+    std::cout << "  • 通常比普通非原子操作更昂贵，具体差异取决于平台和竞争程度\n";
     std::cout << "  • 涉及内存屏障和缓存同步\n";
     std::cout << "  • 在高度竞争时更明显\n";
 }
@@ -197,14 +198,17 @@ void demoAtomicOverhead() {
 // 不同传递方式
 void passByValue(std::shared_ptr<TrackedObject> sp) {
     // 拷贝：引用计数+1（原子操作）
+    (void)sp;
 }
 
 void passByConstRef(const std::shared_ptr<TrackedObject>& sp) {
     // 引用：无引用计数变化
+    (void)sp;
 }
 
 void passByRvalue(std::shared_ptr<TrackedObject>&& sp) {
     // 移动：无引用计数变化
+    (void)sp;
 }
 
 void demoParameterPassing() {
@@ -248,8 +252,8 @@ void demoParameterPassing() {
     std::cout << "  ┌─────────────────────────────────────────────────────┐\n";
     std::cout << "  │ 场景                    │ 参数类型                 │\n";
     std::cout << "  ├─────────────────────────────────────────────────────┤\n";
-    std::cout << "  │ 只读访问，不涉及所有权   │ const shared_ptr<T>&    │\n";
-    std::cout << "  │ 需要存储/转移所有权      │ shared_ptr<T> (值传递)  │\n";
+    std::cout << "  │ 只访问所指对象           │ const T&                │\n";
+    std::cout << "  │ 可能保存共享所有权       │ shared_ptr<T> (值传递)  │\n";
     std::cout << "  │ 明确转移所有权           │ shared_ptr<T>&&         │\n";
     std::cout << "  └─────────────────────────────────────────────────────┘\n";
 }
@@ -290,12 +294,14 @@ void demoContainerPerformance() {
     std::cout << "\n--- 遍历容器 ---\n";
     {
         Timer t;
-        int sum = 0;
+        // 0..99999 的和大于 INT_MAX；基准校验值必须使用足够宽的类型，
+        // 否则演示本身会产生有符号溢出的未定义行为。
+        std::int64_t sum = 0;
         for (const auto& sp : vec1) {
-            sum += sp->value;
+            sum += static_cast<std::int64_t>(sp->value);
         }
         std::cout << "  范围for:      " << std::fixed << std::setprecision(2) 
-                  << t.elapsedMs() << " ms\n";
+                  << t.elapsedMs() << " ms, 校验和: " << sum << "\n";
     }
     
     std::cout << "\n  建议：\n";
@@ -310,7 +316,7 @@ void demoContainerPerformance() {
 
 void demoItem20() {
     std::cout << "╔══════════════════════════════════════════════════════════╗\n";
-    std::cout << "║         EMC++ 条款20：shared_ptr 的性能考虑               ║\n";
+    std::cout << "║   shared_ptr 性能专题（EMC++ Item 19 机制补充）           ║\n";
     std::cout << "╚══════════════════════════════════════════════════════════╝\n\n";
     
     demoSizeComparison();
@@ -320,13 +326,13 @@ void demoItem20() {
     demoParameterPassing();
     demoContainerPerformance();
     
-    std::cout << "\n\n条款20 总结：\n";
+    std::cout << "\n\nshared_ptr 性能专题总结：\n";
     std::cout << "┌─────────────────────────────────────────────────────────┐\n";
-    std::cout << "│  1. shared_ptr 大小是裸指针的两倍                        │\n";
+    std::cout << "│  1. shared_ptr 在常见实现中通常是两个指针大小             │\n";
     std::cout << "│  2. 优先使用 make_shared 减少内存分配                    │\n";
     std::cout << "│  3. 引用计数原子操作有开销                               │\n";
-    std::cout << "│  4. 移动比拷贝更高效                                    │\n";
-    std::cout << "│  5. 函数参数：只读用 const&，转移用值或&&                │\n";
+    std::cout << "│  4. 移动不增加引用计数；实际性能应按真实调用路径测量       │\n";
+    std::cout << "│  5. 只借用对象传T引用；可能保存共享所有权时按值传递       │\n";
     std::cout << "│  6. 真正需要共享所有权时才使用 shared_ptr                │\n";
     std::cout << "└─────────────────────────────────────────────────────────┘\n";
 }

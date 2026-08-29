@@ -13,10 +13,18 @@
 #include <iostream>
 #include <string>
 #include <memory>
+#include <type_traits>
 #include <utility>
 
 // 辅助打印
 #define LOG_FUNC(msg) std::cout << "[" << #msg << "] " << __func__ << "\n"
+#define LOG_FUNC_NOEXCEPT(msg)                                                   \
+    do {                                                                         \
+        try {                                                                    \
+            LOG_FUNC(msg);                                                       \
+        } catch (...) {                                                          \
+        }                                                                        \
+    } while (false)
 #define LOG_CALL(obj, msg) std::cout << "[" << #msg << "] " << obj << "\n"
 
 void printSeparator(const std::string& title = "") {
@@ -82,7 +90,7 @@ void demoEmptyClass() {
 class WithDestructor {
 public:
     WithDestructor() { LOG_FUNC(默认构造); }
-    ~WithDestructor() { LOG_FUNC(析构); }
+    ~WithDestructor() { LOG_FUNC_NOEXCEPT(析构); }
     
     std::string data = "data";
 };
@@ -116,17 +124,19 @@ void demoWithDestructor() {
 
 class WithCopyOperations {
 public:
-    WithCopyOperations() : data(new std::string("data")) { LOG_FUNC(默认构造); }
+    WithCopyOperations() : data(new std::string("data")) {
+        LOG_FUNC_NOEXCEPT(默认构造);
+    }
     
     ~WithCopyOperations() { 
-        LOG_FUNC(析构); 
+        LOG_FUNC_NOEXCEPT(析构);
         delete data;
     }
     
     // 用户声明的拷贝操作
     WithCopyOperations(const WithCopyOperations& other) 
         : data(new std::string(*other.data)) {
-        LOG_FUNC(拷贝构造);
+        LOG_FUNC_NOEXCEPT(拷贝构造);
     }
     
     WithCopyOperations& operator=(const WithCopyOperations& other) {
@@ -166,22 +176,24 @@ void demoWithCopyOperations() {
 
 class WithMoveOperations {
 public:
-    WithMoveOperations() : data(new std::string("data")) { LOG_FUNC(默认构造); }
+    WithMoveOperations() : data(new std::string("data")) {
+        LOG_FUNC_NOEXCEPT(默认构造);
+    }
     
     ~WithMoveOperations() { 
-        LOG_FUNC(析构); 
+        LOG_FUNC_NOEXCEPT(析构);
         delete data;
     }
     
     // 用户声明的移动操作
     WithMoveOperations(WithMoveOperations&& other) noexcept
         : data(other.data) {
-        LOG_FUNC(移动构造);
+        LOG_FUNC_NOEXCEPT(移动构造);
         other.data = nullptr;
     }
     
     WithMoveOperations& operator=(WithMoveOperations&& other) noexcept {
-        LOG_FUNC(移动赋值);
+        LOG_FUNC_NOEXCEPT(移动赋值);
         if (this != &other) {
             delete data;
             data = other.data;
@@ -222,25 +234,28 @@ void demoWithMoveOperations() {
 
 class RuleOfFive {
 public:
-    RuleOfFive() : data(new std::string("data")) { LOG_FUNC(默认构造); }
+    RuleOfFive() : data(new std::string("data")) {
+        LOG_FUNC_NOEXCEPT(默认构造);
+    }
     
     // 1. 析构函数
     ~RuleOfFive() { 
-        LOG_FUNC(析构); 
+        LOG_FUNC_NOEXCEPT(析构);
         delete data;
     }
     
     // 2. 拷贝构造函数
-    RuleOfFive(const RuleOfFive& other) 
-        : data(new std::string(*other.data)) {
-        LOG_FUNC(拷贝构造);
+    RuleOfFive(const RuleOfFive& other)
+        : data(other.data ? new std::string(*other.data) : nullptr) {
+        LOG_FUNC_NOEXCEPT(拷贝构造);
     }
     
     // 3. 拷贝赋值运算符
     RuleOfFive& operator=(const RuleOfFive& other) {
         LOG_FUNC(拷贝赋值);
         if (this != &other) {
-            *data = *other.data;
+            RuleOfFive temp(other);
+            swap(temp);
         }
         return *this;
     }
@@ -248,19 +263,24 @@ public:
     // 4. 移动构造函数
     RuleOfFive(RuleOfFive&& other) noexcept
         : data(other.data) {
-        LOG_FUNC(移动构造);
+        LOG_FUNC_NOEXCEPT(移动构造);
         other.data = nullptr;
     }
     
     // 5. 移动赋值运算符
     RuleOfFive& operator=(RuleOfFive&& other) noexcept {
-        LOG_FUNC(移动赋值);
+        LOG_FUNC_NOEXCEPT(移动赋值);
         if (this != &other) {
             delete data;
             data = other.data;
             other.data = nullptr;
         }
         return *this;
+    }
+
+    void swap(RuleOfFive& other) noexcept {
+        using std::swap;
+        swap(data, other.data);
     }
     
 private:
@@ -310,36 +330,35 @@ private:
 // 如果需要拷贝语义，可以显式声明（unique_ptr不可拷贝）
 class RuleOfZeroCopyable {
 public:
-    explicit RuleOfZeroCopyable(const std::string& value = "") 
-        : data(std::make_shared<std::string>(value)) {}
+    explicit RuleOfZeroCopyable(const std::string& value = "") : data(value) {}
+
+    // 值成员让默认拷贝成为独立值；shared_ptr则表示共享同一个对象，语义不同。
     
-    // 使用shared_ptr，自动支持拷贝
-    
-    const std::string& get() const { return *data; }
+    const std::string& get() const { return data; }
     
 private:
-    std::shared_ptr<std::string> data;
+    std::string data;
 };
 
 // 或者使用默认成员
 class RuleOfZeroDefault {
 public:
-    RuleOfZeroDefault() = default;
-    RuleOfZeroDefault(const RuleOfZeroDefault&) = default;
-    RuleOfZeroDefault(RuleOfZeroDefault&&) = default;
-    RuleOfZeroDefault& operator=(const RuleOfZeroDefault&) = default;
-    RuleOfZeroDefault& operator=(RuleOfZeroDefault&&) = default;
-    ~RuleOfZeroDefault() = default;
-    
+    // 真正的Rule of Zero：不声明任何特殊成员函数。
 private:
     std::string data;  // 标准库类型自动管理内存
 };
+
+static_assert(!std::is_copy_constructible_v<RuleOfZero>,
+              "unique_ptr成员使Rule of Zero类型自然成为move-only");
+static_assert(std::is_nothrow_move_constructible_v<RuleOfZero>);
+static_assert(std::is_copy_constructible_v<RuleOfZeroCopyable>);
+static_assert(std::is_copy_assignable_v<RuleOfZeroDefault>);
 
 void demoRuleOfZero() {
     printSeparator("示例6：Rule of Zero（最佳实践）");
     
     std::cout << "\nRule of Zero：让编译器自动生成特殊成员函数\n";
-    std::cout << "使用智能指针或标准容器管理资源，无需手动实现\n\n";
+    std::cout << "使用智能指针或标准容器管理资源，无需手动实现；可用操作由成员决定\n\n";
     
     RuleOfZero z1("hello");
     RuleOfZero z2(std::move(z1));  // 移动构造（unique_ptr支持移动）
@@ -348,9 +367,9 @@ void demoRuleOfZero() {
     // RuleOfZero z3(z2);  // 编译错误！unique_ptr不可拷贝
     
     std::cout << "\n如果需要拷贝语义：\n";
-    std::cout << "  1. 使用shared_ptr\n";
-    std::cout << "  2. 使用标准容器（vector, string等）\n";
-    std::cout << "  3. 显式=default声明\n";
+    std::cout << "  1. 需要独立值时使用string、vector等值成员\n";
+    std::cout << "  2. 需要共享同一对象时才使用shared_ptr\n";
+    std::cout << "  3. =default仍是用户声明，必须按生成/抑制规则审视\n";
 }
 
 // ============================================================
@@ -367,16 +386,16 @@ void printGenerationRules() {
 │ 声明的操作          │ 默认 │ 析构 │ 拷贝构造 │ 拷贝赋值 │ 移动构造 │ 移动赋值 │
 ├─────────────────────────────────────────────────────────────────────────┤
 │ 无                  │  ✓   │  ✓   │    ✓     │    ✓     │    ✓     │    ✓     │
-│ 任何构造函数        │  ✗   │  ✓   │    ✓     │    ✓     │    ✓     │    ✓     │
+│ 普通构造函数        │  ✗   │  ✓   │    ✓     │    ✓     │    ✓     │    ✓     │
 │ 析构函数            │  ✓   │  -   │    ✓     │    ✓     │    ✗     │    ✗     │
-│ 拷贝构造            │  ✓   │  ✓   │    -     │    ✓     │    ✗     │    ✗     │
+│ 拷贝构造            │  ✗   │  ✓   │    -     │    ✓     │    ✗     │    ✗     │
 │ 拷贝赋值            │  ✓   │  ✓   │    ✓     │    -     │    ✗     │    ✗     │
 │ 移动构造            │  ✗   │  ✓   │    ✗     │    ✗     │    -     │    ✗     │
 │ 移动赋值            │  ✓   │  ✓   │    ✗     │    ✗     │    ✗     │    -     │
 └─────────────────────────────────────────────────────────────────────────┘
 
 关键规则：
-  1. 移动操作仅在类完全没有任何拷贝操作时生成
+  1. 隐式移动仅在没有用户声明的拷贝、移动和析构操作时生成
   2. 声明移动操作会阻止拷贝操作的自动生成
   3. 析构函数的存在会阻止移动操作的生成
   4. Rule of Zero 优于 Rule of Five
@@ -409,7 +428,7 @@ int main() {
     std::cout << "  3. 声明拷贝操作会阻止移动操作的生成\n";
     std::cout << "  4. 声明移动操作会阻止拷贝操作的生成\n";
     std::cout << "  5. 优先遵循 Rule of Zero\n";
-    std::cout << "  6. 如需自定义，遵循 Rule of Five\n";
+    std::cout << "  6. 直接管理资源且需要拷贝/移动时，用Rule of Five检查每项；否则可删除拷贝\n";
     std::cout << "  7. 显式使用 =default 和 =delete 表达意图\n";
     
     return 0;

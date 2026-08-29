@@ -8,12 +8,62 @@
  * 3. 移动语义在容器中的应用
  */
 
+#include <algorithm>
 #include <iostream>
 #include <utility>      // std::move, std::forward
 #include <string>
 #include <vector>
 #include <chrono>
 #include <cstring>
+#include <stdexcept>
+#include <streambuf>
+
+namespace {
+
+using BenchmarkClock = std::chrono::steady_clock;
+using BenchmarkDuration = std::chrono::nanoseconds;
+
+volatile std::size_t moveBenchmarkSink = 0;
+
+BenchmarkDuration median(std::vector<BenchmarkDuration> samples) {
+    std::sort(samples.begin(), samples.end());
+    return samples[samples.size() / 2];
+}
+
+BenchmarkDuration measureStringTransfer(
+    const std::vector<std::string>& source, bool moveValues) {
+    // 两条路径都在计时外准备同样的源数据和目标容量，只比较 push_back 阶段。
+    std::vector<std::string> working = source;
+    std::vector<std::string> destination;
+    destination.reserve(working.size());
+
+    const auto start = BenchmarkClock::now();
+    if (moveValues) {
+        for (std::string& value : working) {
+            destination.push_back(std::move(value));
+        }
+    } else {
+        for (const std::string& value : working) {
+            destination.push_back(value);
+        }
+    }
+    const auto elapsed = std::chrono::duration_cast<BenchmarkDuration>(
+        BenchmarkClock::now() - start);
+
+    const std::size_t observed = destination.size() +
+        (destination.empty() ? 0U : destination.front().size());
+    moveBenchmarkSink = observed;
+    return elapsed;
+}
+
+class MoveSemanticsThrowingStreamBuffer : public std::streambuf {
+protected:
+    int_type overflow(int_type) override {
+        throw std::runtime_error("injected output failure");
+    }
+};
+
+} // namespace
 
 // ============================================================
 // 自定义字符串类 - 演示移动语义
@@ -28,9 +78,7 @@ private:
 
 public:
     // 默认构造函数
-    MyString() : data_(nullptr), size_(0) {
-        std::cout << "  [默认构造] 创建空字符串" << std::endl;
-    }
+    MyString() : data_(nullptr), size_(0) {}
     
     // 带参数的构造函数
     explicit MyString(const char* str) {
@@ -42,17 +90,11 @@ public:
             size_ = 0;
             data_ = nullptr;
         }
-        std::cout << "  [构造] 创建字符串: \"" << (data_ ? data_ : "") << "\"" << std::endl;
     }
     
     // 析构函数
     ~MyString() {
-        if (data_) {
-            std::cout << "  [析构] 释放字符串: \"" << data_ << "\"" << std::endl;
-            delete[] data_;
-        } else {
-            std::cout << "  [析构] 空字符串对象" << std::endl;
-        }
+        delete[] data_;
     }
     
     // 拷贝构造函数 - 深拷贝
@@ -64,34 +106,30 @@ public:
             data_ = nullptr;
         }
         ++copyCount_;
-        std::cout << "  [拷贝构造] 深拷贝: \"" << (data_ ? data_ : "") 
-                  << "\" (第 " << copyCount_ << " 次拷贝)" << std::endl;
     }
     
-    // 移动构造函数 - 资源窃取
+    // 移动构造函数 - 本类型转交独占指针
     MyString(MyString&& other) noexcept 
         : data_(other.data_), size_(other.size_) {
-        // 源对象置空，防止重复释放
+        // 本类型把源对象恢复为空状态，防止重复释放
         other.data_ = nullptr;
         other.size_ = 0;
         ++moveCount_;
-        std::cout << "  [移动构造] 资源转移 (第 " << moveCount_ << " 次移动)" << std::endl;
     }
     
     // 拷贝赋值运算符
     MyString& operator=(const MyString& other) {
         if (this != &other) {
-            delete[] data_;
-            size_ = other.size_;
+            // 先完成所有可能失败的分配，再提交新状态；分配失败时 *this 不变。
+            char* replacement = nullptr;
             if (other.data_) {
-                data_ = new char[size_ + 1];
-                std::strcpy(data_, other.data_);
-            } else {
-                data_ = nullptr;
+                replacement = new char[other.size_ + 1];
+                std::memcpy(replacement, other.data_, other.size_ + 1);
             }
+            delete[] data_;
+            data_ = replacement;
+            size_ = other.size_;
             ++copyCount_;
-            std::cout << "  [拷贝赋值] 深拷贝: \"" << (data_ ? data_ : "") 
-                      << "\" (第 " << copyCount_ << " 次拷贝)" << std::endl;
         }
         return *this;
     }
@@ -103,11 +141,10 @@ public:
             // 窃取资源
             data_ = other.data_;
             size_ = other.size_;
-            // 源对象置空
+            // 本类型把源对象恢复为空状态
             other.data_ = nullptr;
             other.size_ = 0;
             ++moveCount_;
-            std::cout << "  [移动赋值] 资源转移 (第 " << moveCount_ << " 次移动)" << std::endl;
         }
         return *this;
     }
@@ -116,6 +153,8 @@ public:
     const char* c_str() const { return data_ ? data_ : ""; }
     size_t size() const { return size_; }
     bool empty() const { return size_ == 0; }
+    static int copyCount() noexcept { return copyCount_; }
+    static int moveCount() noexcept { return moveCount_; }
     
     // 静态方法：获取统计信息
     static void printStats() {
@@ -154,7 +193,7 @@ void processLValue(const MyString& s) {
 // 接受右值引用的函数
 void processRValue(MyString&& s) {
     std::cout << "  [processRValue] 处理右值: \"" << s.c_str() << "\"" << std::endl;
-    // 注意：这里 s 本身是左值（因为它有名字）
+    // 注意：命名参数变量的表达式 s 是左值；这是表达式规则，不是对象的永久标签。
     // 如果需要继续移动，需要再次 std::move
 }
 
@@ -173,12 +212,16 @@ void demonstrateMoveSemantics() {
     // 演示 1：拷贝 vs 移动
     // -------------------------------------------------------
     std::cout << "\n【演示 1】拷贝语义 vs 移动语义\n" << std::endl;
+    std::cout << "特殊成员不承担日志输出；调用点结合值与计数观察真实操作，"
+                 "避免流异常削弱资源操作契约。\n" << std::endl;
     
     std::cout << "创建原始字符串 s1:" << std::endl;
     MyString s1("Hello World!");
+    std::cout << "  构造完成: \"" << s1.c_str() << "\"" << std::endl;
     
     std::cout << "\n拷贝构造 s2 = s1:" << std::endl;
     MyString s2 = s1;  // 拷贝构造
+    std::cout << "  拷贝完成，累计拷贝次数: " << MyString::copyCount() << std::endl;
     
     std::cout << "\n移动构造 s3 = std::move(s1):" << std::endl;
     MyString s3 = std::move(s1);  // 移动构造
@@ -187,6 +230,8 @@ void demonstrateMoveSemantics() {
     std::cout << "  s1 (移动后): \"" << s1.c_str() << "\" (长度: " << s1.size() << ")" << std::endl;
     std::cout << "  s2 (拷贝后): \"" << s2.c_str() << "\" (长度: " << s2.size() << ")" << std::endl;
     std::cout << "  s3 (移动后): \"" << s3.c_str() << "\" (长度: " << s3.size() << ")" << std::endl;
+    std::cout << "  本教学类型把 moved-from 状态定义为空串；标准只要求对象保持有效，"
+                 "不同类型不必采用空状态。" << std::endl;
     
     // -------------------------------------------------------
     // 演示 2：移动赋值
@@ -224,7 +269,7 @@ void demonstrateMoveSemantics() {
     processRValue(std::move(s6));
     
     std::cout << "\n调用 processRValue(MyString(\"临时对象\")):" << std::endl;
-    processRValue(MyString("临时对象"));  // 临时对象是右值
+    processRValue(MyString("临时对象"));  // 构造临时对象的表达式是纯右值
     
     // 打印统计信息
     MyString::printStats();
@@ -277,40 +322,52 @@ void demonstratePerformance() {
     std::cout << "性能对比演示" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     
-    const int N = 10000;
-    
-    // 使用 std::string 进行性能测试
-    std::cout << "\n创建包含 " << N << " 个元素的 vector:\n" << std::endl;
-    
-    // 测试拷贝方式
-    auto start = std::chrono::high_resolution_clock::now();
-    {
-        std::vector<std::string> vec;
-        vec.reserve(N);
-        for (int i = 0; i < N; ++i) {
-            std::string s = "String number " + std::to_string(i);
-            vec.push_back(s);  // 拷贝
+    constexpr std::size_t itemCount = 2'000;
+    constexpr std::size_t payloadBytes = 4'096;
+    constexpr std::size_t repeats = 7;
+    const std::vector<std::string> source(
+        itemCount, std::string(payloadBytes, 'x'));
+
+    // 预热分配器和代码路径；正式样本交替先测拷贝/先测移动，减小固定顺序偏差。
+    static_cast<void>(measureStringTransfer(source, false));
+    static_cast<void>(measureStringTransfer(source, true));
+    std::vector<BenchmarkDuration> copySamples;
+    std::vector<BenchmarkDuration> moveSamples;
+    copySamples.reserve(repeats);
+    moveSamples.reserve(repeats);
+    for (std::size_t repeat = 0; repeat < repeats; ++repeat) {
+        if (repeat % 2U == 0U) {
+            copySamples.push_back(measureStringTransfer(source, false));
+            moveSamples.push_back(measureStringTransfer(source, true));
+        } else {
+            moveSamples.push_back(measureStringTransfer(source, true));
+            copySamples.push_back(measureStringTransfer(source, false));
         }
     }
-    auto end = std::chrono::high_resolution_clock::now();
-    auto copyTime = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    
-    // 测试移动方式
-    start = std::chrono::high_resolution_clock::now();
-    {
-        std::vector<std::string> vec;
-        vec.reserve(N);
-        for (int i = 0; i < N; ++i) {
-            std::string s = "String number " + std::to_string(i);
-            vec.push_back(std::move(s));  // 移动
-        }
+
+    const BenchmarkDuration copyTime = median(std::move(copySamples));
+    const BenchmarkDuration moveTime = median(std::move(moveSamples));
+    const auto toMilliseconds = [](BenchmarkDuration duration) {
+        return std::chrono::duration<double, std::milli>(duration).count();
+    };
+
+    std::cout << "每条路径都处理 " << itemCount << " 个、每个 " << payloadBytes
+              << " 字节的字符串；源数据构造和目标 reserve 不计时。" << std::endl;
+    std::cout << "预热后交替测量 " << repeats << " 次并取中位数。" << std::endl;
+    std::cout << "拷贝 push_back 中位数: " << toMilliseconds(copyTime) << " ms" << std::endl;
+    std::cout << "移动 push_back 中位数: " << toMilliseconds(moveTime) << " ms" << std::endl;
+    if (moveTime.count() > 0) {
+        const double ratio = static_cast<double>(copyTime.count()) /
+                             static_cast<double>(moveTime.count());
+        std::cout << "本次测量的耗时比(拷贝/移动): " << ratio << std::endl;
+    } else {
+        std::cout << "本次移动测量低于计时器分辨率，无法计算耗时比" << std::endl;
     }
-    end = std::chrono::high_resolution_clock::now();
-    auto moveTime = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    
-    std::cout << "拷贝方式耗时: " << copyTime << " 微秒" << std::endl;
-    std::cout << "移动方式耗时: " << moveTime << " 微秒" << std::endl;
-    std::cout << "性能提升: " << (double)copyTime / moveTime << " 倍" << std::endl;
+    std::cout << "benchmarkSink=" << moveBenchmarkSink
+              << " 防止整个结果被删除；数字仍只适用于当前实现、编译选项和机器。"
+              << std::endl;
+    std::cout << "提示：长负载避免让实验主要测到常见SSO短字符串路径，"
+                 "但移动是否存在、成本多高仍必须按具体类型判断。" << std::endl;
 }
 
 // ============================================================
@@ -324,4 +381,41 @@ void run_move_semantics_demo() {
     demonstrateMoveSemantics();
     demonstrateVectorMove();
     demonstratePerformance();
+}
+
+bool verify_move_semantics_contract() {
+    MyString::resetStats();
+    MoveSemanticsThrowingStreamBuffer throwingBuffer;
+    std::streambuf* const originalBuffer = std::cout.rdbuf(&throwingBuffer);
+    const std::ios::iostate originalExceptions = std::cout.exceptions();
+    std::cout.exceptions(std::ios::badbit | std::ios::failbit);
+
+    bool passed = false;
+    try {
+        MyString original("contract");
+        MyString copied(original);
+        MyString assigned("old");
+        assigned = original;
+        MyString moved(std::move(original));
+
+        const bool valuesPreserved = std::string(copied.c_str()) == "contract" &&
+                                     std::string(assigned.c_str()) == "contract" &&
+                                     std::string(moved.c_str()) == "contract";
+        const bool countsObserved = MyString::copyCount() == 2 &&
+                                    MyString::moveCount() == 1;
+        const bool movedFromContract = original.empty() &&
+                                       std::string(original.c_str()).empty();
+
+        original = MyString("reused");
+        const bool reusable = std::string(original.c_str()) == "reused";
+        passed = valuesPreserved && countsObserved && movedFromContract && reusable;
+    } catch (...) {
+        passed = false;
+    }
+
+    std::cout.exceptions(std::ios::goodbit);
+    std::cout.clear();
+    std::cout.rdbuf(originalBuffer);
+    std::cout.exceptions(originalExceptions);
+    return passed;
 }

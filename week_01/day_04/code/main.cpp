@@ -17,8 +17,8 @@ void run_nullptr_demo();
 void run_nullptr_vs_null();
 void run_nullptr_overload();
 void run_item08_demo();
-void run_leetcode11_tests();
-void run_leetcode15_tests();
+namespace leetcode_0011 { bool run_tests(); }
+namespace leetcode_0015 { bool run_tests(); }
 
 // 打印分隔线
 void print_separator(const std::string& title) {
@@ -66,11 +66,11 @@ int main() {
 
     // Part 5: LeetCode 11 测试
     print_separator("Part 5: LeetCode 11 - 盛最多水的容器");
-    run_leetcode11_tests();
+    const bool leetcode11_passed = leetcode_0011::run_tests();
 
     // Part 6: LeetCode 15 测试
     print_separator("Part 6: LeetCode 15 - 三数之和");
-    run_leetcode15_tests();
+    const bool leetcode15_passed = leetcode_0015::run_tests();
 
     std::cout << "\n";
     std::cout << "╔══════════════════════════════════════════════════════════════╗\n";
@@ -78,5 +78,5 @@ int main() {
     std::cout << "╚══════════════════════════════════════════════════════════════╝\n";
     std::cout << "\n";
 
-    return 0;
+    return (leetcode11_passed && leetcode15_passed) ? 0 : 1;
 }

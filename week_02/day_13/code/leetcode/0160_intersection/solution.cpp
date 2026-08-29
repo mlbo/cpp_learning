@@ -6,6 +6,8 @@
 #include "solution.h"
 #include <unordered_set>
 
+namespace leetcode_0160 {
+
 // ============================================
 // 方法一：双指针交叉遍历（推荐）
 // ============================================
@@ -104,3 +106,5 @@ ListNode* Solution160::getIntersectionNodeByHash(ListNode* headA, ListNode* head
     
     return nullptr;  // 没有交点
 }
+
+} // namespace leetcode_0160

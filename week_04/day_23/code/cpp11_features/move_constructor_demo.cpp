@@ -4,13 +4,29 @@
  * 
  * 本文件演示：
  * 1. 规则五（Rule of Five）的实现
- * 2. noexcept 关键字的重要性
+ * 2. noexcept 契约及其对容器迁移选择的影响
  * 3. 移动操作的最佳实践
  */
 
 #include <iostream>
 #include <utility>
 #include <algorithm>
+#include <stdexcept>
+#include <streambuf>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+namespace {
+
+class BufferThrowingStreamBuffer : public std::streambuf {
+protected:
+    int_type overflow(int_type) override {
+        throw std::runtime_error("injected output failure");
+    }
+};
+
+} // namespace
 
 // ============================================================
 // 资源管理类 - 完整实现 Rule of Five
@@ -24,26 +40,17 @@ private:
 
 public:
     // 1. 默认构造函数
-    Buffer() : data_(nullptr), size_(0), name_("unnamed") {
-        std::cout << "  [默认构造] " << name_ << ": 空缓冲区" << std::endl;
-    }
+    Buffer() : data_(nullptr), size_(0), name_("unnamed") {}
     
     // 带大小的构造函数
     explicit Buffer(size_t size, const char* name = "buffer")
         : data_(size > 0 ? new int[size]{} : nullptr)
         , size_(size)
-        , name_(name) {
-        std::cout << "  [构造] " << name_ << ": 分配 " << size_ << " 个元素" << std::endl;
-    }
+        , name_(name) {}
     
     // 2. 析构函数
     ~Buffer() {
-        if (data_) {
-            std::cout << "  [析构] " << name_ << ": 释放 " << size_ << " 个元素" << std::endl;
-            delete[] data_;
-        } else {
-            std::cout << "  [析构] " << name_ << ": 空缓冲区" << std::endl;
-        }
+        delete[] data_;
     }
     
     // 3. 拷贝构造函数
@@ -54,43 +61,35 @@ public:
         if (data_) {
             std::copy(other.data_, other.data_ + size_, data_);
         }
-        std::cout << "  [拷贝构造] 从 " << other.name_ 
-                  << " 复制 " << size_ << " 个元素" << std::endl;
     }
     
     // 4. 拷贝赋值运算符
     Buffer& operator=(const Buffer& other) {
         if (this != &other) {
-            // 先释放原有资源
-            delete[] data_;
-            
-            // 分配新资源并复制
-            size_ = other.size_;
-            data_ = size_ > 0 ? new int[size_] : nullptr;
-            if (data_) {
-                std::copy(other.data_, other.data_ + size_, data_);
+            // 先分配并复制，再替换旧指针；new 失败时当前对象保持原值。
+            int* replacement = other.size_ > 0 ? new int[other.size_] : nullptr;
+            if (replacement) {
+                std::copy(other.data_, other.data_ + other.size_, replacement);
             }
+            delete[] data_;
+            data_ = replacement;
+            size_ = other.size_;
             name_ = "copy_assigned";
-            
-            std::cout << "  [拷贝赋值] 从 " << other.name_
-                      << " 复制 " << size_ << " 个元素" << std::endl;
         }
         return *this;
     }
     
     // 5. 移动构造函数 - 核心重点
-    // noexcept 声明非常重要！它影响容器的行为
+    // 本实现只转交指针和整数，因此可以诚实承诺 noexcept。
     Buffer(Buffer&& other) noexcept
         : data_(other.data_)
         , size_(other.size_)
         , name_("moved") {
-        // 关键：源对象置空
+        // 本类型选择用空缓冲区作为 moved-from 契约；标准并不要求所有类型置空。
         other.data_ = nullptr;
         other.size_ = 0;
         other.name_ = "moved_from";
         
-        std::cout << "  [移动构造] 从 " << other.name_ 
-                  << " 移动资源（" << size_ << " 个元素）" << std::endl;
     }
     
     // 6. 移动赋值运算符
@@ -104,20 +103,18 @@ public:
             size_ = other.size_;
             name_ = "move_assigned";
             
-            // 源对象置空
+            // 恢复本类型约定的空缓冲区状态。
             other.data_ = nullptr;
             other.size_ = 0;
             other.name_ = "moved_from";
             
-            std::cout << "  [移动赋值] 从 " << other.name_
-                      << " 移动资源（" << size_ << " 个元素）" << std::endl;
         }
         return *this;
     }
     
     // 辅助方法
     size_t size() const { return size_; }
-    bool valid() const { return data_ != nullptr; }
+    bool hasData() const { return data_ != nullptr; }
     const char* name() const { return name_; }
     
     // 设置元素值
@@ -141,6 +138,8 @@ void demonstrateMoveConstructor() {
     std::cout << "\n" << std::string(60, '=') << std::endl;
     std::cout << "移动构造函数演示" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
+    std::cout << "特殊成员只维护所有权；调用点输出操作前后状态，"
+                 "因此流异常不会造成构造泄漏或提交后再抛出。" << std::endl;
     
     // -------------------------------------------------------
     // 演示 1：移动构造
@@ -156,12 +155,12 @@ void demonstrateMoveConstructor() {
     Buffer buf2 = std::move(buf1);
     
     std::cout << "\n移动后状态:" << std::endl;
-    std::cout << "  buf1: " << (buf1.valid() ? "有效" : "无效") 
+    std::cout << "  buf1: " << (buf1.hasData() ? "持有数据" : "空但仍是有效对象")
               << ", 名称: " << buf1.name() << std::endl;
-    std::cout << "  buf2: " << (buf2.valid() ? "有效" : "无效")
+    std::cout << "  buf2: " << (buf2.hasData() ? "持有数据" : "空缓冲区")
               << ", 名称: " << buf2.name() << std::endl;
     
-    if (buf2.valid()) {
+    if (buf2.hasData()) {
         std::cout << "  buf2 数据: ";
         for (size_t i = 0; i < buf2.size(); ++i) {
             std::cout << buf2.get(i) << " ";
@@ -196,7 +195,7 @@ void demonstrateMoveConstructor() {
     std::cout << "尝试自移动: buf5 = std::move(buf5)" << std::endl;
     buf5 = std::move(buf5);  // 自赋值，应该被检测并跳过
     
-    std::cout << "  buf5 仍然有效: " << (buf5.valid() ? "是" : "否") << std::endl;
+    std::cout << "  buf5 仍持有数据: " << (buf5.hasData() ? "是" : "否") << std::endl;
 }
 
 // ============================================================
@@ -209,28 +208,29 @@ void demonstrateNoexcept() {
     std::cout << std::string(60, '=') << std::endl;
     
     std::cout << R"(
-为什么移动构造函数应该标记为 noexcept？
+什么时候移动操作应该标记为 noexcept？
 
-1. 容器优化：
-   - std::vector 扩容时，如果移动构造函数是 noexcept，
-     会使用移动而非拷贝
-   - 这可以显著提升性能
+1. 先保证契约真实：
+   - 只有实现及其成员移动都确实不会抛异常时，才能承诺 noexcept
+   - 可能抛出却标记 noexcept，会在异常逸出时调用 std::terminate
 
-2. 强异常保证：
-   - 如果移动构造抛出异常，可能导致数据丢失
-   - noexcept 表示"不会失败"，是重要的契约
+2. 容器迁移选择：
+   - vector 等容器重新分配时需要维护异常保证
+   - 当移动可能抛异常且拷贝可用时，容器可能选择拷贝旧元素
+   - 若拷贝不可用，容器仍可能使用可抛移动；具体保证取决于操作与类型
 
-3. 标准库要求：
-   - 许多标准库算法和容器要求移动操作不抛出异常
-   - 例如 std::vector::reserve 对类型的要求
+3. 性能是正确契约的结果：
+   - 正确的 noexcept 信息能帮助标准库选择更合适的迁移路径
+   - noexcept(false) 不是“不推荐”，而是对可能抛异常实现的诚实描述
 
 代码示例：
-  // 推荐：标记为 noexcept
+  // Buffer 只转交裸指针，可以诚实承诺不抛异常
   Buffer(Buffer&& other) noexcept;
   Buffer& operator=(Buffer&& other) noexcept;
-  
-  // 不推荐：可能抛出异常的移动操作
-  // Buffer(Buffer&& other);  // 缺少 noexcept
+
+  // 若成员移动可能抛异常，应省略 noexcept 或使用条件 noexcept
+  Wrapper(Wrapper&& other)
+      noexcept(std::is_nothrow_move_constructible_v<Member>);
 )" << std::endl;
     
     // 使用 static_assert 检查
@@ -243,8 +243,31 @@ void demonstrateNoexcept() {
 }
 
 // ============================================================
-// Rule of Five 总结
+// Rule of Zero 与 Rule of Five 总结
 // ============================================================
+
+class ProjectRecord {
+public:
+    ProjectRecord(std::string name, std::vector<int> samples)
+        : name_(std::move(name)), samples_(std::move(samples)) {}
+
+private:
+    std::string name_;
+    std::vector<int> samples_;
+};
+
+void explainRuleOfZero() {
+    static_assert(std::is_copy_constructible_v<ProjectRecord>);
+    static_assert(std::is_move_constructible_v<ProjectRecord>);
+    std::cout << "\n" << std::string(60, '=') << std::endl;
+    std::cout << "先学 Rule of Zero（零规则）" << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << R"(
+普通业务类优先把资源交给 string、vector、unique_ptr 等成员管理。
+这样通常无需手写析构、复制或移动，编译器生成的特殊成员会组合成员的正确行为。
+只有像下面的 Buffer 一样直接拥有裸资源并定义释放策略时，才进入 Rule of Five。
+)" << std::endl;
+}
 
 void explainRuleOfFive() {
     std::cout << "\n" << std::string(60, '=') << std::endl;
@@ -269,19 +292,19 @@ void explainRuleOfFive() {
 
 4. 移动构造函数 (Move Constructor)
    - 窃取资源
-   - 格式: T(T&& other) noexcept
-   - 必须将源对象置空
+   - 格式: T(T&& other)，只有确实不抛时才加 noexcept
+   - 必须让源对象满足该类型的 moved-from 契约；置空只是常见选择
 
 5. 移动赋值运算符 (Move Assignment Operator)
    - 窃取资源并释放旧资源
-   - 格式: T& operator=(T&& other) noexcept
-   - 必须将源对象置空
+   - 格式: T& operator=(T&& other)，只有确实不抛时才加 noexcept
+   - 必须让源对象保持有效；不要求所有类型都为空
 
 最佳实践：
 - 使用 = default 显式要求编译器生成默认实现
 - 使用 = delete 禁止拷贝或移动
-- 移动操作应标记为 noexcept
-- 移动后的对象应处于"有效但未定义"状态
+- 只有确实不会抛异常时，移动操作才应标记为 noexcept
+- 标准库对象移动后通常有效但状态未指定；类型可额外承诺更具体状态
 )" << std::endl;
 }
 
@@ -340,7 +363,43 @@ private:
  * @brief 移动构造函数演示入口函数
  */
 void run_move_constructor_demo() {
+    explainRuleOfZero();
     demonstrateMoveConstructor();
     demonstrateNoexcept();
     explainRuleOfFive();
+}
+
+bool verify_buffer_contract() {
+    static_assert(std::is_nothrow_move_constructible_v<Buffer>);
+    BufferThrowingStreamBuffer throwingBuffer;
+    std::streambuf* const originalBuffer = std::cout.rdbuf(&throwingBuffer);
+    const std::ios::iostate originalExceptions = std::cout.exceptions();
+    std::cout.exceptions(std::ios::badbit | std::ios::failbit);
+
+    bool passed = false;
+    try {
+        Buffer source(3, "test_source");
+        source.set(0, 7);
+        source.set(1, 8);
+        source.set(2, 9);
+
+        Buffer copied(1, "test_target");
+        copied = source;
+        const bool copiedData = copied.size() == 3 && copied.get(0) == 7 &&
+                                copied.get(2) == 9;
+
+        Buffer moved(std::move(source));
+        const bool movedData = moved.size() == 3 && moved.get(1) == 8;
+        const bool sourceContract = source.size() == 0 && !source.hasData();
+        source = Buffer(1, "reused_source");
+        passed = copiedData && movedData && sourceContract && source.size() == 1;
+    } catch (...) {
+        passed = false;
+    }
+
+    std::cout.exceptions(std::ios::goodbit);
+    std::cout.clear();
+    std::cout.rdbuf(originalBuffer);
+    std::cout.exceptions(originalExceptions);
+    return passed;
 }

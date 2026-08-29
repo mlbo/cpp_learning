@@ -11,34 +11,35 @@
 #include <stack>
 #include <algorithm>
 
-int Solution::largestRectangleArea(std::vector<int>& heights) {
-    std::stack<int> stk;
+namespace leetcode_0084 {
+
+int Solution::largestRectangleArea(const std::vector<int>& heights) {
+    std::stack<std::size_t> stk;
     int maxArea = 0;
-    
-    // 在末尾添加高度为0的柱子，确保所有柱子都能被处理
-    heights.push_back(0);
-    
-    for (int i = 0; i < heights.size(); ++i) {
+
+    // i == heights.size()时使用虚拟的0高度哨兵，不修改调用者的输入。
+    for (std::size_t i = 0; i <= heights.size(); ++i) {
+        const int currentHeight = (i == heights.size()) ? 0 : heights[i];
+
         // 当当前高度小于栈顶高度时，可以计算以栈顶为高度的矩形面积
-        while (!stk.empty() && heights[i] < heights[stk.top()]) {
-            int h = heights[stk.top()];
+        while (!stk.empty() && currentHeight < heights[stk.top()]) {
+            const int h = heights[stk.top()];
             stk.pop();
-            
-            // 左边界：栈顶（弹出后）的位置
-            // 如果栈空，左边界是-1
-            int left = stk.empty() ? -1 : stk.top();
-            int width = i - left - 1;
-            
-            maxArea = std::max(maxArea, h * width);
+
+            // 弹出后，新栈顶是左侧第一个严格更矮的位置；i是右侧边界。
+            const std::size_t width = stk.empty() ? i : i - stk.top() - 1;
+            maxArea = std::max(maxArea, h * static_cast<int>(width));
         }
         stk.push(i);
     }
-    
+
     return maxArea;
 }
 
+} // namespace leetcode_0084
+
 void testLargestRectangle() {
-    Solution sol;
+    leetcode_0084::Solution sol;
     
     std::cout << "LeetCode 84. 柱状图中最大的矩形 测试结果：" << std::endl;
     

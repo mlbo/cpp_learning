@@ -1,5 +1,7 @@
 # LeetCode 232. 用栈实现队列
 
+> **文档职责**：[Day 16 主文](../../../README.md#day16-queue-adaptor) 讲 `std::queue` 的底层容器契约；本文只负责 LC 232 的状态不变量、均摊证明与空队列边界。形象化手算可配合 [栈队列专题指南](../../../../栈队列专题形象化题解指南.md) 阅读。
+
 ## 题目描述
 
 请你仅使用两个栈实现一个先入先出（FIFO）的队列，并支持队列的四种操作：
@@ -92,10 +94,12 @@ myQueue.empty(); // return false
 
 **栈是 LIFO（后进先出），队列是 FIFO（先进先出）**
 
-关键洞察：**两次栈操作 = 一次队列操作**
+关键洞察：**两次反转可以恢复顺序，但转移只在出队栈为空时发生**
 
 - 第一次入栈：顺序变反
-- 第二次入栈：顺序再变反 = 恢复原顺序！
+- 第二次入栈：顺序再变反 = 恢复原顺序
+
+这里不是说“每次队列操作固定对应两次栈操作”。一次 `pop()` 可能触发很多元素的转移，单次最坏是 O(n)；只是同一个元素不会被反复转移，所以一串操作的总成本仍是线性的。
 
 ### 算法步骤
 
@@ -133,6 +137,9 @@ public:
         if (outStack_.empty()) {
             transfer();
         }
+        if (outStack_.empty()) {
+            throw std::underflow_error("不能从空队列弹出元素");
+        }
         int result = outStack_.top();
         outStack_.pop();
         return result;
@@ -142,10 +149,13 @@ public:
         if (outStack_.empty()) {
             transfer();
         }
+        if (outStack_.empty()) {
+            throw std::underflow_error("空队列没有队首元素");
+        }
         return outStack_.top();
     }
     
-    bool empty() {
+    bool empty() const noexcept {
         return inStack_.empty() && outStack_.empty();
     }
 };
@@ -172,6 +182,8 @@ public:
 
 所以 n 个元素的总操作次数 = O(n)，均摊每次操作 = O(1)
 
+更精确地说，`pop/peek` 的**单次最坏复杂度**是 O(n)，**均摊复杂度**才是 O(1)。状态不变量是：`outStack` 非空时，其栈顶就是当前队首；只有它为空时，才把 `inStack` 整体转移。否则新入队元素会越过还没出队的旧元素。
+
 ---
 
 ## 关键点
@@ -180,6 +192,8 @@ public:
 2. **两个栈的分工**：入队栈负责接收，出队栈负责弹出
 3. **均摊分析**：理解为什么均摊复杂度是 O(1)
 4. **边界情况**：出队栈为空时需要转移
+
+LeetCode 题面保证 `pop/peek` 不会作用于空队列，但仓库公开类把这一前置条件提升成可测试契约：非法调用抛 `std::underflow_error`。不要先读 `top()` 再判空；访问空栈顶属于不满足标准库前置条件，不是“返回一个未知值”的普通失败。
 
 ---
 
@@ -193,6 +207,8 @@ public:
 ## 运行测试
 
 ```bash
-cd build
-./test_leetcode232
+# 在 week_03/day_16 目录执行
+cmake -S . -B /tmp/day16-build -DCMAKE_BUILD_TYPE=Release
+cmake --build /tmp/day16-build --target day16_lc232_tests
+ctest --test-dir /tmp/day16-build -R day16_lc232_detailed --output-on-failure
 ```

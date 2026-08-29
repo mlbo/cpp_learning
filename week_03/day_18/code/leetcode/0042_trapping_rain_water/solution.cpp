@@ -10,32 +10,38 @@
 #include <stack>
 #include <algorithm>
 
+namespace leetcode_0042 {
+namespace {
+
 // 方法1：单调栈
-int trapStack(std::vector<int>& height) {
-    std::stack<int> stk;
+int trapStack(const std::vector<int>& height) {
+    std::stack<std::size_t> stk;
     int water = 0;
-    
-    for (int i = 0; i < height.size(); ++i) {
+
+    for (std::size_t i = 0; i < height.size(); ++i) {
         while (!stk.empty() && height[i] > height[stk.top()]) {
-            int mid = stk.top();
+            const std::size_t mid = stk.top();
             stk.pop();
-            
+
             if (stk.empty()) break;
-            
-            int left = stk.top();
-            int h = std::min(height[left], height[i]) - height[mid];
-            int w = i - left - 1;
-            water += h * w;
+
+            const std::size_t left = stk.top();
+            const int boundedHeight = std::min(height[left], height[i]) - height[mid];
+            const std::size_t width = i - left - 1;
+            water += boundedHeight * static_cast<int>(width);
         }
         stk.push(i);
     }
-    
+
     return water;
 }
 
 // 方法2：双指针
-int trapTwoPointers(std::vector<int>& height) {
-    int left = 0, right = height.size() - 1;
+int trapTwoPointers(const std::vector<int>& height) {
+    if (height.empty()) return 0;
+
+    std::size_t left = 0;
+    std::size_t right = height.size() - 1;
     int leftMax = 0, rightMax = 0;
     int water = 0;
     
@@ -46,26 +52,30 @@ int trapTwoPointers(std::vector<int>& height) {
             } else {
                 water += leftMax - height[left];
             }
-            left++;
+            ++left;
         } else {
             if (height[right] >= rightMax) {
                 rightMax = height[right];
             } else {
                 water += rightMax - height[right];
             }
-            right--;
+            --right;
         }
     }
     
     return water;
 }
 
-int Solution::trap(std::vector<int>& height) {
+} // namespace
+
+int Solution::trap(const std::vector<int>& height) {
     return trapStack(height);
 }
 
+} // namespace leetcode_0042
+
 void testTrap() {
-    Solution sol;
+    leetcode_0042::Solution sol;
     
     std::cout << "LeetCode 42. 接雨水 测试结果：" << std::endl;
     
@@ -93,5 +103,6 @@ void testTrap() {
     
     // 比较两种方法
     std::vector<int> height3 = {0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1};
-    std::cout << "\n  双指针法结果: " << trapTwoPointers(height3) << std::endl;
+    std::cout << "\n  双指针法结果: "
+              << leetcode_0042::trapTwoPointers(height3) << std::endl;
 }

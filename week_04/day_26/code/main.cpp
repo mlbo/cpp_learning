@@ -7,9 +7,8 @@
 #include "data_structure/cpu_cache_demo.h"
 #include "data_structure/memory_alignment_demo.h"
 #include "data_structure/cache_friendly_demo.h"
-
-void testLongestPalindrome();
-void testPalindromicSubstrings();
+#include "leetcode/0005_longest_palindrome/solution.h"
+#include "leetcode/0647_palindromic_substrings/solution.h"
 
 int main() {
     std::cout << "========================================" << std::endl;
@@ -40,9 +39,9 @@ int main() {
     std::cout << "  Day 26 学习完成！" << std::endl;
     std::cout << "  核心要点：" << std::endl;
     std::cout << "  - CPU缓存分层：L1/L2/L3" << std::endl;
-    std::cout << "  - 缓存行大小：通常64字节" << std::endl;
-    std::cout << "  - 内存对齐提升访问效率" << std::endl;
-    std::cout << "  - 缓存友好编程：连续访问优先" << std::endl;
+    std::cout << "  - 缓存参数依具体处理器而变，64字节仅是本日实验值" << std::endl;
+    std::cout << "  - 对齐必须同时满足语言对象生命周期规则" << std::endl;
+    std::cout << "  - 缓存优化结论需要Release、等量工作和重复测量" << std::endl;
     std::cout << "========================================" << std::endl;
 
     return 0;

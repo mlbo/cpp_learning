@@ -9,7 +9,10 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
-#include <climits>
+#include <cstdint>
+#include <deque>
+#include <limits>
+#include <stdexcept>
 
 using namespace std;
 
@@ -58,25 +61,26 @@ void demonstrateBasicFramework() {
  * LeetCode 3: 无重复字符的最长子串
  * 给定字符串，找出不含有重复字符的最长子串长度
  */
-int lengthOfLongestSubstring(const string& s) {
+size_t lengthOfLongestSubstring(const string& s) {
     // 使用哈希集合记录窗口中的字符
     unordered_set<char> window;
-    int left = 0, maxLen = 0;
+    size_t left = 0;
+    size_t maxLen = 0;
     
-    for (int right = 0; right < (int)s.size(); right++) {
-        char c = s[right];
+    for (size_t right = 0; right < s.size(); ++right) {
+        const char c = s[right];
         
         // 如果字符已在窗口中，收缩左边界直到无重复
         while (window.count(c)) {
             window.erase(s[left]);
-            left++;
+            ++left;
         }
         
         // 加入新字符
         window.insert(c);
         
         // 更新最大长度
-        maxLen = max(maxLen, right - left + 1);
+        maxLen = max(maxLen, right - left + 1U);
     }
     
     return maxLen;
@@ -106,28 +110,29 @@ void demoLongestSubstring() {
         
         // 详细演示过程
         unordered_set<char> window;
-        int left = 0;
-        int maxLen = 0, maxStart = 0;
+        size_t left = 0;
+        size_t maxLen = 0;
+        size_t maxStart = 0;
         
         cout << "滑动过程:" << endl;
-        for (int right = 0; right < (int)s.size(); right++) {
-            char c = s[right];
+        for (size_t right = 0; right < s.size(); ++right) {
+            const char c = s[right];
             
             while (window.count(c)) {
                 window.erase(s[left]);
-                left++;
+                ++left;
             }
             
             window.insert(c);
             
-            if (right - left + 1 > maxLen) {
-                maxLen = right - left + 1;
+            if (right - left + 1U > maxLen) {
+                maxLen = right - left + 1U;
                 maxStart = left;
             }
             
             cout << "  right=" << right << " ('" << c << "'), ";
             cout << "窗口: [" << left << "," << right << "] = \"";
-            cout << s.substr(left, right - left + 1) << "\"" << endl;
+            cout << s.substr(left, right - left + 1U) << "\"" << endl;
         }
         
         cout << "最长无重复子串: \"" << s.substr(maxStart, maxLen) << "\"" << endl;
@@ -141,22 +146,47 @@ void demoLongestSubstring() {
  * LeetCode 209: 长度最小的子数组
  * 给定正整数数组和正整数s，找出和≥s的最小连续子数组长度
  */
-int minSubArrayLen(int target, const vector<int>& nums) {
-    int left = 0, sum = 0;
-    int minLen = INT_MAX;
+size_t minSubArrayLen(int target, const vector<int>& nums) {
+    if (target <= 0) {
+        throw invalid_argument("最小长度正数窗口要求 target > 0");
+    }
+    if (any_of(nums.begin(), nums.end(), [](int value) { return value <= 0; })) {
+        throw invalid_argument("最小长度正数窗口要求数组元素全部大于 0");
+    }
+
+    size_t left = 0;
+    std::int64_t sum = 0;
+    size_t minLen = numeric_limits<size_t>::max();
     
-    for (int right = 0; right < (int)nums.size(); right++) {
+    for (size_t right = 0; right < nums.size(); ++right) {
         sum += nums[right];
         
         // 当和>=target时，尝试收缩窗口
         while (sum >= target) {
-            minLen = min(minLen, right - left + 1);
+            minLen = min(minLen, right - left + 1U);
             sum -= nums[left];
-            left++;
+            ++left;
         }
     }
     
-    return minLen == INT_MAX ? 0 : minLen;
+    return minLen == numeric_limits<size_t>::max() ? 0U : minLen;
+}
+
+bool verifyMinSubArrayInputContract() {
+    bool rejectedTarget = false;
+    bool rejectedElement = false;
+    try {
+        static_cast<void>(minSubArrayLen(0, {1, 2, 3}));
+    } catch (const invalid_argument&) {
+        rejectedTarget = true;
+    }
+    try {
+        static_cast<void>(minSubArrayLen(3, {1, -1, 3}));
+    } catch (const invalid_argument&) {
+        rejectedElement = true;
+    }
+    return rejectedTarget && rejectedElement &&
+           minSubArrayLen(7, {2, 3, 1, 2, 4, 3}) == 2;
 }
 
 void demoMinSubArrayLen() {
@@ -185,17 +215,18 @@ void demoMinSubArrayLen() {
     cout << "target: " << target << endl;
     
     // 详细演示过程
-    int left = 0, sum = 0;
-    int minLen = INT_MAX;
+    size_t left = 0;
+    std::int64_t sum = 0;
+    size_t minLen = numeric_limits<size_t>::max();
     
     cout << "\n滑动过程:" << endl;
-    for (int right = 0; right < (int)nums.size(); right++) {
+    for (size_t right = 0; right < nums.size(); ++right) {
         sum += nums[right];
         
         cout << "  right=" << right << " (+" << nums[right] << "), sum=" << sum;
         
         while (sum >= target) {
-            int len = right - left + 1;
+            const size_t len = right - left + 1U;
             cout << " -> 满足条件！长度=" << len;
             
             if (len < minLen) {
@@ -204,13 +235,14 @@ void demoMinSubArrayLen() {
             }
             
             sum -= nums[left];
-            left++;
+            ++left;
             cout << ", 收缩后sum=" << sum;
         }
         cout << endl;
     }
     
-    cout << "\n最小长度: " << (minLen == INT_MAX ? 0 : minLen) << endl;
+    cout << "\n最小长度: "
+         << (minLen == numeric_limits<size_t>::max() ? 0U : minLen) << endl;
 }
 
 // ==================== 经典题目3：至多包含K个不同字符的子串 ====================
@@ -219,13 +251,18 @@ void demoMinSubArrayLen() {
  * LeetCode 340: 至多包含K个不同字符的最长子串
  * 给定字符串和整数k，找出至多包含k个不同字符的最长子串长度
  */
-int lengthOfLongestSubstringKDistinct(const string& s, int k) {
+size_t lengthOfLongestSubstringKDistinct(const string& s, int k) {
+    if (k <= 0) {
+        return 0;
+    }
     unordered_map<char, int> charCount;  // 字符计数
-    int left = 0, maxLen = 0;
-    int distinct = 0;  // 不同字符数量
+    size_t left = 0;
+    size_t maxLen = 0;
+    size_t distinct = 0;  // 不同字符数量
+    const size_t distinctLimit = static_cast<size_t>(k);
     
-    for (int right = 0; right < (int)s.size(); right++) {
-        char c = s[right];
+    for (size_t right = 0; right < s.size(); ++right) {
+        const char c = s[right];
         
         if (charCount[c] == 0) {
             distinct++;
@@ -233,16 +270,16 @@ int lengthOfLongestSubstringKDistinct(const string& s, int k) {
         charCount[c]++;
         
         // 当不同字符超过k时收缩
-        while (distinct > k) {
-            char d = s[left];
+        while (distinct > distinctLimit) {
+            const char d = s[left];
             charCount[d]--;
             if (charCount[d] == 0) {
                 distinct--;
             }
-            left++;
+            ++left;
         }
         
-        maxLen = max(maxLen, right - left + 1);
+        maxLen = max(maxLen, right - left + 1U);
     }
     
     return maxLen;
@@ -268,29 +305,32 @@ void demoKDistinct() {
     cout << "k: " << k << endl;
     
     unordered_map<char, int> charCount;
-    int left = 0, maxLen = 0, maxStart = 0;
-    int distinct = 0;
+    size_t left = 0;
+    size_t maxLen = 0;
+    size_t maxStart = 0;
+    size_t distinct = 0;
+    const size_t distinctLimit = static_cast<size_t>(k);
     
     cout << "\n滑动过程:" << endl;
-    for (int right = 0; right < (int)s.size(); right++) {
-        char c = s[right];
+    for (size_t right = 0; right < s.size(); ++right) {
+        const char c = s[right];
         
         if (charCount[c] == 0) distinct++;
         charCount[c]++;
         
-        while (distinct > k) {
-            char d = s[left];
+        while (distinct > distinctLimit) {
+            const char d = s[left];
             charCount[d]--;
             if (charCount[d] == 0) distinct--;
-            left++;
+            ++left;
         }
         
         cout << "  right=" << right << " ('" << c << "'), ";
         cout << "distinct=" << distinct << ", ";
-        cout << "窗口: \"" << s.substr(left, right - left + 1) << "\"" << endl;
+        cout << "窗口: \"" << s.substr(left, right - left + 1U) << "\"" << endl;
         
-        if (right - left + 1 > maxLen) {
-            maxLen = right - left + 1;
+        if (right - left + 1U > maxLen) {
+            maxLen = right - left + 1U;
             maxStart = left;
         }
     }
@@ -316,7 +356,7 @@ void demoFixedWindow() {
 )" << endl;
     
     vector<int> nums = {1, 3, -1, -3, 5, 3, 6, 7};
-    int k = 3;
+    const size_t k = 3;
     
     cout << "数组: [";
     for (size_t i = 0; i < nums.size(); i++) {
@@ -330,12 +370,12 @@ void demoFixedWindow() {
     
     // 使用双端队列求解滑动窗口最大值
     vector<int> result;
-    vector<int> dq;  // 存储下标
+    deque<size_t> dq;  // 存储下标；队首可 O(1) 弹出
     
-    for (int i = 0; i < (int)nums.size(); i++) {
+    for (size_t i = 0; i < nums.size(); ++i) {
         // 移除超出窗口的元素
-        while (!dq.empty() && dq.front() <= i - k) {
-            dq.erase(dq.begin());
+        while (!dq.empty() && dq.front() + k <= i) {
+            dq.pop_front();
         }
         
         // 移除比当前元素小的元素（它们不可能是最大值）
@@ -345,9 +385,10 @@ void demoFixedWindow() {
         
         dq.push_back(i);
         
-        if (i >= k - 1) {
+        if (i + 1U >= k) {
             result.push_back(nums[dq.front()]);
-            cout << "  窗口 [" << i - k + 1 << "," << i << "]: 最大值=" << nums[dq.front()] << endl;
+            cout << "  窗口 [" << i + 1U - k << "," << i
+                 << "]: 最大值=" << nums[dq.front()] << endl;
         }
     }
 }
@@ -395,6 +436,12 @@ int main() {
 ║       滑动窗口算法演示                 ║
 ╚════════════════════════════════════════╝
 )" << endl;
+
+    if (!verifyMinSubArrayInputContract()) {
+        cerr << "滑动窗口输入契约验证失败" << endl;
+        return 1;
+    }
+    cout << "正数窗口输入契约验证通过" << endl;
 
     demonstrateBasicFramework();
     demoLongestSubstring();

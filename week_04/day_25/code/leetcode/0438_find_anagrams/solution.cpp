@@ -20,132 +20,117 @@
  * 空间复杂度：O(1)，固定大小的计数数组
  */
 
+#include "solution.h"
+
 #include <iostream>
-#include <string>
-#include <vector>
 #include <algorithm>
+#include <limits>
+#include <stdexcept>
 
 // ==================== 解决方案类 ====================
 
-class Solution {
-public:
-    /**
-     * @brief 使用计数数组的方法
-     * 
-     * 核心思想：
-     * 1. 统计p中各字符的出现次数
-     * 2. 维护一个与p长度相同的滑动窗口
-     * 3. 比较窗口内字符计数与p的计数是否相同
-     * 
-     * @param s 源字符串
-     * @param p 目标模式字符串
-     * @return std::vector<int> 异位词起始索引列表
-     */
-    std::vector<int> findAnagrams(std::string s, std::string p) {
-        std::vector<int> result;
-        
-        // 边界检查
-        if (s.size() < p.size()) {
-            return result;
-        }
-        
-        // 使用数组记录字符计数（假设只有小写字母）
-        std::vector<int> pCount(26, 0);
-        std::vector<int> windowCount(26, 0);
-        
-        // 统计p的字符
-        for (char c : p) {
-            pCount[c - 'a']++;
-        }
-        
-        int windowSize = p.size();
-        
-        // 滑动窗口
-        for (int i = 0; i < static_cast<int>(s.size()); ++i) {
-            // 添加新字符到窗口
-            windowCount[s[i] - 'a']++;
-            
-            // 移除窗口外的字符
-            if (i >= windowSize) {
-                windowCount[s[i - windowSize] - 'a']--;
-            }
-            
-            // 窗口形成后，比较计数
-            if (i >= windowSize - 1) {
-                if (windowCount == pCount) {
-                    result.push_back(i - windowSize + 1);
-                }
-            }
-        }
-        
+namespace leetcode::lc0438 {
+
+namespace {
+
+std::size_t letterIndex(char character) {
+    const auto byte = static_cast<unsigned char>(character);
+    const auto first = static_cast<unsigned char>('a');
+    const auto last = static_cast<unsigned char>('z');
+    if (byte < first || byte > last) {
+        throw std::invalid_argument("LC438 教学实现只接受小写英文字母");
+    }
+    return static_cast<std::size_t>(byte - first);
+}
+
+int toProblemIndex(std::size_t index) {
+    if (index > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        throw std::overflow_error("异位词下标超出题目 int 返回类型的范围");
+    }
+    return static_cast<int>(index);
+}
+
+void validateLowercaseInput(const std::string& s, const std::string& p) {
+    for (char character : s) {
+        static_cast<void>(letterIndex(character));
+    }
+    for (char character : p) {
+        static_cast<void>(letterIndex(character));
+    }
+}
+
+} // namespace
+
+std::vector<int> Solution::findAnagrams(std::string s, std::string p) {
+    std::vector<int> result;
+    validateLowercaseInput(s, p);
+    if (p.empty() || s.size() < p.size()) {
         return result;
     }
-    
-    /**
-     * @brief 优化版本：使用差值计数
-     * 
-     * 核心思想：
-     * 维护一个diff计数，表示窗口与p的差异字符数
-     * 当diff为0时，说明窗口是p的异位词
-     * 
-     * @param s 源字符串
-     * @param p 目标模式字符串
-     * @return std::vector<int> 异位词起始索引列表
-     */
-    std::vector<int> findAnagramsOptimized(std::string s, std::string p) {
-        std::vector<int> result;
-        
-        if (s.size() < p.size()) {
-            return result;
+
+    std::vector<int> pCount(26, 0);
+    std::vector<int> windowCount(26, 0);
+    for (char c : p) {
+        ++pCount[letterIndex(c)];
+    }
+
+    const std::size_t windowSize = p.size();
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        ++windowCount[letterIndex(s[i])];
+        if (i >= windowSize) {
+            --windowCount[letterIndex(s[i - windowSize])];
         }
-        
-        // 使用数组记录差值
-        std::vector<int> diff(26, 0);
-        
-        // 初始化：p中字符计数增加，窗口初始字符计数减少
-        for (size_t i = 0; i < p.size(); ++i) {
-            diff[p[i] - 'a']++;
-            diff[s[i] - 'a']--;
+        if (i + 1U >= windowSize && windowCount == pCount) {
+            result.push_back(toProblemIndex(i + 1U - windowSize));
         }
-        
-        // 检查初始窗口
+    }
+
+    return result;
+}
+
+std::vector<int> Solution::findAnagramsOptimized(std::string s, std::string p) {
+    std::vector<int> result;
+    validateLowercaseInput(s, p);
+    if (p.empty() || s.size() < p.size()) {
+        return result;
+    }
+
+    std::vector<int> diff(26, 0);
+    for (std::size_t i = 0; i < p.size(); ++i) {
+        ++diff[letterIndex(p[i])];
+        --diff[letterIndex(s[i])];
+    }
+
+    if (allZero(diff)) {
+        result.push_back(0);
+    }
+
+    for (std::size_t i = p.size(); i < s.size(); ++i) {
+        ++diff[letterIndex(s[i - p.size()])];
+        --diff[letterIndex(s[i])];
         if (allZero(diff)) {
-            result.push_back(0);
+            result.push_back(toProblemIndex(i - p.size() + 1U));
         }
-        
-        // 滑动窗口
-        for (size_t i = p.size(); i < s.size(); ++i) {
-            // 移除左边字符（增加计数）
-            diff[s[i - p.size()] - 'a']++;
-            // 添加右边字符（减少计数）
-            diff[s[i] - 'a']--;
-            
-            // 检查是否匹配
-            if (allZero(diff)) {
-                result.push_back(i - p.size() + 1);
-            }
-        }
-        
-        return result;
     }
-    
-private:
-    /**
-     * @brief 检查计数数组是否全为0
-     */
-    bool allZero(const std::vector<int>& count) {
-        for (int c : count) {
-            if (c != 0) return false;
-        }
-        return true;
-    }
-};
+
+    return result;
+}
+
+bool Solution::allZero(const std::vector<int>& count) const {
+    return std::all_of(count.begin(), count.end(), [](int value) {
+        return value == 0;
+    });
+}
+
+} // namespace leetcode::lc0438
 
 // ==================== 演示函数 ====================
 
 /**
  * @brief 可视化滑动窗口过程
  */
+namespace leetcode::lc0438 {
+
 void visualizeFindAnagrams(const std::string& s, const std::string& p) {
     std::cout << "\n可视化滑动窗口过程:\n";
     std::cout << "字符串 s: \"" << s << "\"\n";
@@ -155,30 +140,31 @@ void visualizeFindAnagrams(const std::string& s, const std::string& p) {
     std::vector<int> windowCount(26, 0);
     
     for (char c : p) {
-        pCount[c - 'a']++;
+        ++pCount[letterIndex(c)];
     }
     
     std::cout << "p的字符计数: ";
-    for (int i = 0; i < 26; ++i) {
+    for (std::size_t i = 0; i < pCount.size(); ++i) {
         if (pCount[i] > 0) {
-            std::cout << (char)('a' + i) << ":" << pCount[i] << " ";
+            const char letter = static_cast<char>('a' + static_cast<int>(i));
+            std::cout << letter << ":" << pCount[i] << " ";
         }
     }
     std::cout << "\n\n";
     
-    int windowSize = p.size();
+    const std::size_t windowSize = p.size();
     
-    for (int i = 0; i < static_cast<int>(s.size()); ++i) {
-        windowCount[s[i] - 'a']++;
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        ++windowCount[letterIndex(s[i])];
         
         if (i >= windowSize) {
-            windowCount[s[i - windowSize] - 'a']--;
+            --windowCount[letterIndex(s[i - windowSize])];
         }
         
-        if (i >= windowSize - 1) {
-            int start = i - windowSize + 1;
+        if (i + 1U >= windowSize) {
+            const std::size_t start = i + 1U - windowSize;
             std::cout << "窗口[" << start << "-" << i << "]: \"";
-            for (int j = start; j <= i; ++j) {
+            for (std::size_t j = start; j <= i; ++j) {
                 std::cout << s[j];
             }
             std::cout << "\"";
@@ -190,6 +176,8 @@ void visualizeFindAnagrams(const std::string& s, const std::string& p) {
         }
     }
 }
+
+} // namespace leetcode::lc0438
 
 /**
  * @brief 解释字母异位词概念
@@ -223,7 +211,7 @@ void lc0438Demo() {
     // 先解释概念
     explainAnagram();
     
-    Solution solution;
+    lc0438::Solution solution;
     
     // 测试用例1
     std::string s1 = "cbaebabacd";
@@ -241,7 +229,7 @@ void lc0438Demo() {
     std::cout << "]\n";
     std::cout << "  预期: [0, 6]\n";
     
-    visualizeFindAnagrams(s1, p1);
+    lc0438::visualizeFindAnagrams(s1, p1);
     
     // 测试用例2
     std::string s2 = "abab";

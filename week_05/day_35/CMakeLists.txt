@@ -1,37 +1,42 @@
 cmake_minimum_required(VERSION 3.14)
-project(day_35_summary LANGUAGES CXX)
+project(day_35_learning_evidence LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Threads REQUIRED)
+enable_testing()
 
-# 数据结构总结
-add_library(day35_knowledge_summary STATIC
+function(add_day35_executable target)
+    add_executable(${target} ${ARGN})
+    target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../common)
+    target_compile_options(${target} PRIVATE
+        -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Werror
+    )
+    target_link_libraries(${target} PRIVATE Threads::Threads)
+    add_test(NAME ${target} COMMAND ${target})
+endfunction()
+
+add_day35_executable(day35_project_contract code/main.cpp)
+add_day35_executable(day35_knowledge_summary
     code/data_structure/knowledge_summary.cpp
 )
-
-# C++11特性综合
-add_library(day35_cpp11_summary STATIC
+add_day35_executable(day35_cpp17_summary
     code/cpp11_features/cpp11_summary.cpp
 )
-
-# EMC++复习
-add_library(day35_emcpp_review STATIC
+add_day35_executable(day35_emcpp_review
     code/emcpp/emcpp_review.cpp
 )
-
-# LeetCode题目
-add_executable(day35_lc0297
+add_day35_executable(day35_lc0297
     code/leetcode/0297_serialize_deserialize/solution.cpp
 )
-
-add_executable(day35_lc0124
+add_day35_executable(day35_lc0297_contract
+    code/leetcode/0297_serialize_deserialize/contract_test.cpp
+)
+add_day35_executable(day35_lc0124
     code/leetcode/0124_max_path_sum/solution.cpp
 )
-
-# 综合主程序
-add_executable(day35_main
-    code/main.cpp
+add_day35_executable(day35_lc0124_contract
+    code/leetcode/0124_max_path_sum/contract_test.cpp
 )
-target_link_libraries(day35_main PRIVATE Threads::Threads)

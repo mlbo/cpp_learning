@@ -1,19 +1,18 @@
 #ifndef SOLUTION_107_H
 #define SOLUTION_107_H
 
+#include "data_structure/tree_node.h"
+
 #include <vector>
 
-struct TreeNode {
-    int val;
-    TreeNode* left;
-    TreeNode* right;
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
-};
+namespace leetcode_0107 {
 
 class Solution {
 public:
     std::vector<std::vector<int>> levelOrderBottom(TreeNode* root);
 };
+
+} // namespace leetcode_0107
 
 void testLevelOrderBottom();
 

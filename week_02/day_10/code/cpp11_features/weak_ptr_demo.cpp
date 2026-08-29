@@ -14,13 +14,17 @@
 #include <string>
 #include <vector>
 
+#include "../../../common/noexcept_output.h"
+
 class Resource {
 public:
     Resource(const std::string& name) : name_(name) {
         std::cout << "  📦 Resource '" << name_ << "' 已创建\n";
     }
     ~Resource() {
-        std::cout << "  🗑️  Resource '" << name_ << "' 已销毁\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  🗑️  Resource '" << name_ << "' 已销毁\n";
+        });
     }
     
     void use() const {
@@ -94,7 +98,9 @@ namespace bad_design {
             std::cout << "    Node(" << value << ") 创建\n";
         }
         ~Node() {
-            std::cout << "    Node(" << value << ") 销毁\n";
+            week2_support::write_noexcept([this] {
+                std::cout << "    Node(" << value << ") 销毁\n";
+            });
         }
     };
 }
@@ -109,7 +115,9 @@ namespace good_design {
             std::cout << "    Node(" << value << ") 创建\n";
         }
         ~Node() {
-            std::cout << "    Node(" << value << ") 销毁\n";
+            week2_support::write_noexcept([this] {
+                std::cout << "    Node(" << value << ") 销毁\n";
+            });
         }
     };
 }

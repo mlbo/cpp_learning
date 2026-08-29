@@ -1,50 +1,54 @@
-/**
- * EMC++ Item 35-40 复习代码
- */
-
+#include <atomic>
+#include <chrono>
+#include <future>
 #include <iostream>
 #include <thread>
-#include <future>
-#include <atomic>
 
-void item35_40Review() {
-    std::cout << "=== EMC++ Item 35-40 复习 ===" << std::endl;
-    
-    // Item 35: 优先使用async
-    std::cout << "\nItem 35: 基于任务优先于基于线程" << std::endl;
-    auto f = std::async([]() { return 42; });
-    std::cout << "  async结果: " << f.get() << std::endl;
-    
-    // Item 36: 指定launch::async
-    std::cout << "\nItem 36: 需要异步时指定launch::async" << std::endl;
-    auto f2 = std::async(std::launch::async, []() {
-        return 100;
-    });
-    std::cout << "  强制异步结果: " << f2.get() << std::endl;
-    
-    // Item 37: thread不可join
-    std::cout << "\nItem 37: 确保thread在所有路径上不可join" << std::endl;
-    std::cout << "  使用RAII包装器或C++20 jthread" << std::endl;
-    
-    // Item 38: future析构行为
-    std::cout << "\nItem 38: future析构会等待共享状态" << std::endl;
-    
-    // Item 39: void future
-    std::cout << "\nItem 39: void future用于一次性事件通信" << std::endl;
-    std::promise<void> prom;
-    auto fut = prom.get_future();
-    prom.set_value();  // 发送通知
-    fut.wait();  // 等待通知
-    std::cout << "  一次性事件通信完成" << std::endl;
-    
-    // Item 40: atomic vs volatile
-    std::cout << "\nItem 40: atomic用于并发，volatile用于特殊内存" << std::endl;
-    std::atomic<int> atomicVal(0);
-    atomicVal++;  // 线程安全
-    std::cout << "  atomic递增: " << atomicVal.load() << std::endl;
-}
+class JoiningThread {
+public:
+    explicit JoiningThread(std::thread thread) : thread_{std::move(thread)} {}
+    ~JoiningThread() {
+        if (thread_.joinable()) {
+            thread_.join();
+        }
+    }
+
+    JoiningThread(const JoiningThread&) = delete;
+    JoiningThread& operator=(const JoiningThread&) = delete;
+
+private:
+    std::thread thread_;
+};
 
 int main() {
-    item35_40Review();
-    return 0;
+    auto task = std::async(std::launch::async, [] { return 35; });
+    auto deferred = std::async(std::launch::deferred, [] { return 36; });
+    const bool reports_deferred =
+        deferred.wait_for(std::chrono::seconds{0}) == std::future_status::deferred;
+
+    std::atomic<bool> joined_work_finished{false};
+    {
+        JoiningThread thread{std::thread{[&joined_work_finished] {
+            joined_work_finished.store(true, std::memory_order_release);
+        }}};
+    }
+
+    std::promise<void> event_promise;
+    std::future<void> event_future = event_promise.get_future();
+    event_promise.set_value();
+    event_future.get();
+
+    std::atomic<int> atomic_value{40};
+    atomic_value.fetch_add(1, std::memory_order_relaxed);
+    const bool passed = task.get() == 35 && reports_deferred && deferred.get() == 36 &&
+                        joined_work_finished.load(std::memory_order_acquire) &&
+                        atomic_value.load(std::memory_order_relaxed) == 41;
+
+    std::cout << "Item 35-36: task 返回结果，必要异步显式指定 launch::async\n";
+    std::cout << "Item 37: RAII 使 thread 在析构前不可 join\n";
+    std::cout << "Item 38: deferred 析构不会自动执行任务\n";
+    std::cout << "Item 39-40: void future 是一次性事件，atomic 不等于 volatile\n";
+    std::cout << "atomic<int> 当前实现 lock-free: " << std::boolalpha
+              << atomic_value.is_lock_free() << '\n';
+    return passed ? 0 : 1;
 }

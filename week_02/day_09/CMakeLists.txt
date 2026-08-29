@@ -4,9 +4,17 @@ project(day_09_shared_ptr_and_list LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+include(CTest)
+find_package(Threads REQUIRED)
 
 # 编译选项
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(
+        -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow
+    )
+endif()
 if(APPLE)
     set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address")
 else()
@@ -35,10 +43,44 @@ add_executable(day_09_demo
 )
 
 target_compile_features(day_09_demo PRIVATE cxx_std_17)
+target_link_libraries(day_09_demo PRIVATE Threads::Threads)
 
-# 添加测试
-enable_testing()
+# dummy_node.cpp 使用 shared_ptr 节点；与快慢指针示例的裸指针节点类型不同，
+# 必须保持为独立程序，避免两个同名全局 ListNode 违反 ODR。
+add_executable(day09_dummy_node_demo
+    code/data_structure/dummy_main.cpp
+    code/data_structure/dummy_node.cpp
+)
 
-add_test(NAME test_merge_lists COMMAND day_09_demo --gtest_filter=*MergeLists*)
-add_test(NAME test_cycle COMMAND day_09_demo --gtest_filter=*Cycle*)
-add_test(NAME test_shared_ptr COMMAND day_09_demo --gtest_filter=*SharedPtr*)
+# EMC++ 分离示例：保留原文件，同时纠正 Item 编号。
+add_executable(day09_emcpp_details
+    code/emcpp/details_main.cpp
+    code/emcpp/item19_shared_ptr.cpp
+    code/emcpp/item20_performance.cpp
+)
+
+# LeetCode 21：合并两个有序链表
+add_executable(leetcode_0021_tests
+    code/leetcode/0021_merge_lists/solution.cpp
+    code/leetcode/0021_merge_lists/test.cpp
+)
+target_include_directories(leetcode_0021_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/leetcode/0021_merge_lists
+)
+
+# LeetCode 141：环形链表
+add_executable(leetcode_0141_tests
+    code/leetcode/0141_cycle/solution.cpp
+    code/leetcode/0141_cycle/test_main.cpp
+)
+target_include_directories(leetcode_0141_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/leetcode/0141_cycle
+)
+
+if(BUILD_TESTING)
+    add_test(NAME day09_merge_lists COMMAND leetcode_0021_tests)
+    add_test(NAME day09_cycle_detection COMMAND leetcode_0141_tests)
+    add_test(NAME day09_dummy_node_smoke COMMAND day09_dummy_node_demo)
+    add_test(NAME day09_emcpp_details_smoke COMMAND day09_emcpp_details)
+    add_test(NAME day09_shared_ptr_smoke COMMAND day_09_demo)
+endif()

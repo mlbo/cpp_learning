@@ -12,6 +12,19 @@
 #include <string>
 #include <utility>
 #include <functional>
+#include <type_traits>
+
+namespace {
+
+void receive(int& value) {
+    std::cout << "  target 收到左值引用: " << value << std::endl;
+}
+
+void receive(int&& value) {
+    std::cout << "  target 收到右值引用: " << value << std::endl;
+}
+
+}  // namespace
 
 // 演示Item 32：移动捕获
 void demoItem32() {
@@ -66,45 +79,17 @@ void demoItem32() {
 // 演示Item 33：完美转发
 void demoItem33() {
     std::cout << "\n--- Item 33: 泛型Lambda完美转发 ---" << std::endl;
-    
-    // ========== auto&& 转发引用 ==========
-    
-    // 被调用的函数
-    auto processLvalue = [](int& x) {
-        std::cout << "  左值引用: " << x << std::endl;
-    };
-    
-    auto processRvalue = [](int&& x) {
-        std::cout << "  右值引用: " << x << std::endl;
-    };
-    
+
     // 泛型Lambda中的完美转发
     auto forwarder = [](auto&& x) {
-        // 使用decltype获取表达式的类型
-        // 如果x绑定到左值，decltype(x)是T&
-        // 如果x绑定到右值，decltype(x)是T&&
-        std::cout << "  转发: " << x << std::endl;
-        // 实际转发（需要C++14）
-        // process(std::forward<decltype(x)>(x));
+        // 命名变量 x 本身永远是左值表达式；decltype(x) 保留推导出的引用类型。
+        receive(std::forward<decltype(x)>(x));
     };
-    
+
     int a = 10;
-    forwarder(a);      // 左值
-    forwarder(20);     // 右值
-    
-    // ========== 实际应用：包装器 ==========
-    std::cout << "  包装器示例:" << std::endl;
-    
-    // 通用的函数包装器
-    auto wrapper = [](auto&&... args) {
-        std::cout << "  接收到 " << sizeof...(args) << " 个参数" << std::endl;
-        // 可以完美转发给其他函数
-        // return func(std::forward<decltype(args)>(args)...);
-    };
-    
-    wrapper(1, 2.0, std::string("three"));
-    wrapper('a', 42);
-    
+    forwarder(a);   // decltype(x) 为 int&，仍转发成左值
+    forwarder(20);  // decltype(x) 为 int&&，恢复成右值
+
     // ========== 区分左值和右值 ==========
     std::cout << "  区分左值右值:" << std::endl;
     
@@ -137,6 +122,7 @@ void item32Item33Demo() {
     std::cout << "    - 适用于不可拷贝对象和大型对象" << std::endl;
     std::cout << "  Item 33:" << std::endl;
     std::cout << "    - 泛型Lambda使用auto&&参数" << std::endl;
+    std::cout << "    - 命名参数是左值，必须用std::forward恢复调用者的值类别" << std::endl;
     std::cout << "    - 使用std::forward<decltype(x)>(x)完美转发" << std::endl;
     std::cout << "    - 可区分左值和右值" << std::endl;
 }

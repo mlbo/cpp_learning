@@ -8,6 +8,8 @@
 #include <iostream>
 #include <queue>
 
+namespace leetcode_0102 {
+
 std::vector<std::vector<int>> Solution::levelOrder(TreeNode* root) {
     std::vector<std::vector<int>> result;
     if (!root) return result;
@@ -16,10 +18,11 @@ std::vector<std::vector<int>> Solution::levelOrder(TreeNode* root) {
     q.push(root);
     
     while (!q.empty()) {
-        int levelSize = q.size();  // 当前层的节点数
+        const std::size_t levelSize = q.size();  // 入队下一层前，冻结当前层边界
         std::vector<int> level;
-        
-        for (int i = 0; i < levelSize; ++i) {
+        level.reserve(levelSize);
+
+        for (std::size_t i = 0; i < levelSize; ++i) {
             TreeNode* node = q.front();
             q.pop();
             
@@ -35,17 +38,20 @@ std::vector<std::vector<int>> Solution::levelOrder(TreeNode* root) {
     return result;
 }
 
+} // namespace leetcode_0102
+
 void testLevelOrder() {
-    Solution sol;
+    leetcode_0102::Solution sol;
     
     std::cout << "LeetCode 102. 二叉树层序遍历 测试结果：" << std::endl;
     
-    // 构建测试树
-    //        3
-    //       / \
-    //      9  20
-    //        /  \
-    //       15   7
+    /* 构建测试树：
+     *        3
+     *       ╱ ╲
+     *      9  20
+     *        ╱  ╲
+     *       15   7
+     */
     
     TreeNode* root = new TreeNode(3);
     root->left = new TreeNode(9);
@@ -64,9 +70,9 @@ void testLevelOrder() {
     
     std::cout << "\n  层序遍历结果：" << std::endl;
     std::cout << "    [";
-    for (int i = 0; i < result.size(); ++i) {
+    for (std::size_t i = 0; i < result.size(); ++i) {
         std::cout << "[";
-        for (int j = 0; j < result[i].size(); ++j) {
+        for (std::size_t j = 0; j < result[i].size(); ++j) {
             std::cout << result[i][j];
             if (j < result[i].size() - 1) std::cout << ", ";
         }

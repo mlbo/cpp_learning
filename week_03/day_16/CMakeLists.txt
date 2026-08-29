@@ -1,57 +1,65 @@
 cmake_minimum_required(VERSION 3.14)
 project(day16_learning LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)  # C++14 for generic lambda
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/code)
+include(CTest)
 
-# 数据结构演示
-add_library(day16_queue_demo STATIC
+function(add_day16_library target)
+    add_library(${target} STATIC ${ARGN})
+    target_include_directories(${target} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/code)
+endfunction()
+
+add_day16_library(day16_queue_demo
     code/data_structure/queue_demo.cpp
 )
-
-# Lambda泛型演示
-add_library(day16_lambda_generic STATIC
+add_day16_library(day16_lambda_generic
     code/cpp11_features/lambda_generic_demo.cpp
 )
-
-# Lambda初始化捕获演示
-add_library(day16_lambda_init STATIC
+add_day16_library(day16_lambda_init
     code/cpp11_features/lambda_init_capture_demo.cpp
 )
-
-# EMC++ Item 32-33演示
-add_library(day16_item32_33 STATIC
+add_day16_library(day16_item32_33
     code/emcpp/item32_item33.cpp
 )
-
-# LeetCode 232
-add_library(day16_lc232 STATIC
+add_day16_library(day16_lc232
     code/leetcode/0232_implement_queue_using_stacks/solution.cpp
 )
-
-# LeetCode 225
-add_library(day16_lc225 STATIC
+add_day16_library(day16_lc225
     code/leetcode/0225_implement_stack_using_queues/solution.cpp
 )
 
-# 主程序
-add_executable(day16_main
-    code/main.cpp
-    code/data_structure/queue_demo.cpp
-    code/cpp11_features/lambda_generic_demo.cpp
-    code/cpp11_features/lambda_init_capture_demo.cpp
-    code/emcpp/item32_item33.cpp
-    code/leetcode/0232_implement_queue_using_stacks/solution.cpp
-    code/leetcode/0225_implement_stack_using_queues/solution.cpp
+add_executable(day16_main code/main.cpp)
+target_link_libraries(day16_main PRIVATE
+    day16_queue_demo
+    day16_lambda_generic
+    day16_lambda_init
+    day16_item32_33
+    day16_lc232
+    day16_lc225
 )
 
-message(STATUS "Day 16 targets:")
-message(STATUS "  day16_main        - 运行所有演示")
-message(STATUS "  day16_queue_demo  - 队列演示")
-message(STATUS "  day16_lambda_generic - 泛型Lambda")
-message(STATUS "  day16_lambda_init - 初始化捕获")
-message(STATUS "  day16_item32_33   - EMC++ Item 32-33")
-message(STATUS "  day16_lc232       - LeetCode 232")
-message(STATUS "  day16_lc225       - LeetCode 225")
+if(BUILD_TESTING)
+    add_executable(day16_lc232_tests
+        code/leetcode/0232_implement_queue_using_stacks/test.cpp
+    )
+    target_link_libraries(day16_lc232_tests PRIVATE day16_lc232)
+
+    add_executable(day16_public_api_consumer code/tests/public_api_consumer.cpp)
+    target_link_libraries(day16_public_api_consumer PRIVATE
+        day16_queue_demo
+        day16_lambda_generic
+        day16_lambda_init
+        day16_item32_33
+        day16_lc232
+        day16_lc225
+    )
+
+    add_test(NAME day16_all COMMAND day16_main)
+    add_test(NAME day16_lc232_detailed COMMAND day16_lc232_tests)
+    add_test(NAME Day16PublicApiConsumer COMMAND day16_public_api_consumer)
+endif()
+
+message(STATUS "Day 16 targets consume reusable libraries through target_link_libraries")

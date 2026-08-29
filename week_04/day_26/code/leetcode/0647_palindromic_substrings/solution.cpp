@@ -15,36 +15,41 @@
 
 #include "solution.h"
 #include <iostream>
+#include <limits>
+#include <stdexcept>
 
 int Solution647::countSubstrings(std::string s) {
-    int n = s.length();
-    int count = 0;
+    const std::size_t n = s.length();
+    std::size_t count = 0;
     
     // 中心扩展函数
     // 每次扩展成功就找到一个回文子串
-    auto extendPalindrome = [&](int left, int right) {
-        // 从中心向两边扩展
-        while (left >= 0 && right < n && s[left] == s[right]) {
-            count++;   // 找到一个回文子串
-            left--;    // 继续向左扩展
-            right++;   // 继续向右扩展
+    auto countAroundCenter = [&](std::size_t left, std::size_t right) {
+        // [left, right) 是已知回文：奇数中心先包含一个字符，偶数中心为空。
+        std::size_t found = right - left;
+        while (left > 0 && right < n && s[left - 1] == s[right]) {
+            ++found;
+            --left;
+            ++right;
         }
-        // 扩展结束后，[left+1, right-1] 是一个回文子串
-        // 但我们在循环中已经计数了所有可能的回文
+        return found;
     };
     
     // 遍历每个可能的中心点
-    for (int i = 0; i < n; ++i) {
+    for (std::size_t i = 0; i < n; ++i) {
         // 以 s[i] 为中心的奇数长度回文
         // 会找到：s[i], s[i-1..i+1], s[i-2..i+2], ...
-        extendPalindrome(i, i);
+        count += countAroundCenter(i, i + 1);
         
         // 以 s[i] 和 s[i+1] 之间为中心的偶数长度回文
         // 会找到：s[i..i+1], s[i-1..i+2], ...
-        extendPalindrome(i, i + 1);
+        count += countAroundCenter(i + 1, i + 1);
     }
-    
-    return count;
+
+    if (count > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        throw std::overflow_error("回文子串数量超出题目 int 返回类型的范围");
+    }
+    return static_cast<int>(count);
 }
 
 void testPalindromicSubstrings() {

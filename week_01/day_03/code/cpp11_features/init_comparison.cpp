@@ -21,11 +21,11 @@ namespace cpp11_features {
 // 一、最令人苦恼的解析（Most Vexing Parse）
 // ============================================================
 
-class Widget {
+class ComparisonWidget {
 public:
-    Widget() { std::cout << "默认构造\n"; }
-    Widget(int i) { std::cout << "单参数构造: " << i << "\n"; }
-    Widget(int i, double d) {
+    ComparisonWidget() { std::cout << "默认构造\n"; }
+    ComparisonWidget(int i) { std::cout << "单参数构造: " << i << "\n"; }
+    ComparisonWidget(int i, double d) {
         std::cout << "双参数构造: " << i << ", " << d << "\n";
     }
 };
@@ -34,13 +34,13 @@ void demo_most_vexing_parse() {
     std::cout << "\n=== 最令人苦恼的解析 ===\n";
 
     // 问题：以下声明被解析为函数！
-    // Widget w1();  // 这是一个函数声明，返回 Widget！
+    // ComparisonWidget w1();  // 这是一个函数声明，返回 ComparisonWidget！
 
     // 解决方案 1：使用 {}
-    Widget w2{};    // 明确是对象初始化
+    ComparisonWidget w2{};    // 明确是对象初始化
 
     // 解决方案 2：去掉括号（C++11 之前）
-    Widget w3;      // 默认构造
+    ComparisonWidget w3;      // 默认构造
 
     std::cout << "w2 和 w3 都是正确初始化的对象\n";
 
@@ -61,12 +61,12 @@ void demo_narrowing_comparison() {
     double d = 3.14;
     long long ll = 10000000000LL;
 
-    // 圆括号：允许窄化转换（可能丢失数据）
-    int i1(d);      // OK: i1 = 3（警告但不报错）
-    int i2(ll);     // OK: 截断
+    // 圆括号语法本身允许窄化；本课程启用 -Werror，因此用显式转换表达“我知道会丢数据”。
+    int i1(static_cast<int>(d));
+    int i2(static_cast<int>(ll));
 
     std::cout << "圆括号 double->int: " << i1 << " (无编译错误)\n";
-    std::cout << "圆括号 long long->int: 编译通过但数据丢失\n";
+    std::cout << "圆括号 long long->int: " << i2 << " (显式接受数据丢失)\n";
 
     // 花括号：禁止窄化转换
     // int i3{d};     // 错误！窄化转换
@@ -76,12 +76,12 @@ void demo_narrowing_comparison() {
     int i5{static_cast<int>(d)};  // OK: 显式告知编译器
     std::cout << "显式转换后花括号初始化: " << i5 << "\n";
 
-    // 安全转换：两种方式都可以
+    // 运行期 int -> double：圆括号允许；C++17 列表初始化需要显式转换
     int n = 42;
     double d1(n);   // OK
     double d2{static_cast<double>(n)};   // OK
 
-    std::cout << "安全转换 int->double: " << d1 << ", " << d2 << "\n";
+    std::cout << "int->double（列表形式显式转换）: " << d1 << ", " << d2 << "\n";
 }
 
 // ============================================================
@@ -94,7 +94,7 @@ public:
         std::cout << "默认构造\n";
     }
 
-    Container(int size, int value) : data_(size, value) {
+    Container(std::size_t size, int value) : data_(size, value) {
         std::cout << "size-value 构造: size=" << size << ", value=" << value << "\n";
     }
 
@@ -117,7 +117,7 @@ void demo_class_initialization() {
 
     // 场景 1：默认构造
     std::cout << "圆括号默认构造: ";
-    Container c1();   // 函数声明！
+    // Container c1(); // 这行如果真正写进程序，它是函数声明而不是对象。
     Container c1b;    // 正确
     std::cout << "花括号默认构造: ";
     Container c2{};   // 正确，调用默认构造
@@ -200,7 +200,7 @@ void demo_vector_initialization() {
 
     std::cout << "v2(10, 20): 大小=" << v2.size() << "\n";
     std::cout << "  内容（前5个）: ";
-    for (int i = 0; i < 5; ++i) std::cout << v2[i] << " ";
+    for (std::size_t i = 0; i < 5; ++i) std::cout << v2[i] << " ";
     std::cout << "...\n";
 
     // 单参数
@@ -212,21 +212,22 @@ void demo_vector_initialization() {
 }
 
 // ============================================================
-// 六、不可拷贝类型
+// 六、不可拷贝类型与 C++17 拷贝消除
 // ============================================================
 
 void demo_non_copyable() {
-    std::cout << "\n=== 不可拷贝类型 ===\n";
+    std::cout << "\n=== 不可拷贝类型与 C++17 拷贝消除 ===\n";
 
     // atomic：不可拷贝
     std::atomic<int> a1{0};      // OK：花括号初始化
-    // std::atomic<int> a2 = 0; // 错误！拷贝初始化需要拷贝
+    std::atomic<int> a2 = 0;     // C++17：保证拷贝消除，可直接构造目标对象
 
     // 使用圆括号也可以
     std::atomic<int> a3(0);      // OK
 
-    std::cout << "不可拷贝类型支持花括号和圆括号，但不支持 =\n";
-    std::cout << "atomic 值: " << a1.load() << ", " << a3.load() << "\n";
+    std::cout << "atomic 不可拷贝，但 C++17 的 = 初始化可依靠保证的拷贝消除\n";
+    std::cout << "atomic 值: " << a1.load() << ", " << a2.load()
+              << ", " << a3.load() << "\n";
 }
 
 // ============================================================
@@ -239,7 +240,7 @@ void print_recommendation_table() {
     std::cout << "| 场景                           | 推荐方式 | 原因     |\n";
     std::cout << "+--------------------------------+----------+----------+\n";
     std::cout << "| 变量初始化                     | {}       | 统一风格 |\n";
-    std::cout << "| 类内成员初始化                 | {}       | 唯一支持 |\n";
+    std::cout << "| 类内成员初始化                 | {} 或 =  | () 不支持|\n";
     std::cout << "| 无参构造                       | {}       | 避免歧义 |\n";
     std::cout << "| 容器初始化                     | {}       | 直观     |\n";
     std::cout << "| 数值初始化                     | {}       | 防窄化   |\n";

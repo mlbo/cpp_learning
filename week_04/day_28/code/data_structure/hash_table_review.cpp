@@ -9,7 +9,14 @@
  * 4. 常见问题与最佳实践
  */
 
+#include "simple_hash_table.h"
+
+#include <algorithm>
+#include <cstdint>
+#include <iomanip>
 #include <iostream>
+#include <numeric>
+#include <random>
 #include <string>
 #include <vector>
 #include <map>
@@ -17,6 +24,36 @@
 #include <unordered_set>
 #include <functional>
 #include <chrono>
+
+namespace {
+
+using BenchmarkClock = std::chrono::steady_clock;
+using BenchmarkDuration = std::chrono::nanoseconds;
+
+volatile std::int64_t hashBenchmarkSink = 0;
+
+template<typename Function>
+BenchmarkDuration measureMedian(Function&& function, std::size_t repeats = 5) {
+    hashBenchmarkSink = function();
+    std::vector<BenchmarkDuration> samples;
+    samples.reserve(repeats);
+    for (std::size_t repeat = 0; repeat < repeats; ++repeat) {
+        const auto start = BenchmarkClock::now();
+        hashBenchmarkSink = function();
+        samples.push_back(std::chrono::duration_cast<BenchmarkDuration>(
+            BenchmarkClock::now() - start));
+    }
+    std::sort(samples.begin(), samples.end());
+    return samples[samples.size() / 2];
+}
+
+void printDuration(const char* label, BenchmarkDuration duration) {
+    std::cout << "  " << label << ": " << std::fixed << std::setprecision(3)
+              << std::chrono::duration<double, std::milli>(duration).count()
+              << " ms\n";
+}
+
+} // namespace
 
 namespace hash_table_review {
 
@@ -56,164 +93,6 @@ struct PointHash {
         std::size_t h1 = std::hash<int>{}(p.x);
         std::size_t h2 = std::hash<int>{}(p.y);
         return h1 ^ (h2 << 1);  // 移位避免对称冲突
-    }
-};
-
-// ========================================
-// 简单哈希表实现演示
-// ========================================
-
-/**
- * @brief 简化的哈希表实现（教学目的）
- * 使用链地址法解决冲突
- */
-template<typename K, typename V, typename Hash = std::hash<K>>
-class SimpleHashTable {
-private:
-    // 桶节点
-    struct Node {
-        K key;
-        V value;
-        Node* next;
-        Node(const K& k, const V& v) : key(k), value(v), next(nullptr) {}
-    };
-    
-    std::vector<Node*> buckets_;  // 桶数组
-    size_t size_;                 // 元素数量
-    float maxLoadFactor_;         // 最大装载因子
-    Hash hash_;                   // 哈希函数
-    
-    // 计算桶索引
-    size_t getBucketIndex(const K& key) const {
-        return hash_(key) % buckets_.size();
-    }
-    
-    // 重新哈希（扩容）
-    void rehash(size_t newCapacity) {
-        std::vector<Node*> newBuckets(newCapacity, nullptr);
-        
-        // 遍历所有旧桶
-        for (Node* head : buckets_) {
-            while (head) {
-                Node* next = head->next;
-                // 计算新位置
-                size_t idx = hash_(head->key) % newCapacity;
-                // 插入到新桶的头部
-                head->next = newBuckets[idx];
-                newBuckets[idx] = head;
-                head = next;
-            }
-        }
-        
-        buckets_ = std::move(newBuckets);
-    }
-    
-public:
-    SimpleHashTable(size_t initCapacity = 16, float maxLF = 0.75)
-        : buckets_(initCapacity, nullptr), size_(0), maxLoadFactor_(maxLF) {}
-    
-    ~SimpleHashTable() {
-        clear();
-    }
-    
-    void clear() {
-        for (Node* head : buckets_) {
-            while (head) {
-                Node* next = head->next;
-                delete head;
-                head = next;
-            }
-        }
-        std::fill(buckets_.begin(), buckets_.end(), nullptr);
-        size_ = 0;
-    }
-    
-    // 插入或更新
-    void insert(const K& key, const V& value) {
-        // 检查是否需要扩容
-        if (static_cast<float>(size_ + 1) / buckets_.size() > maxLoadFactor_) {
-            rehash(buckets_.size() * 2);
-        }
-        
-        size_t idx = getBucketIndex(key);
-        Node* curr = buckets_[idx];
-        
-        // 查找是否已存在
-        while (curr) {
-            if (curr->key == key) {
-                curr->value = value;  // 更新
-                return;
-            }
-            curr = curr->next;
-        }
-        
-        // 插入新节点
-        Node* newNode = new Node(key, value);
-        newNode->next = buckets_[idx];
-        buckets_[idx] = newNode;
-        ++size_;
-    }
-    
-    // 查找
-    V* find(const K& key) {
-        size_t idx = getBucketIndex(key);
-        Node* curr = buckets_[idx];
-        while (curr) {
-            if (curr->key == key) {
-                return &curr->value;
-            }
-            curr = curr->next;
-        }
-        return nullptr;
-    }
-    
-    // 删除
-    bool erase(const K& key) {
-        size_t idx = getBucketIndex(key);
-        Node* curr = buckets_[idx];
-        Node* prev = nullptr;
-        
-        while (curr) {
-            if (curr->key == key) {
-                if (prev) {
-                    prev->next = curr->next;
-                } else {
-                    buckets_[idx] = curr->next;
-                }
-                delete curr;
-                --size_;
-                return true;
-            }
-            prev = curr;
-            curr = curr->next;
-        }
-        return false;
-    }
-    
-    // 获取统计信息
-    void printStats() const {
-        std::cout << "哈希表统计信息:\n";
-        std::cout << "  元素数量: " << size_ << "\n";
-        std::cout << "  桶数量: " << buckets_.size() << "\n";
-        std::cout << "  装载因子: " << static_cast<float>(size_) / buckets_.size() << "\n";
-        
-        // 计算链表长度分布
-        size_t maxLen = 0;
-        size_t emptyBuckets = 0;
-        for (Node* head : buckets_) {
-            if (!head) {
-                ++emptyBuckets;
-                continue;
-            }
-            size_t len = 0;
-            while (head) {
-                ++len;
-                head = head->next;
-            }
-            maxLen = std::max(maxLen, len);
-        }
-        std::cout << "  空桶数量: " << emptyBuckets << "\n";
-        std::cout << "  最长链表: " << maxLen << "\n";
     }
 };
 
@@ -356,53 +235,74 @@ void demonstrateBestPractices() {
 }
 
 void demonstratePerformance() {
-    std::cout << "\n=== 性能对比演示 ===\n\n";
-    
-    const int N = 100000;
-    
-    // 哈希表 vs 有序map
-    std::unordered_map<int, int> hashMap;
-    std::map<int, int> orderedMap;
-    
-    // 哈希表插入
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < N; ++i) {
-        hashMap[i] = i;
-    }
-    auto hashInsertTime = std::chrono::high_resolution_clock::now() - start;
-    
-    // 有序map插入
-    start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < N; ++i) {
-        orderedMap[i] = i;
-    }
-    auto orderedInsertTime = std::chrono::high_resolution_clock::now() - start;
-    
-    // 哈希表查找
-    start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < N; ++i) {
-        volatile int* p = &hashMap[i];
-        (void)p;
-    }
-    auto hashFindTime = std::chrono::high_resolution_clock::now() - start;
-    
-    // 有序map查找
-    start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < N; ++i) {
-        volatile int* p = &orderedMap[i];
-        (void)p;
-    }
-    auto orderedFindTime = std::chrono::high_resolution_clock::now() - start;
-    
-    auto toMs = [](auto duration) {
-        return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+    std::cout << "\n=== unordered_map 与 map 观察性微基准 ===\n\n";
+
+    constexpr std::size_t elementCount = 50'000;
+    std::vector<int> keys(elementCount);
+    std::iota(keys.begin(), keys.end(), 0);
+    std::mt19937 generator(20260726);
+    std::shuffle(keys.begin(), keys.end(), generator);
+
+    const auto buildHashMap = [&keys]() {
+        std::unordered_map<int, int> values;
+        values.reserve(keys.size());
+        for (int key : keys) {
+            values.emplace(key, key);
+        }
+        return static_cast<std::int64_t>(values.size());
     };
-    
-    std::cout << "操作 " << N << " 个元素:\n";
-    std::cout << "  哈希表插入: " << toMs(hashInsertTime) << " ms\n";
-    std::cout << "  有序map插入: " << toMs(orderedInsertTime) << " ms\n";
-    std::cout << "  哈希表查找: " << toMs(hashFindTime) << " ms\n";
-    std::cout << "  有序map查找: " << toMs(orderedFindTime) << " ms\n";
+    const auto buildOrderedMap = [&keys]() {
+        std::map<int, int> values;
+        for (int key : keys) {
+            values.emplace(key, key);
+        }
+        return static_cast<std::int64_t>(values.size());
+    };
+
+    std::unordered_map<int, int> hashMap;
+    hashMap.reserve(keys.size());
+    std::map<int, int> orderedMap;
+    for (int key : keys) {
+        hashMap.emplace(key, key);
+        orderedMap.emplace(key, key);
+    }
+
+    const auto lookupHashMap = [&]() {
+        std::int64_t sum = 0;
+        for (int key : keys) {
+            const auto found = hashMap.find(key);
+            if (found != hashMap.end()) {
+                sum += found->second;
+            }
+        }
+        return sum;
+    };
+    const auto lookupOrderedMap = [&]() {
+        std::int64_t sum = 0;
+        for (int key : keys) {
+            const auto found = orderedMap.find(key);
+            if (found != orderedMap.end()) {
+                sum += found->second;
+            }
+        }
+        return sum;
+    };
+
+    const BenchmarkDuration hashBuildTime = measureMedian(buildHashMap);
+    const BenchmarkDuration orderedBuildTime = measureMedian(buildOrderedMap);
+    const BenchmarkDuration hashLookupTime = measureMedian(lookupHashMap);
+    const BenchmarkDuration orderedLookupTime = measureMedian(lookupOrderedMap);
+
+    std::cout << "  两种容器使用同一组固定种子随机键；每项预热后重复5次取中位数。\n";
+    std::cout << "  unordered_map 构建路径包含 reserve，构建测量也包含容器销毁。\n";
+    printDuration("unordered_map 构建中位数", hashBuildTime);
+    printDuration("map 构建中位数", orderedBuildTime);
+    printDuration("unordered_map find中位数", hashLookupTime);
+    printDuration("map find中位数", orderedLookupTime);
+    std::cout << "  lookup 用 find 并累加真实值，benchmarkSink=" << hashBenchmarkSink
+              << " 防止结果被整体删除。\n";
+    std::cout << "  结果只描述当前机器、标准库、键分布与编译选项，"
+                 "不能替代平均/最坏复杂度分析。\n";
 }
 
 void demonstrate() {

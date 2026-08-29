@@ -18,6 +18,27 @@
 #include <iostream>
 #include <unordered_map>
 #include <algorithm>
+#include <stdexcept>
+
+namespace {
+
+std::size_t lowercaseIndex(char character) {
+    const auto byte = static_cast<unsigned char>(character);
+    const auto first = static_cast<unsigned char>('a');
+    const auto last = static_cast<unsigned char>('z');
+    if (byte < first || byte > last) {
+        throw std::invalid_argument("LC242 只接受小写英文字母");
+    }
+    return static_cast<std::size_t>(byte - first);
+}
+
+void validateLowercase(const std::string& text) {
+    for (char character : text) {
+        static_cast<void>(lowercaseIndex(character));
+    }
+}
+
+} // namespace
 
 /**
  * 方法一：哈希表解法
@@ -29,6 +50,9 @@
  * 4. 如果所有字符计数都为0，则是字母异位词
  */
 bool isAnagram_hash(const std::string& s, const std::string& t) {
+    validateLowercase(s);
+    validateLowercase(t);
+
     // 长度不同，一定不是字母异位词
     if (s.length() != t.length()) {
         return false;
@@ -66,6 +90,9 @@ bool isAnagram_hash(const std::string& s, const std::string& t) {
  * - 空间复杂度为O(1)
  */
 bool isAnagram_array(const std::string& s, const std::string& t) {
+    validateLowercase(s);
+    validateLowercase(t);
+
     // 长度不同，直接返回false
     if (s.length() != t.length()) {
         return false;
@@ -76,8 +103,8 @@ bool isAnagram_array(const std::string& s, const std::string& t) {
     
     // 一次遍历完成统计
     for (size_t i = 0; i < s.length(); ++i) {
-        count[s[i] - 'a']++;  // s中的字符加
-        count[t[i] - 'a']--;  // t中的字符减
+        ++count[lowercaseIndex(s[i])];  // s中的字符加
+        --count[lowercaseIndex(t[i])];  // t中的字符减
     }
     
     // 检查是否都为0
@@ -102,6 +129,9 @@ bool isAnagram_array(const std::string& s, const std::string& t) {
  * - 可能需要额外空间
  */
 bool isAnagram_sort(std::string s, std::string t) {
+    validateLowercase(s);
+    validateLowercase(t);
+
     if (s.length() != t.length()) {
         return false;
     }

@@ -5,42 +5,84 @@
 
 #include "hash_table_demo.h"
 #include <algorithm>
+#include <cctype>
+#include <iostream>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+namespace {
+
+struct CaseInsensitiveHash {
+    std::size_t operator()(const std::string& text) const noexcept {
+        std::size_t result = 0;
+        for (char character : text) {
+            // string 按 char 存储；在进入 cctype 和哈希运算前显式解释为字节，
+            // 避免由实现决定的 char 符号性悄悄改变高位字节的含义。
+            const auto byte = static_cast<unsigned char>(character);
+            const auto lower = static_cast<unsigned char>(std::tolower(byte));
+            result = result * 131U + lower;
+        }
+        return result;
+    }
+};
+
+struct CaseInsensitiveEqual {
+    bool operator()(const std::string& lhs, const std::string& rhs) const noexcept {
+        if (lhs.size() != rhs.size()) {
+            return false;
+        }
+        for (std::size_t i = 0; i < lhs.size(); ++i) {
+            const auto left = static_cast<unsigned char>(lhs[i]);
+            const auto right = static_cast<unsigned char>(rhs[i]);
+            if (std::tolower(left) != std::tolower(right)) {
+                return false;
+            }
+        }
+        return true;
+    }
+};
+
+} // namespace
 
 // ==================== 简单哈希表实现 ====================
 
-SimpleHashTable::SimpleHashTable() {
-    // 初始化所有桶为空
-    for (int i = 0; i < TABLE_SIZE; ++i) {
-        table[i] = nullptr;
-    }
-}
+SimpleHashTable::SimpleHashTable() = default;
 
 SimpleHashTable::~SimpleHashTable() {
+    clear();
+}
+
+void SimpleHashTable::clear() noexcept {
     // 释放所有节点
-    for (int i = 0; i < TABLE_SIZE; ++i) {
-        Node* curr = table[i];
+    for (Node*& bucket : table_) {
+        Node* curr = bucket;
         while (curr) {
             Node* temp = curr;
             curr = curr->next;
             delete temp;
         }
+        bucket = nullptr;
     }
+    size_ = 0;
 }
 
-int SimpleHashTable::hash(const std::string& key) {
-    // 简单的哈希函数：所有字符ASCII码之和取模
-    int sum = 0;
-    for (char c : key) {
-        sum += static_cast<int>(c);
+std::size_t SimpleHashTable::hash(const std::string& key) const noexcept {
+    // 教学用哈希：所有字节值之和取模。unsigned char 避免 char 为有符号时
+    // 高位字节变成负数，进而产生负下标。
+    std::size_t sum = 0;
+    for (char character : key) {
+        const auto byte = static_cast<unsigned char>(character);
+        sum += byte;
     }
-    return sum % TABLE_SIZE;
+    return sum % BUCKET_COUNT;
 }
 
 void SimpleHashTable::insert(const std::string& key, int value) {
-    int index = hash(key);
+    const std::size_t index = hash(key);
     
     // 检查是否已存在
-    Node* curr = table[index];
+    Node* curr = table_[index];
     while (curr) {
         if (curr->key == key) {
             curr->value = value;  // 更新
@@ -51,13 +93,14 @@ void SimpleHashTable::insert(const std::string& key, int value) {
     
     // 插入新节点（头插法）
     Node* newNode = new Node(key, value);
-    newNode->next = table[index];
-    table[index] = newNode;
+    newNode->next = table_[index];
+    table_[index] = newNode;
+    ++size_;
 }
 
-int SimpleHashTable::get(const std::string& key) {
-    int index = hash(key);
-    Node* curr = table[index];
+std::optional<int> SimpleHashTable::get(const std::string& key) const {
+    const std::size_t index = hash(key);
+    const Node* curr = table_[index];
     
     while (curr) {
         if (curr->key == key) {
@@ -66,12 +109,16 @@ int SimpleHashTable::get(const std::string& key) {
         curr = curr->next;
     }
     
-    return -1;  // 未找到
+    return std::nullopt;
 }
 
-void SimpleHashTable::remove(const std::string& key) {
-    int index = hash(key);
-    Node* curr = table[index];
+bool SimpleHashTable::contains(const std::string& key) const {
+    return get(key).has_value();
+}
+
+bool SimpleHashTable::remove(const std::string& key) {
+    const std::size_t index = hash(key);
+    Node* curr = table_[index];
     Node* prev = nullptr;
     
     while (curr) {
@@ -79,21 +126,27 @@ void SimpleHashTable::remove(const std::string& key) {
             if (prev) {
                 prev->next = curr->next;
             } else {
-                table[index] = curr->next;
+                table_[index] = curr->next;
             }
             delete curr;
-            return;
+            --size_;
+            return true;
         }
         prev = curr;
         curr = curr->next;
     }
+    return false;
 }
 
-void SimpleHashTable::print() {
+double SimpleHashTable::loadFactor() const noexcept {
+    return static_cast<double>(size_) / static_cast<double>(BUCKET_COUNT);
+}
+
+void SimpleHashTable::print() const {
     std::cout << "哈希表内容：" << std::endl;
-    for (int i = 0; i < TABLE_SIZE; ++i) {
+    for (std::size_t i = 0; i < BUCKET_COUNT; ++i) {
         std::cout << "  Bucket[" << i << "]: ";
-        Node* curr = table[i];
+        const Node* curr = table_[i];
         while (curr) {
             std::cout << "(" << curr->key << "," << curr->value << ") ";
             curr = curr->next;
@@ -119,14 +172,26 @@ void simpleHashTableDemo() {
     
     // 查找操作
     std::cout << "\n查找操作：" << std::endl;
-    std::cout << "  apple -> " << ht.get("apple") << std::endl;
-    std::cout << "  banana -> " << ht.get("banana") << std::endl;
-    std::cout << "  unknown -> " << ht.get("unknown") << std::endl;
+    const auto printLookup = [&ht](const std::string& key) {
+        const auto value = ht.get(key);
+        std::cout << "  " << key << " -> ";
+        if (value) {
+            std::cout << *value;
+        } else {
+            std::cout << "未找到";
+        }
+        std::cout << std::endl;
+    };
+    printLookup("apple");
+    printLookup("banana");
+    printLookup("unknown");
     
     // 删除操作
     std::cout << "\n删除 banana 后：" << std::endl;
     ht.remove("banana");
     ht.print();
+    std::cout << "  当前元素数: " << ht.size()
+              << "，负载因子: " << ht.loadFactor() << std::endl;
 }
 
 void unorderedMapDemo() {
@@ -178,6 +243,28 @@ void unorderedMapDemo() {
     std::cout << "  桶数量: " << scores.bucket_count() << std::endl;
     std::cout << "  负载因子: " << scores.load_factor() << std::endl;
     std::cout << "  最大负载因子: " << scores.max_load_factor() << std::endl;
+
+    std::cout << "\n自定义哈希与相等谓词：" << std::endl;
+    std::unordered_map<std::string, int, CaseInsensitiveHash,
+                       CaseInsensitiveEqual> caseInsensitiveScores;
+    caseInsensitiveScores.emplace("Alice", 95);
+    caseInsensitiveScores["ALICE"] = 96;
+    std::cout << "  Alice 与 ALICE 被判为同一个键，元素数: "
+              << caseInsensitiveScores.size() << std::endl;
+    std::cout << "  查询 alice: " << caseInsensitiveScores.at("alice") << std::endl;
+
+    std::cout << "\n负载因子实验（观察值依赖具体标准库实现）：" << std::endl;
+    std::unordered_map<int, int> loadExperiment;
+    loadExperiment.max_load_factor(0.5F);
+    loadExperiment.reserve(8);
+    const auto bucketsBefore = loadExperiment.bucket_count();
+    for (int i = 0; i < 8; ++i) {
+        loadExperiment.emplace(i, i * i);
+    }
+    std::cout << "  reserve后桶数: " << bucketsBefore
+              << "，插入后桶数: " << loadExperiment.bucket_count()
+              << "，当前负载因子: " << loadExperiment.load_factor() << std::endl;
+    std::cout << "  结论：负载因子影响冲突概率与扩容，但桶数不是可移植常量。" << std::endl;
 }
 
 void unorderedSetDemo() {

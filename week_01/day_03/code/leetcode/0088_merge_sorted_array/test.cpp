@@ -7,8 +7,13 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include <stdexcept>
 
 namespace leetcode_0088 {
+
+namespace {
+int failure_count = 0;
+}
 
 void print_vector(const std::vector<int>& v) {
     std::cout << "[";
@@ -26,7 +31,10 @@ void run_test(const std::string& name,
 
     std::cout << "测试 " << name << ":\n";
     std::cout << "  输入: nums1 = ";
-    print_vector(std::vector<int>(nums1.begin(), nums1.begin() + m));
+    const auto valid_count = static_cast<std::size_t>(m);
+    print_vector(std::vector<int>(
+        nums1.begin(),
+        nums1.begin() + static_cast<std::vector<int>::difference_type>(valid_count)));
     std::cout << ", m = " << m << ", nums2 = ";
     print_vector(nums2);
     std::cout << ", n = " << n << "\n";
@@ -46,10 +54,12 @@ void run_test(const std::string& name,
         std::cout << "  结果: ✓ 通过\n\n";
     } else {
         std::cout << "  结果: ✗ 失败\n\n";
+        ++failure_count;
     }
 }
 
-void run_tests() {
+int run_tests() {
+    failure_count = 0;
     std::cout << "╔══════════════════════════════════════════════════════════╗\n";
     std::cout << "║        LeetCode 88: 合并两个有序数组 - 测试              ║\n";
     std::cout << "╚══════════════════════════════════════════════════════════╝\n\n";
@@ -102,11 +112,21 @@ void run_tests() {
              {-2, 0, 1}, 3,
              {-3, -2, -1, 0, 1, 2});
 
+    try {
+        std::vector<int> invalid{1};
+        Solution{}.merge(invalid, -1, {}, 0);
+        ++failure_count;
+        std::cout << "非法长度测试: ✗ 未拒绝负数长度\n";
+    } catch (const std::invalid_argument&) {
+        std::cout << "非法长度测试: ✓ 拒绝负数长度\n";
+    }
+
     std::cout << "══════════════════════════════════════════════════════════\n";
     std::cout << "算法复杂度分析：\n";
     std::cout << "  时间复杂度: O(m + n) - 每个元素最多被访问一次\n";
     std::cout << "  空间复杂度: O(1) - 原地操作，无需额外空间\n";
     std::cout << "══════════════════════════════════════════════════════════\n";
+    return failure_count;
 }
 
 } // namespace leetcode_0088

@@ -5,9 +5,11 @@
 
 #include "solution.h"
 
+namespace leetcode_0015 {
+
 std::vector<std::vector<int>> Solution::threeSum(std::vector<int>& nums) {
     std::vector<std::vector<int>> result;
-    int n = static_cast<int>(nums.size());
+    const std::size_t n = nums.size();
     
     // 边界情况：少于3个元素
     if (n < 3) {
@@ -18,7 +20,7 @@ std::vector<std::vector<int>> Solution::threeSum(std::vector<int>& nums) {
     std::sort(nums.begin(), nums.end());
     
     // 遍历第一个数
-    for (int i = 0; i < n - 2; ++i) {
+    for (std::size_t i = 0; i + 2 < n; ++i) {
         // ========== 去重1: 跳过相同的第一个数 ==========
         // 如果当前数与前一个数相同，跳过（避免重复三元组）
         if (i > 0 && nums[i] == nums[i - 1]) {
@@ -32,8 +34,8 @@ std::vector<std::vector<int>> Solution::threeSum(std::vector<int>& nums) {
         }
         
         // 双指针找另外两个数
-        int left = i + 1;
-        int right = n - 1;
+        std::size_t left = i + 1;
+        std::size_t right = n - 1;
         
         while (left < right) {
             long long sum = static_cast<long long>(nums[i]) + 
@@ -70,3 +72,5 @@ std::vector<std::vector<int>> Solution::threeSum(std::vector<int>& nums) {
     
     return result;
 }
+
+} // namespace leetcode_0015

@@ -13,6 +13,7 @@
 #include <utility>
 #include <string>
 #include <memory>
+#include <type_traits>
 
 // ============================================================
 // 辅助函数
@@ -23,7 +24,7 @@ void processLValue(const std::string& s) {
 }
 
 void processRValue(std::string&& s) {
-    std::cout << "  [右值] " << s << " (可移动)" << std::endl;
+    std::cout << "  [右值] " << s << " (到达右值重载，尚不等于资源已移动)" << std::endl;
 }
 
 // ============================================================
@@ -64,9 +65,9 @@ void demonstrateStdMoveOnRvalueRef() {
 当参数是右值引用时，使用 std::move：
 
 原因：
-1. 右值引用只绑定右值，我们确定它是临时对象
-2. 可以安全地窃取其资源
-3. 语义清晰：std::move 明确表示"我要移动它"
+1. 右值引用绑定右值，但该右值也可能来自 std::move(live_object)，不一定是临时对象
+2. 命名参数变量的表达式 name 是左值，需要 std::move 才能继续传递右值许可
+3. 最终是否以及如何转移资源，由目标类型的移动操作与契约决定
 
 示例：
 void setName(std::string&& name) {
@@ -162,8 +163,8 @@ void setName(T&& name) {
 template<typename T>
 void badForward(T&& param) {
     std::cout << "\n  [badForward] 错误使用 std::move" << std::endl;
-    // 这会总是移动，即使传入的是左值！
-    processLValue(std::move(param));  // 可能调用错误的函数
+    // 即使传入左值，std::move 也会无条件产生 xvalue 并把它交给右值路径。
+    processRValue(std::move(param));  // 后续是否转移资源由目标重载和类型契约决定
 }
 
 // 正确示例
@@ -187,13 +188,13 @@ void demonstrateWhyNotMix() {
 ----------------------------------
 template<typename T>
 void bad(T&& param) {
-    target = std::move(param);  // 错误！总是移动
+    target = std::move(param);  // 错误：无条件产生 xvalue，可能选择右值路径
 }
 
 问题：
-- std::move 无条件转换为右值引用
-- 即使传入左值，也会被移动
-- 导致意外的数据损坏
+- std::move 无条件产生 xvalue，但不执行或保证资源移动
+- 即使传入左值，也会被无条件交给 xvalue/右值路径
+- 后续是否真的移动由目标重载和类型决定；若资源被转移，调用方可能观察到意外状态变化
 
 错误2：在右值引用上使用 std::forward
 ------------------------------------
@@ -220,7 +221,7 @@ void process(std::string&& s) {
     goodForward(value);
     std::cout << "goodForward 后: " << value << " (保持不变)" << std::endl;
     
-    // badForward 会移动左值！
+    // badForward 会把左值无条件交给右值路径！
     // badForward(value);  // 危险操作
 }
 
@@ -238,15 +239,15 @@ public:
         return w;  // RVO 或隐式移动，不要用 std::move(w)
     }
     
-    // 返回成员对象 - 可以用 std::move
-    std::string&& getName() && {  // ref-qualified
+    // 调用者需要拥有结果时按值返回；右值限定只允许从将亡 Widget 提取。
+    std::string takeName() && {
         return std::move(name_);
     }
-    
-    // 返回通用引用参数
+
+    // 需要把实参变成独立结果时，也按值构造拥有者。
     template<typename T>
-    T&& returnForward(T&& param) {
-        return std::forward<T>(param);  // 完美转发返回
+    static std::decay_t<T> ownForwarded(T&& param) {
+        return std::forward<T>(param);
     }
     
 private:
@@ -269,22 +270,57 @@ Widget createWidget() {
 错误：
 return std::move(w);  // 阻止 RVO！
 
-返回成员对象：
--------------
+危险的引用返回边界：
+-------------------
 std::string&& getName() && {
-    return std::move(name_);  // 正确：明确移动语义
+    return std::move(name_);
 }
 
-返回通用引用参数：
------------------
 template<typename T>
 T&& passThrough(T&& param) {
-    return std::forward<T>(param);  // 正确：完美转发
+    return std::forward<T>(param);
+}
+
+auto&& a = Widget("temp").getName();
+auto&& b = passThrough(std::string("temp"));
+
+上面两个引用都不拥有对象，也不会把临时量寿命传播过函数返回边界；
+初始化完整表达式结束后再读取 a 或 b 就是悬空引用。只有调用者已证明
+所有者比返回引用活得更久时，借用引用返回才成立，不能把它笼统标成正确模式。
+
+需要拥有结果时按值返回：
+---------------------
+std::string takeName() && {
+    return std::move(name_);
+}
+
+template<typename T>
+std::decay_t<T> ownValue(T&& param) {
+    return std::forward<T>(param);  // 左值复制，右值移动/直接构造
 }
 )" << std::endl;
     
     Widget w1("Test");
     Widget w2 = w1.createWidget();
+    std::string ownedMember = Widget("TemporaryOwner").takeName();
+    std::string source = "LongLived";
+    std::string ownedCopy = Widget::ownForwarded(source);
+    std::string ownedMove = Widget::ownForwarded(std::string("TemporaryArgument"));
+    std::cout << "  按值提取成员: " << ownedMember << "\n";
+    std::cout << "  左值复制结果: " << ownedCopy << "，源仍为 " << source << "\n";
+    std::cout << "  临时参数拥有结果: " << ownedMove << "\n";
+    (void)w2;
+}
+
+bool verify_item25_lifetime_contract() {
+    std::string source = "LongLived";
+    const std::string member = Widget("TemporaryOwner").takeName();
+    const std::string copy = Widget::ownForwarded(source);
+    const std::string moved = Widget::ownForwarded(std::string("TemporaryArgument"));
+    return member == "TemporaryOwner" &&
+           copy == "LongLived" &&
+           source == "LongLived" &&
+           moved == "TemporaryArgument";
 }
 
 // ============================================================

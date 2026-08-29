@@ -9,8 +9,11 @@
  */
 
 #include <iostream>
+#include <memory>
 #include <vector>
 #include <string>
+
+namespace leetcode_0019 {
 
 // 链表节点定义
 struct ListNode {
@@ -18,7 +21,7 @@ struct ListNode {
     ListNode *next;
     ListNode() : val(0), next(nullptr) {}
     ListNode(int x) : val(x), next(nullptr) {}
-    ListNode(int x, ListNode *next) : val(x), next(next) {}
+    ListNode(int x, ListNode *next_node) : val(x), next(next_node) {}
 };
 
 class Solution {
@@ -40,6 +43,10 @@ public:
      * 空间复杂度：O(1)
      */
     ListNode* removeNthFromEnd(ListNode* head, int n) {
+        if (head == nullptr || n <= 0) {
+            return head;
+        }
+
         // 使用虚拟头节点，统一处理删除头节点的情况
         ListNode *dummy = new ListNode(0, head);
         
@@ -49,6 +56,11 @@ public:
         // 快指针先走 n 步
         for (int i = 0; i < n; ++i) {
             fast = fast->next;
+            if (fast == nullptr) {
+                // n 大于链表长度：本教程约定原样返回。
+                delete dummy;
+                return head;
+            }
         }
         
         // 快慢指针同时移动
@@ -74,12 +86,20 @@ public:
      * @brief 计算长度法（需要两次遍历）
      */
     ListNode* removeNthFromEndByLength(ListNode* head, int n) {
+        if (head == nullptr || n <= 0) {
+            return head;
+        }
+
         // 第一次遍历：计算链表长度
         int length = 0;
         ListNode *curr = head;
         while (curr != nullptr) {
             ++length;
             curr = curr->next;
+        }
+
+        if (n > length) {
+            return head;
         }
         
         // 创建虚拟头节点
@@ -110,16 +130,25 @@ namespace {
 
 ListNode* createList(const std::vector<int>& values) {
     if (values.empty()) return nullptr;
-    
-    ListNode *head = new ListNode(values[0]);
-    ListNode *curr = head;
-    
-    for (size_t i = 1; i < values.size(); ++i) {
-        curr->next = new ListNode(values[i]);
+
+    const auto delete_chain = [](ListNode* node) {
+        while (node) {
+            ListNode* next_node = node->next;
+            delete node;
+            node = next_node;
+        }
+    };
+    std::unique_ptr<ListNode, decltype(delete_chain)> owner(
+        new ListNode(values[0]), delete_chain);
+    ListNode *curr = owner.get();
+
+    for (std::size_t i = 1; i < values.size(); ++i) {
+        auto node = std::make_unique<ListNode>(values[i]);
+        curr->next = node.release();
         curr = curr->next;
     }
-    
-    return head;
+
+    return owner.release();
 }
 
 std::vector<int> listToVector(ListNode* head) {
@@ -152,7 +181,7 @@ std::string listToString(ListNode* head) {
     return result;
 }
 
-void runTest(const std::string& name,
+bool runTest(const std::string& name,
              const std::vector<int>& inputValues,
              int n,
              const std::vector<int>& expectedValues) {
@@ -176,7 +205,8 @@ void runTest(const std::string& name,
     std::cout << "    期望: " << expectedStr << "\n";
     std::cout << "    实际: " << listToString(result) << "\n";
     
-    if (actual == expectedValues) {
+    const bool passed = actual == expectedValues;
+    if (passed) {
         std::cout << "    ✅ 通过\n";
     } else {
         std::cout << "    ❌ 失败\n";
@@ -184,6 +214,7 @@ void runTest(const std::string& name,
     
     freeList(result);
     std::cout << "\n";
+    return passed;
 }
 
 } // anonymous namespace
@@ -191,7 +222,7 @@ void runTest(const std::string& name,
 // ============================================
 // 主演示函数
 // ============================================
-void test_leetcode_19() {
+bool test_leetcode_19() {
     std::cout << "\n【LeetCode 19: 删除链表的倒数第N个节点】\n";
     
     std::cout << "\n双指针技巧:\n";
@@ -204,12 +235,15 @@ void test_leetcode_19() {
     std::cout << "\n-------------------- 测试用例 --------------------\n";
     
     // 测试用例
-    runTest("删除中间节点", {1, 2, 3, 4, 5}, 2, {1, 2, 3, 5});
-    runTest("删除头节点", {1, 2, 3, 4, 5}, 5, {2, 3, 4, 5});
-    runTest("删除尾节点", {1, 2, 3, 4, 5}, 1, {1, 2, 3, 4});
-    runTest("单节点链表", {1}, 1, {});
-    runTest("两节点删第一个", {1, 2}, 2, {2});
-    runTest("两节点删第二个", {1, 2}, 1, {1});
+    bool allPassed = true;
+    allPassed = runTest("删除中间节点", {1, 2, 3, 4, 5}, 2, {1, 2, 3, 5}) && allPassed;
+    allPassed = runTest("删除头节点", {1, 2, 3, 4, 5}, 5, {2, 3, 4, 5}) && allPassed;
+    allPassed = runTest("删除尾节点", {1, 2, 3, 4, 5}, 1, {1, 2, 3, 4}) && allPassed;
+    allPassed = runTest("单节点链表", {1}, 1, {}) && allPassed;
+    allPassed = runTest("两节点删第一个", {1, 2}, 2, {2}) && allPassed;
+    allPassed = runTest("两节点删第二个", {1, 2}, 1, {1}) && allPassed;
+    allPassed = runTest("n为0时原样返回", {1, 2}, 0, {1, 2}) && allPassed;
+    allPassed = runTest("n大于长度时原样返回", {1, 2}, 3, {1, 2}) && allPassed;
     
     std::cout << "-------------------- 测试完成 --------------------\n";
     
@@ -233,4 +267,9 @@ void test_leetcode_19() {
     std::cout << "  双指针法:   一次遍历 O(n)\n";
     std::cout << "  计算长度法: 两次遍历 O(n) + O(n)\n";
     std::cout << "  空间复杂度: 都是 O(1)\n";
+    std::cout << "\n边界约定: n <= 0 或 n 大于链表长度时原样返回。\n";
+
+    return allPassed;
 }
+
+} // namespace leetcode_0019

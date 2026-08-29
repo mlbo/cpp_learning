@@ -4,42 +4,51 @@
 
 #include "solution.h"
 #include <iostream>
-#include <stack>
+#include <vector>
 
-std::string Solution::removeDuplicates(std::string s) {
-    std::stack<char> stk;
-    
+namespace lc1047 {
+
+std::string Solution::removeDuplicates(const std::string& s) {
+    // std::string 的 back/push_back/pop_back 正好提供栈顶操作，
+    // 并且避免把字符反复插到字符串头部造成 O(n^2) 搬移。
+    std::string result;
+    result.reserve(s.size());
+
     for (char c : s) {
-        if (stk.empty() || stk.top() != c) {
-            stk.push(c);
+        if (!result.empty() && result.back() == c) {
+            result.pop_back();
         } else {
-            stk.pop();
+            result.push_back(c);
         }
     }
-    
-    std::string result;
-    while (!stk.empty()) {
-        result = stk.top() + result;
-        stk.pop();
-    }
-    
+
     return result;
 }
 
-void testRemoveDuplicates() {
+bool testRemoveDuplicates() {
     Solution sol;
-    
+
     std::cout << "LeetCode 1047. 删除相邻重复项 测试：" << std::endl;
-    
-    std::vector<std::pair<std::string, std::string>> tests = {
+
+    const std::vector<std::pair<std::string, std::string>> tests = {
+        {"", ""},
+        {"abc", "abc"},
+        {"aaaa", ""},
         {"abbaca", "ca"},
         {"azxxzy", "ay"},
         {"aababaab", "ba"}
     };
-    
+
+    bool allPassed = true;
     for (const auto& [input, expected] : tests) {
-        std::string result = sol.removeDuplicates(input);
-        std::cout << "  \"" << input << "\" -> \"" << result 
-                  << "\" (" << (result == expected ? "✓" : "✗") << ")" << std::endl;
+        const std::string result = sol.removeDuplicates(input);
+        const bool passed = result == expected;
+        allPassed = allPassed && passed;
+        std::cout << "  \"" << input << "\" -> \"" << result
+                  << "\" (" << (passed ? "✓" : "✗") << ")" << std::endl;
     }
+
+    return allPassed;
 }
+
+}  // namespace lc1047

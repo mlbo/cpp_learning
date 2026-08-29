@@ -1,5 +1,11 @@
 # Day 30: 树遍历
 
+> **学习定位**：树遍历关注“何时访问节点”，互斥锁关注“何时允许线程访问共享状态”。两条线都要求明确时序。本日 EMC++ Item 36-37 分别讨论 `async` 启动策略和 `thread` 生命周期。
+
+> **共性入口**：四种遍历的队列/栈手算见 [形象化指南的 Day 30](../树与并发专题形象化题解指南.md#day30-visual)；mutex、多锁与 RAII 的完整机制见 [C++ 并发编程教程](../../tutorials/CPP并发编程教程.md)；Item 36–37 的主讲见 [Effective Modern C++ 教程](../../tutorials/Effective_Modern_CPP教程.md)。本日新增的是“访问顺序不变量”“mutex 建立的同步边”和“多锁事务边界”。
+
+> **前后关系**：上一日 [Day 29](../day_29/README.md) 只管理单个线程和树的递归入口；下一日 [Day 31](../day_31/README.md) 把局部有序关系升级成 BST 全局上下界，并让线程等待受锁谓词而不是忙等。
+
 ## 📅 学习目标
 
 今天我们将深入学习二叉树的核心操作——遍历，以及C++多线程编程中至关重要的同步机制——互斥锁。通过今天的学习，你将掌握四种经典的二叉树遍历方式（前序、中序、后序、层序），理解它们各自的访问顺序和应用场景。同时，你将学会如何使用 `std::mutex` 保护共享数据，避免多线程环境下的数据竞争问题。此外，我们还将探讨 Effective Modern C++ 中关于异步任务执行策略的重要建议，帮助你写出更高效、更可靠的多线程代码。
@@ -8,6 +14,7 @@
 - 掌握四种二叉树遍历方式的递归与迭代实现
 - 理解 `std::mutex` 的基本用法和死锁预防策略
 - 学习 `std::launch::async` 策略的正确使用方式
+- 用所有权、不变量和非零退出码组织六个可执行测试
 - 完成两道经典的二叉树遍历 LeetCode 题目
 
 ---
@@ -88,7 +95,11 @@ graph TD
 
 **递归实现**的代码简洁优雅，直接反映了遍历的逻辑定义。以前序遍历为例，递归版本只需三行核心代码：访问根节点、递归左子树、递归右子树。递归实现的缺点是对于深度很大的树，可能导致栈溢出。
 
-**迭代实现**使用显式的栈（前/中/后序）或队列（层序）来模拟递归过程。迭代实现虽然代码更复杂，但可以避免栈溢出问题，并且在某些情况下可以进行优化。对于后序遍历，迭代实现尤其需要注意处理"何时访问根节点"的判断逻辑。
+**迭代实现**使用显式的栈（前/中/后序）或队列（层序）来模拟递归过程。迭代实现虽然代码更复杂，但不会因树过深直接耗尽调用栈；它的容器仍可能因内存不足而失败。对于后序遍历，迭代实现尤其需要注意处理“何时访问根节点”的判断逻辑。
+
+可以把 DFS 的接口契约写成三个部分：输入指针只借用且允许为空，函数不改变树结构，每个可达节点恰好向结果追加一次。递归版把“处理一棵子树”交给调用栈，迭代版必须自己保存尚未完成的工作；显式栈避免耗尽调用栈，但仍占 O(h) 到 O(n) 的动态内存。层序遍历的关键不变量是“每轮开始时，队列前 `levelSize` 个节点恰好属于当前层”，因此必须先保存队列大小，再把新发现的孩子排到下一层尾部。
+
+下块是 LeetCode 原始指针接口的局部遍历片段，**不可单独编译**；省略 `<vector>`、`<stack>`、`std::` 限定和 `TreeNode { int val; TreeNode* left; TreeNode* right; }`。
 
 ```cpp
 // 前序遍历 - 递归版本
@@ -121,9 +132,9 @@ vector<int> preorderTraversal(TreeNode* root) {
 
 ### 概念定义
 
-在多线程编程中，多个线程可能同时访问同一块内存区域（共享数据）。当至少有一个线程在写入数据时，如果没有适当的同步机制，就会产生数据竞争（Data Race），导致程序行为不可预测，产生难以调试的bug。`std::mutex`（互斥锁）是C++11引入的基本同步原语，用于保护共享数据，确保同一时刻只有一个线程能够访问临界区。
+在多线程编程中，若两个可能并发的访问作用于同一内存位置、至少一个访问会修改该位置、至少一个访问不是原子操作，并且两者之间没有 happens-before，就形成数据竞争（Data Race）。数据竞争在 C++ 内存模型中是未定义行为，不能把“偶尔得到较小计数”当作可重复实验，更不能在正常测试里故意执行它。`std::mutex`（互斥锁）通过一次 `unlock` 与随后成功取得同一 mutex 的 `lock` 之间的同步关系，既排除同一临界区的并发进入，也让前一个线程在解锁前完成的写入对后一个线程可见。
 
-互斥锁的工作原理类似于一把钥匙：线程在进入临界区之前必须先"获取锁"（lock），离开时"释放锁"（unlock）。当一个线程持有锁时，其他试图获取同一把锁的线程将被阻塞，直到锁被释放。这种机制保证了临界区内代码的原子性执行。
+互斥锁的工作原理类似于一把钥匙：线程在进入临界区之前必须先“获取锁”，离开时“释放锁”。当一个线程持有锁时，其他试图获取同一把锁的线程会等待；这提供互斥和可见性，但不代表临界区变成 CPU 的单条原子指令，也不自动保护忘记使用同一把锁的访问。mutex 真正保护的是一组业务不变量，而不是名为 `counter` 或 `balance` 的某个变量；所有参与该不变量的读写都必须遵守同一锁协议。
 
 ### 基本使用方法
 
@@ -143,9 +154,8 @@ int shared_counter = 0;
 
 void increment(int iterations) {
     for (int i = 0; i < iterations; ++i) {
-        mtx.lock();
+        const std::lock_guard<std::mutex> lock(mtx);
         ++shared_counter;  // 临界区：受保护的操作
-        mtx.unlock();
     }
 }
 
@@ -173,42 +183,50 @@ int main() {
 **预防死锁的常用策略：**
 
 1. **按固定顺序加锁**：当需要同时获取多把锁时，所有线程都按相同顺序获取
-2. **使用 `std::lock` 一次性获取多把锁**：该函数使用避免死锁的算法
+2. **使用 `std::scoped_lock` 或 `std::lock` 获取多把锁**：它们使用避免死锁的加锁算法
 3. **限制锁的持有时间**：尽快释放锁，减少锁的争用
 4. **避免嵌套锁**：在持有锁的情况下，不要再尝试获取其他锁
 
+最典型的失败方式是线程 A 先锁 `mtx1` 再等 `mtx2`，线程 B 同时先锁 `mtx2` 再等 `mtx1`；它可能偶发卡死，所以不能放进自动测试等待“复现”。安全版本把“两个账户余额之和保持不变”写成不变量，并让同一个 RAII 对象管理两把锁：
+
 ```cpp
-// 死锁示例
-std::mutex mtx1, mtx2;
+#include <limits>
+#include <mutex>
+#include <stdexcept>
 
-void deadlock_thread1() {
-    mtx1.lock();
-    // ... 一些操作
-    mtx2.lock();  // 等待 mtx2，但 thread2 持有 mtx2
-    mtx2.unlock();
-    mtx1.unlock();
-}
+struct Account {
+    explicit Account(int initial_balance) : balance(initial_balance) {
+        if (initial_balance < 0) {
+            throw std::invalid_argument("account balance must be non-negative");
+        }
+    }
 
-void deadlock_thread2() {
-    mtx2.lock();
-    // ... 一些操作
-    mtx1.lock();  // 等待 mtx1，但 thread1 持有 mtx1 -> 死锁！
-    mtx1.unlock();
-    mtx2.unlock();
-}
+    int balance;
+    std::mutex mutex;
+};
 
-// 正确做法：使用 std::lock 一次性获取
-void safe_thread() {
-    std::lock(mtx1, mtx2);  // 原子性地获取两把锁，避免死锁
-    // ... 临界区操作
-    mtx1.unlock();
-    mtx2.unlock();
+bool transfer(Account& from, Account& to, int amount) {
+    if (&from == &to || amount <= 0) {
+        return false;  // 同一 mutex 不能作为两把锁交给 scoped_lock
+    }
+    const std::scoped_lock lock(from.mutex, to.mutex);
+    const int maximum = std::numeric_limits<int>::max();
+    if (from.balance < amount || to.balance > maximum - amount) {
+        return false;
+    }
+    from.balance -= amount;
+    to.balance += amount;
+    return true;
 }
 ```
+
+`std::scoped_lock` 的构造过程使用避免死锁的算法，但调用者仍要先处理“两个参数其实是同一个账户”的别名情况；把同一个非递归 mutex 作为两把不同锁传入不满足多锁算法的前提。这里的数值契约是：初始余额必须位于 `[0, INT_MAX]`，金额必须为正，来源余额必须充足，目标余额执行加法后仍须位于 `int` 范围。两把锁都取得后才检查余额与容量，`to.balance > INT_MAX - amount` 在真正相加前拒绝溢出；任一检查失败都不修改任何余额，因此失败也是原子事务结果。`mutex_demo` 同时回归 `INT_MAX + 1` 拒绝且余额不变、恰好到达 `INT_MAX` 成功，以及正常双向并发转账。避免死锁也不等于公平：某个线程仍可能长期拿不到锁；若需等待条件、超时或可取消获取，应选择 `std::unique_lock` 配合条件变量或可定时互斥量，而不是扩大临界区。
 
 ### lock_guard 与 RAII
 
 手动调用 `lock()` 和 `unlock()` 存在隐患：如果临界区代码抛出异常，`unlock()` 可能永远不会被执行，导致死锁。C++11 提供的 `std::lock_guard` 利用 RAII（资源获取即初始化）机制，在构造时自动获取锁，在析构时自动释放锁，无论是否发生异常。
+
+下块是临界区局部片段，**不可单独编译**；省略 `<mutex>` 及由外部所有者管理的 `std::mutex mtx` 和 `int shared_counter` 定义。
 
 ```cpp
 void safe_increment() {
@@ -220,6 +238,8 @@ void safe_increment() {
 ```
 
 C++17 进一步提供了 `std::scoped_lock`，它可以同时管理多把互斥锁，使用更加灵活。同时，`std::unique_lock` 提供了比 `lock_guard` 更丰富的功能，如延迟加锁、条件变量配合等。
+
+下块是多锁临界区局部片段，**不可单独编译**；省略 `<mutex>` 和两个不同的 `std::mutex mtx1`/`mtx2` 定义。
 
 ```cpp
 // C++17 scoped_lock 同时管理多把锁
@@ -233,69 +253,98 @@ void safe_multi_lock() {
 
 ## 📖 知识点三：EMC++ Item 36-37
 
+<a id="item-36"></a>
+
 ### Item 36: 如果异步是必要的，使用 std::launch::async
 
-`std::async` 是 C++11 提供的异步任务执行工具，它返回一个 `std::future` 对象，可以通过 `get()` 方法获取任务结果。然而，`std::async` 的默认行为可能出乎你的意料。
+`std::async` 返回关联共享状态的 `std::future`。省略策略时等价于允许 `std::launch::async | std::launch::deferred`：实现可以让函数在新的执行线程中运行，也可以把它推迟到第一次非定时等待，在执行等待的线程中运行。选择 `deferred` 时，如果 future 从未被 `get()` 或 `wait()`，任务甚至不会执行。
 
-默认情况下，`std::async` 使用 `std::launch::async | std::launch::deferred` 作为启动策略，这意味着运行时可以自行选择是立即创建新线程异步执行（async），还是延迟到 `future::get()` 被调用时在当前线程同步执行（deferred）。这种不确定性可能导致性能问题甚至死锁。
+下块是启动策略局部片段，**不可单独编译**；省略 `<future>`、外围函数和可调用对象 `doWork` 的定义。
 
 ```cpp
-// 默认策略的不确定行为
-auto future1 = std::async(doWork);  // 可能异步，可能延迟执行
+auto unspecified = std::async(doWork);  // async 或 deferred 都合法
 
-// 明确指定异步执行
-auto future2 = std::async(std::launch::async, doWork);  // 保证创建新线程
+auto required = std::async(std::launch::async, doWork);  // 必须异步执行，否则抛异常
 ```
 
-**为什么应该优先使用 `std::launch::async`？**
+默认策略会破坏一些隐含假设：任务未必与调用者并行，`thread_local` 状态可能属于等待线程，依赖“另一个线程先做某事”的协议可能卡住，轮询 `wait_for` 的循环若不识别 `deferred` 还可能永远循环。若异步执行是接口契约的一部分，就显式指定 `std::launch::async`；资源不足时它可能抛出 `std::system_error`，调用方应决定传播、降级还是限流。
 
-1. **可预测性**：明确知道任务会在独立线程中执行
-2. **避免死锁**：延迟执行可能导致主线程等待一个永远不会开始的任务
-3. **真正的并行**：利用多核处理器的并行能力
+不要用耗时阈值证明任务“并行”：调度器、机器负载和虚拟化都会改变时间。可稳定测试的是策略状态与结果不变量：显式 `deferred` 的 `wait_for(0s)` 必须返回 `future_status::deferred`，显式 `async` 则不会返回该状态，但可能已经完成也可能仍为 `timeout`。
 
-一个经典的死锁场景：
+下块是状态检查局部片段，**不可单独编译**；省略 `<future>`、`<chrono>` 和外围函数。读取结果只能对普通 `future` 调用一次 `get()`。
 
 ```cpp
-void potential_deadlock() {
-    auto future = std::async([]{
-        std::cout << "Task running\n";
-    });
-    future.get();  // 如果是 deferred 策略，任务在此处同步执行
-                   // 如果有复杂的线程依赖，可能导致死锁
+auto task = std::async(std::launch::deferred, [] { return 9; });
+if (task.wait_for(std::chrono::seconds(0)) == std::future_status::deferred) {
+    // 明确知道 get() 将在当前线程执行任务，而不是继续做错误的轮询。
+}
+int value = task.get();
+```
+
+默认策略并非总是错误：如果调用方接受延迟求值或异步执行两种语义，且没有线程身份、时限或并行性依赖，交给实现选择可能合理。需要有界并发、任务队列、优先级、背压或统一停止时，`std::async` 也不是线程池的替代品，应使用项目提供的执行器或线程池接口。
+
+<a id="item-37"></a>
+
+### Item 37: 确保 `std::thread` 在所有路径上都不可 join
+
+`std::thread` 对象析构时若仍 `joinable()`，程序会调用 `std::terminate()`；正常返回写了 `join()` 并不够，提前返回和异常路径也必须覆盖。最稳妥的 C++17 方案是让 RAII 对象拥有线程，并在析构时把它变成不可 join；析构选择 `join` 会等待任务结束，因此任务还必须有有界完成或明确停止协议，否则作用域退出可能永久阻塞。
+
+```cpp
+#include <thread>
+#include <utility>
+
+class JoiningThread {
+public:
+    explicit JoiningThread(std::thread thread) : thread_(std::move(thread)) {}
+
+    ~JoiningThread() {
+        if (thread_.joinable()) {
+            thread_.join();
+        }
+    }
+
+    JoiningThread(const JoiningThread&) = delete;
+    JoiningThread& operator=(const JoiningThread&) = delete;
+
+private:
+    std::thread thread_;
+};
+```
+
+不要机械地 `detach()`：它会丢失完成点和异常通道，外部对象销毁后继续访问会形成悬空引用。也不能从线程自身对同一线程 `join()`，那会导致 `std::system_error`；C++20 的 `std::jthread` 提供析构请求停止并 join 的更好默认值，但任务仍需主动检查停止令牌。
+
+### 补充：不要随手丢弃 `std::async` 返回的 future
+
+当 `std::async(std::launch::async, ...)` 创建的共享状态只剩最后一个关联句柄时，释放该状态可能等待异步任务完成。因此临时 future 在完整表达式结束时就销毁，常会让两次看似异步的调用表现成顺序等待；普通 promise 或 packaged_task 产生的 future 析构不具有这项特殊等待语义。这个现象属于 Item 38 的句柄析构边界，但与 Item 36 的 API 使用紧密相关，放在这里一起观察。
+
+```cpp
+#include <future>
+
+int calculate(int value) {
+    return value * value;
+}
+
+// 问题代码：每条语句都立即丢弃 future。
+int wrong_way() {
+    static_cast<void>(std::async(std::launch::async, calculate, 20));
+    // 临时 future 在完整表达式末尾释放；对 launch::async 创建的状态，可能在此等待任务完成
+    static_cast<void>(std::async(std::launch::async, calculate, 30));
+    return 0;  // 两个结果也都丢失了
+}
+
+// 正确做法：先保留两个句柄，再通过 get 建立完成点并检查结果。
+int right_way() {
+    auto first = std::async(std::launch::async, calculate, 20);
+    auto second = std::async(std::launch::async, calculate, 30);
+    return first.get() + second.get();  // 稳定结果为 1300，不检查耗时或完成顺序
 }
 ```
 
-### Item 37: 确保所有路径上 std::future 都是不可忽视的
-
-当使用 `std::async` 创建异步任务时，返回的 `std::future` 对象会在其析构函数中阻塞等待任务完成。这意味着，如果你不关心任务的返回值而直接丢弃 future，程序会意外地变成同步执行。
-
-```cpp
-// 问题代码：future 被丢弃，析构时阻塞
-void wrong_way() {
-    std::async(std::launch::async, []{
-        // 长时间运行的任务
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-    });
-    // future 在此处析构，阻塞等待任务完成！
-    // 这违背了异步执行的初衷
-}
-
-// 正确做法：显式处理 future
-void right_way() {
-    auto future = std::async(std::launch::async, []{
-        // 长时间运行的任务
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-    });
-    // 可以在这里做其他事情
-    doOtherWork();
-    // 需要结果时再等待
-    future.get();  // 或 future.wait()
-}
-```
+这里验证的是句柄生命周期和结果不变量，不是“多少毫秒内完成”；即使运行环境只给一个核心或调度器延后某个任务，`right_way()` 的接口契约仍然成立。
 
 **重要原则：**
 - 不要忽视 `std::async` 返回的 `std::future`
-- 如果不需要结果，至少调用 `future.wait()` 或 `future.get()` 来明确等待时机
+- `wait()` 只等待，`get()` 还会取得值或重新抛出异常，并使该 future 失效
 - 考虑使用线程池等更可控的并发方案替代 `std::async`
 
 ---
@@ -366,6 +415,8 @@ graph TD
 1. 使用一个指针从根节点开始，一路向左，沿途节点入栈
 2. 当无法继续向左时，弹出栈顶节点并访问
 3. 然后转向该节点的右子树，重复上述过程
+
+下块是 LeetCode 的局部中序遍历片段，**不可单独编译**；省略 `<vector>`、`<stack>`、`std::` 限定和 `TreeNode` 原始指针接口定义。
 
 ```cpp
 // 迭代版本
@@ -455,6 +506,8 @@ graph TD
 方法一：使用两个变量 `currentLevelSize` 和 `nextLevelSize`
 方法二：在每层开始时，记录当前队列大小，这就是该层的节点数
 
+下块是 LeetCode 的局部层序遍历片段，**不可单独编译**；省略 `<vector>`、`<queue>`、`<cstddef>`、`std::` 限定和 `TreeNode` 定义。
+
 ```cpp
 vector<vector<int>> levelOrder(TreeNode* root) {
     vector<vector<int>> result;
@@ -464,10 +517,10 @@ vector<vector<int>> levelOrder(TreeNode* root) {
     q.push(root);
     
     while (!q.empty()) {
-        int levelSize = q.size();  // 当前层的节点数
+        const std::size_t levelSize = q.size();  // 当前层的节点数
         vector<int> currentLevel;
         
-        for (int i = 0; i < levelSize; ++i) {
+        for (std::size_t i = 0; i < levelSize; ++i) {
             TreeNode* node = q.front();
             q.pop();
             currentLevel.push_back(node->val);
@@ -485,24 +538,36 @@ vector<vector<int>> levelOrder(TreeNode* root) {
 - 时间复杂度：O(n)，每个节点入队出队各一次
 - 空间复杂度：O(w)，w 为树的最大宽度（队列最大容量）
 
+课程工程中的树演示使用 `std::unique_ptr` 表达父节点独占子树；LeetCode 固定接口使用原始指针时，测试负责在所有断言之后按后序释放。实现与验证分别见 [LC 94 源码](code/leetcode/0094_binary_tree_inorder/solution.cpp)、[LC 94 测试](code/leetcode/0094_binary_tree_inorder/test.cpp)、[LC 102 源码](code/leetcode/0102_binary_tree_level_order/solution.cpp) 和 [LC 102 测试](code/leetcode/0102_binary_tree_level_order/test.cpp)。
+
 ---
 
 ## 🚀 运行代码
+
+### 今日工程动作：把并发不变量写成稳定测试
+
+本日不执行故意的数据竞争或死锁，也不以“100 ms 内完成”之类时序阈值作断言。`mutex_demo` 验证受锁保护的计数器精确达到目标，验证正常双向转账后的余额内容与总和，并回归目标余额溢出时拒绝且零修改；Item 36–37 测试检查 future 状态、计算结果和异常退栈时自动 join。脚本从全新 `build` 目录按 C++17 Release 与严格告警构建六个可执行目标，CTest 中任何不变量失败都会得到非零退出码。
 
 ### 编译与运行
 
 ```bash
 # 进入 day_30 目录
-cd /home/z/my-project/download/week_05/day_30
+cd week_05/day_30
 
-# 添加执行权限并运行
-chmod +x build_and_run.sh
+# 脚本已随仓库保存为可执行文件，直接运行
 ./build_and_run.sh
+
+# 或逐条执行同一流程
+cmake -E remove_directory build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17 \
+  -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Werror"
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
 ```
 
 ### 预期输出
 
-程序将依次演示：
+CTest 将验证：
 1. 四种树遍历的结果对比
 2. mutex 保护共享变量的多线程示例
 3. EMC++ Item 36-37 的异步策略演示
@@ -522,7 +587,7 @@ chmod +x build_and_run.sh
 | 死锁 | Deadlock | 多个线程互相等待对方释放资源，导致无法继续执行 |
 | RAII | Resource Acquisition Is Initialization | 资源获取即初始化，利用对象生命周期管理资源 |
 | 临界区 | Critical Section | 需要互斥访问的代码区域 |
-| 数据竞争 | Data Race | 多线程并发访问共享数据且至少有一个写入操作 |
+| 数据竞争 | Data Race | 无 happens-before 的冲突访问；至少一个访问会修改且至少一个不是原子操作，结果是未定义行为 |
 | 异步策略 | Launch Policy | 决定 std::async 如何执行任务的策略 |
 
 ---
@@ -536,7 +601,7 @@ chmod +x build_and_run.sh
 3. **mutex 使用原则**：
    - 优先使用 `std::lock_guard` 或 `std::unique_lock`，避免手动 lock/unlock
    - 尽量减少临界区代码量
-   - 获取多把锁时使用 `std::lock` 避免死锁
+   - 获取多把锁时优先使用 `std::scoped_lock`
 
 4. **std::async 的陷阱**：
    - 默认策略可能是延迟执行，不保证真正的异步
@@ -544,15 +609,25 @@ chmod +x build_and_run.sh
 
 5. **刷题技巧**：
    - 中序遍历是二叉搜索树（BST）相关题目的基础
-   - 层序遍历的 BFS 模板可应用于最短路径等问题
+   - 层序遍历的 BFS 模板可迁移到无权图或每条边等权的最短边数问题；带权图要改用 Dijkstra 等算法
 
 ---
 
 ## 🔗 参考资料
 
-1. [C++ Reference - std::mutex](https://en.cppreference.com/w/cpp/thread/mutex)
-2. [C++ Reference - std::async](https://en.cppreference.com/w/cpp/thread/async)
-3. [LeetCode 94 - Binary Tree Inorder Traversal](https://leetcode.com/problems/binary-tree-inorder-traversal/)
-4. [LeetCode 102 - Binary Tree Level Order Traversal](https://leetcode.com/problems/binary-tree-level-order-traversal/)
-5. *Effective Modern C++* by Scott Meyers - Item 36 & 37
-6. *C++ Concurrency in Action* by Anthony Williams
+1. [C++ working draft：mutex requirements](https://eel.is/c++draft/thread.mutex.requirements)
+2. [cppreference：`std::mutex`](https://en.cppreference.com/w/cpp/thread/mutex.html)
+3. [cppreference：`std::async`](https://en.cppreference.com/w/cpp/thread/async.html)
+4. [C++ Core Guidelines CP.2、CP.20、CP.21](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#rconc-races)
+5. [LeetCode 94 - Binary Tree Inorder Traversal](https://leetcode.com/problems/binary-tree-inorder-traversal/)
+6. [LeetCode 102 - Binary Tree Level Order Traversal](https://leetcode.com/problems/binary-tree-level-order-traversal/)
+7. Scott Meyers, *Effective Modern C++*, Item 36–37
+8. Anthony Williams, *C++ Concurrency in Action*（共享数据与线程管理）
+
+## 🧭 每日复盘（恰好五句）
+
+1. 我能用“根节点何时被访问”区分前序、中序和后序，并用队列层边界解释层序遍历。
+2. 我能说明数据竞争为何属于未定义行为，并用同一把 mutex 建立互斥与 happens-before 关系。
+3. 我能识别相反加锁顺序导致的循环等待，并用 `std::scoped_lock` 与余额总和不变量验证安全转账。
+4. 我能解释 Item 36 的默认策略歧义和 Item 37 的 joinable 析构风险，并避免用耗时阈值验证并发。
+5. 我能运行严格构建与六项 CTest，并在 ASan、UBSan 或 TSan 报告问题时区分代码缺陷与运行环境限制。

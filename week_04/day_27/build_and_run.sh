@@ -25,10 +25,16 @@ mkdir -p "${BUILD_DIR}"
 
 echo -e "${BLUE}[2/3] 配置CMake...${NC}"
 cd "${BUILD_DIR}"
-cmake ..
+cmake .. \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_TESTING=ON \
+    -DENABLE_SANITIZERS="${ENABLE_SANITIZERS:-OFF}" \
+    -DENABLE_ASAN="${ENABLE_ASAN:-OFF}" \
+    -DENABLE_UBSAN="${ENABLE_UBSAN:-OFF}"
 
 echo -e "${BLUE}[3/3] 编译项目...${NC}"
 make -j$(nproc)
+ctest --output-on-failure
 
 echo ""
 echo -e "${GREEN}=========================================${NC}"

@@ -1,37 +1,41 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.16)
+
 project(day_33_learning LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Threads REQUIRED)
+include(CTest)
 
-# 数据结构示例
-add_library(day33_tree_path_demo STATIC
-    code/data_structure/tree_path_demo.cpp
-)
+add_library(day33_warnings INTERFACE)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(day33_warnings INTERFACE
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wconversion
+        -Wsign-conversion
+        -Wshadow
+        -Werror
+    )
+endif()
 
-# C++11特性示例
-add_library(day33_thread_pool_demo STATIC
-    code/cpp11_features/thread_pool_demo.cpp
-)
+function(add_day33_example target source)
+    add_executable(${target} ${source})
+    target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../common)
+    target_link_libraries(${target} PRIVATE day33_warnings Threads::Threads)
+    add_test(NAME ${target} COMMAND ${target})
+endfunction()
 
-# EMC++条款示例
-add_library(day33_item11_16 STATIC
-    code/emcpp/item11_16_misc.cpp
-)
-
-# LeetCode题目
-add_library(day33_lc0257 STATIC
-    code/leetcode/0257_binary_tree_paths/solution.cpp
-)
-
-add_library(day33_lc0113 STATIC
-    code/leetcode/0113_path_sum_ii/solution.cpp
-)
-
-# 综合主程序
-add_executable(day33_main
-    code/main.cpp
-)
-target_link_libraries(day33_main PRIVATE Threads::Threads)
+add_day33_example(day33_main code/main.cpp)
+add_day33_example(day33_tree_path_demo code/data_structure/tree_path_demo.cpp)
+add_day33_example(day33_thread_pool_demo code/cpp11_features/thread_pool_demo.cpp)
+add_day33_example(day33_thread_pool_regression
+    code/cpp11_features/thread_pool_regression_test.cpp)
+add_day33_example(day33_thread_pool_argument_regression
+    code/cpp11_features/thread_pool_argument_regression_test.cpp)
+add_day33_example(day33_item11_16 code/emcpp/item11_16_misc.cpp)
+add_day33_example(day33_lc0257 code/leetcode/0257_binary_tree_paths/solution.cpp)
+add_day33_example(day33_lc0113 code/leetcode/0113_path_sum_ii/solution.cpp)

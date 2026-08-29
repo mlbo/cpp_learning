@@ -21,7 +21,7 @@
 #include <unordered_set>
 #include <unordered_map>
 
-using namespace std;
+namespace leetcode_0003 {
 
 class Solution {
 public:
@@ -33,7 +33,7 @@ public:
      * 时间复杂度: O(n)，最坏情况每个字符被访问两次
      * 空间复杂度: O(min(m, n))，m为字符集大小
      */
-    int lengthOfLongestSubstring(string s);
+    int lengthOfLongestSubstring(const std::string& s);
     
     /**
      * @brief 方法二：滑动窗口 + 数组优化
@@ -41,9 +41,9 @@ public:
      * @return 最长子串长度
      * 
      * 时间复杂度: O(n)
-     * 空间复杂度: O(m)，m为字符集大小（固定128）
+     * 空间复杂度: O(m)，m为单字节取值数（固定256）
      */
-    int lengthOfLongestSubstringArray(string s);
+    int lengthOfLongestSubstringArray(const std::string& s);
     
     /**
      * @brief 方法三：滑动窗口 + 哈希映射（优化版本）
@@ -53,17 +53,19 @@ public:
      * 时间复杂度: O(n)，每个字符只被访问一次
      * 空间复杂度: O(min(m, n))
      */
-    int lengthOfLongestSubstringOptimized(string s);
+    int lengthOfLongestSubstringOptimized(const std::string& s);
     
     /**
      * @brief 方法四：暴力法（用于对比验证）
      * @param s 输入字符串
      * @return 最长子串长度
      * 
-     * 时间复杂度: O(n³)
+     * 时间复杂度: O(n²)
      * 空间复杂度: O(min(m, n))
      */
-    int lengthOfLongestSubstringBruteForce(string s);
+    int lengthOfLongestSubstringBruteForce(const std::string& s);
 };
+
+} // namespace leetcode_0003
 
 #endif // SOLUTION_0003_H

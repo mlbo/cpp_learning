@@ -5,6 +5,11 @@
 
 #include "solution.h"
 #include <algorithm>
+#include <array>
+
+#include "../../../../common/integer_contracts.h"
+
+namespace leetcode_0003 {
 
 /**
  * 方法一：滑动窗口 + 哈希集合
@@ -15,12 +20,13 @@
  * 3. 当新字符已在窗口中时，left指针向右收缩窗口直到无重复
  * 4. 使用哈希集合记录窗口内的字符，实现O(1)查找
  */
-int Solution::lengthOfLongestSubstring(string s) {
-    unordered_set<char> window;  // 窗口内的字符集合
-    int left = 0;
-    int maxLen = 0;
+int Solution::lengthOfLongestSubstring(const std::string& s) {
+    (void)week01::checked_index(s.size());
+    std::unordered_set<char> window;  // 窗口内的字符集合
+    std::size_t left = 0;
+    std::size_t max_len = 0;
     
-    for (int right = 0; right < s.size(); ++right) {
+    for (std::size_t right = 0; right < s.size(); ++right) {
         // 当新字符在窗口中时，收缩左边界
         while (window.count(s[right])) {
             window.erase(s[left]);
@@ -29,10 +35,10 @@ int Solution::lengthOfLongestSubstring(string s) {
         
         // 扩展窗口
         window.insert(s[right]);
-        maxLen = max(maxLen, right - left + 1);
+        max_len = std::max(max_len, right - left + 1);
     }
     
-    return maxLen;
+    return week01::checked_index(max_len);
 }
 
 /**
@@ -40,29 +46,30 @@ int Solution::lengthOfLongestSubstring(string s) {
  * 
  * 核心思想：
  * 使用固定大小的数组代替哈希集合
- * - ASCII字符集大小为128，可以用bool数组标记字符是否在窗口中
+ * - 以单字节为单位时共有256种可能值，可以用bool数组标记
  * - 数组访问比哈希集合更快
  */
-int Solution::lengthOfLongestSubstringArray(string s) {
-    bool inWindow[128] = {false};  // 记录字符是否在窗口中
-    int left = 0;
-    int maxLen = 0;
+int Solution::lengthOfLongestSubstringArray(const std::string& s) {
+    (void)week01::checked_index(s.size());
+    std::array<bool, 256> in_window{};  // 记录字节是否在窗口中
+    std::size_t left = 0;
+    std::size_t max_len = 0;
     
-    for (int right = 0; right < s.size(); ++right) {
-        char c = s[right];
+    for (std::size_t right = 0; right < s.size(); ++right) {
+        const unsigned char byte = static_cast<unsigned char>(s[right]);
         
         // 当字符在窗口中时，收缩左边界
-        while (inWindow[static_cast<unsigned char>(c)]) {
-            inWindow[static_cast<unsigned char>(s[left])] = false;
+        while (in_window[byte]) {
+            in_window[static_cast<unsigned char>(s[left])] = false;
             ++left;
         }
         
         // 扩展窗口
-        inWindow[static_cast<unsigned char>(c)] = true;
-        maxLen = max(maxLen, right - left + 1);
+        in_window[byte] = true;
+        max_len = std::max(max_len, right - left + 1);
     }
     
-    return maxLen;
+    return week01::checked_index(max_len);
 }
 
 /**
@@ -77,24 +84,26 @@ int Solution::lengthOfLongestSubstringArray(string s) {
  * - 使用 right + 1 记录位置，避免0的歧义
  * - left只能向右移动，不能回退
  */
-int Solution::lengthOfLongestSubstringOptimized(string s) {
-    unordered_map<char, int> lastPos;  // 字符最后出现的位置
-    int left = 0;
-    int maxLen = 0;
+int Solution::lengthOfLongestSubstringOptimized(const std::string& s) {
+    (void)week01::checked_index(s.size());
+    std::unordered_map<char, std::size_t> last_pos;  // 字符上次位置 + 1
+    std::size_t left = 0;
+    std::size_t max_len = 0;
     
-    for (int right = 0; right < s.size(); ++right) {
-        char c = s[right];
+    for (std::size_t right = 0; right < s.size(); ++right) {
+        const char c = s[right];
         
         // 如果字符出现过，且在当前窗口内，更新左边界
-        if (lastPos.count(c) && lastPos[c] > left) {
-            left = lastPos[c];
+        const auto found = last_pos.find(c);
+        if (found != last_pos.end()) {
+            left = std::max(left, found->second);
         }
         
-        lastPos[c] = right + 1;  // 记录位置+1
-        maxLen = max(maxLen, right - left + 1);
+        last_pos[c] = right + 1;  // 记录位置+1
+        max_len = std::max(max_len, right - left + 1);
     }
     
-    return maxLen;
+    return week01::checked_index(max_len);
 }
 
 /**
@@ -103,20 +112,22 @@ int Solution::lengthOfLongestSubstringOptimized(string s) {
  * 枚举所有子串，检查是否有重复字符
  * 用于验证其他方法的正确性
  */
-int Solution::lengthOfLongestSubstringBruteForce(string s) {
-    int n = s.size();
-    int maxLen = 0;
+int Solution::lengthOfLongestSubstringBruteForce(const std::string& s) {
+    (void)week01::checked_index(s.size());
+    std::size_t max_len = 0;
     
-    for (int i = 0; i < n; ++i) {
-        unordered_set<char> seen;
-        for (int j = i; j < n; ++j) {
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        std::unordered_set<char> seen;
+        for (std::size_t j = i; j < s.size(); ++j) {
             if (seen.count(s[j])) {
                 break;  // 遇到重复字符，停止扩展
             }
             seen.insert(s[j]);
-            maxLen = max(maxLen, j - i + 1);
+            max_len = std::max(max_len, j - i + 1);
         }
     }
     
-    return maxLen;
+    return week01::checked_index(max_len);
 }
+
+} // namespace leetcode_0003

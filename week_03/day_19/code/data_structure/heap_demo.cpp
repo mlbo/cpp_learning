@@ -14,16 +14,16 @@ private:
     std::vector<int> data;
     
     // 获取父节点索引
-    int parent(int i) { return (i - 1) / 2; }
+    std::size_t parent(std::size_t i) { return (i - 1) / 2; }
     
     // 获取左子节点索引
-    int left(int i) { return 2 * i + 1; }
+    std::size_t left(std::size_t i) { return 2 * i + 1; }
     
     // 获取右子节点索引
-    int right(int i) { return 2 * i + 2; }
+    std::size_t right(std::size_t i) { return 2 * i + 2; }
     
     // 向上调整
-    void heapifyUp(int i) {
+    void heapifyUp(std::size_t i) {
         while (i > 0 && data[i] < data[parent(i)]) {
             std::swap(data[i], data[parent(i)]);
             i = parent(i);
@@ -31,13 +31,13 @@ private:
     }
     
     // 向下调整
-    void heapifyDown(int i) {
-        int size = data.size();
-        int smallest = i;
+    void heapifyDown(std::size_t i) {
+        const std::size_t size = data.size();
+        std::size_t smallest = i;
         
         while (true) {
-            int l = left(i);
-            int r = right(i);
+            const std::size_t l = left(i);
+            const std::size_t r = right(i);
             
             if (l < size && data[l] < data[smallest]) {
                 smallest = l;
@@ -76,7 +76,7 @@ public:
     }
     
     // 大小
-    int size() {
+    std::size_t size() {
         return data.size();
     }
     
@@ -88,9 +88,9 @@ public:
     // 打印堆结构
     void print() {
         std::cout << "  堆数组: [";
-        for (int i = 0; i < data.size(); ++i) {
+        for (std::size_t i = 0; i < data.size(); ++i) {
             std::cout << data[i];
-            if (i < data.size() - 1) std::cout << ", ";
+            if (i + 1 < data.size()) std::cout << ", ";
         }
         std::cout << "]" << std::endl;
     }

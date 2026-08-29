@@ -4,9 +4,14 @@ project(day_13_list_practice)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # 编译选项
-add_compile_options(-Wall -Wextra -Wpedantic)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(
+        -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow
+    )
+endif()
 find_package(Threads REQUIRED)
 
 # 包含目录
@@ -34,8 +39,6 @@ add_executable(day_13
     code/practice/list_summary.cpp
     code/practice/list_tricks.cpp
     code/practice/smart_ptr_summary.cpp
-    code/leetcode/0160_intersection/solution.cpp
-    code/leetcode/0148_sort_list/solution.cpp
 )
 target_link_libraries(day_13 PRIVATE Threads::Threads)
 
@@ -43,3 +46,4 @@ target_link_libraries(day_13 PRIVATE Threads::Threads)
 enable_testing()
 add_test(NAME IntersectionTest COMMAND test_160_intersection)
 add_test(NAME SortListTest COMMAND test_148_sort_list)
+add_test(NAME Day13Smoke COMMAND day_13)

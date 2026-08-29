@@ -1,294 +1,226 @@
 /**
  * @file item30_perfect_forward_fail.cpp
- * @brief EMC++ Item 30: 完美转发失败案例
- * 
- * 本文件演示：
- * 1. 大括号初始化器导致的转发失败
- * 2. 0或NULL作为空指针的转发失败
- * 3. 重载函数名的转发失败
- * 4. 位域的转发失败
- * 5. 解决方案
+ * @brief EMC++ Item 30: 熟悉完美转发失败情形
  */
 
-#include <iostream>
-#include <string>
-#include <vector>
-#include <memory>
+#include <cstddef>
 #include <initializer_list>
+#include <iostream>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
-// ==================== 辅助输出 ====================
+namespace {
 
-#define LOG(msg) std::cout << msg << std::endl
 #define SECTION(title) std::cout << "\n===== " << title << " =====\n\n"
 
-// ==================== 目标函数 ====================
-
-void processVector(const std::vector<int>& v) {
-    std::cout << "  处理vector，大小: " << v.size() << "\n";
-}
-
-void processPointer(void* ptr) {
-    std::cout << "  处理指针: " << (ptr ? "非空" : "空") << "\n";
-}
-
-void processInt(int x) {
-    std::cout << "  处理整数: " << x << "\n";
-}
-
-int processInt(int x, int y) {
-    std::cout << "  处理两个整数: " << x << ", " << y << "\n";
-    return x + y;
-}
-
-// ==================== 完美转发包装器 ====================
-
-template<typename T>
-void fwd(T&& param) {
-    // 模拟转发到一个处理函数
-    // 这里简化处理，只打印信息
-    std::cout << "  转发成功，类型: " << typeid(T).name() << "\n";
-}
-
-// 用于演示的通用转发函数
-template<typename T>
-void fwdToProcess(T&& param) {
-    process(std::forward<T>(param));
-}
-
-// 通用的process函数
-void process(const std::vector<int>& v) {
-    processVector(v);
-}
-
-void process(void* ptr) {
-    processPointer(ptr);
-}
-
-void process(int x) {
-    processInt(x);
-}
-
-// ==================== 案例1：大括号初始化器 ====================
-
-void case1BracedInitList() {
-    SECTION("案例1：大括号初始化器");
-    
-    std::cout << "问题描述：\n";
-    std::cout << "  大括号初始化器 {1, 2, 3} 没有类型\n";
-    std::cout << "  无法被模板参数推导识别\n\n";
-    
-    std::cout << "直接调用（成功）：\n";
-    std::cout << "  processVector({1, 2, 3});\n";
-    // processVector({1, 2, 3});  // 直接调用可以，因为形参类型已知
-    
-    std::cout << "\n通过完美转发（失败）：\n";
-    std::cout << "  fwd({1, 2, 3});  // 编译错误！\n";
-    // fwd({1, 2, 3});  // 错误：无法推导类型
-    
-    std::cout << "\n原因分析：\n";
-    std::cout << "  1. {1, 2, 3} 是 std::initializer_list<int>\n";
-    std::cout << "  2. 模板推导时，大括号初始化器没有类型\n";
-    std::cout << "  3. T&& 无法匹配到无类型的表达式\n";
-    
-    std::cout << "\n解决方案：\n";
-    std::cout << "  方法1：显式指定类型\n";
-    auto init = {1, 2, 3};
-    std::cout << "  auto init = {1, 2, 3};\n";
-    std::cout << "  fwd(init);  // 成功\n";
-    fwd(init);
-    
-    std::cout << "\n  方法2：构造临时vector\n";
-    std::cout << "  fwd(std::vector<int>{1, 2, 3});  // 成功\n";
-    fwd(std::vector<int>{1, 2, 3});
-}
-
-// ==================== 案例2：0和NULL作为空指针 ====================
-
-void case2NullPointer() {
-    SECTION("案例2：0和NULL作为空指针");
-    
-    std::cout << "问题描述：\n";
-    std::cout << "  0 和 NULL 在模板推导时被视为整数\n";
-    std::cout << "  而不是指针类型\n\n";
-    
-    void* nullPtr = nullptr;
-    
-    std::cout << "直接调用（成功）：\n";
-    std::cout << "  process(0);  // 可能成功，但语义不清\n";
-    std::cout << "  process(NULL);  // 可能成功，但语义不清\n";
-    
-    std::cout << "\n通过完美转发：\n";
-    std::cout << "  fwd(0);  // T推导为int，不是指针！\n";
-    fwd(0);
-    
-    std::cout << "\n  fwd(NULL);  // T推导为int或long，不是指针！\n";
-    // fwd(NULL);  // 视实现而定
-    
-    std::cout << "\n原因分析：\n";
-    std::cout << "  1. 0 是 int 类型字面量\n";
-    std::cout << "  2. NULL 通常是 0 或 0L 的宏定义\n";
-    std::cout << "  3. 模板推导不会将它们视为指针\n";
-    
-    std::cout << "\n解决方案：\n";
-    std::cout << "  使用 nullptr\n";
-    std::cout << "  fwd(nullptr);  // T推导为 std::nullptr_t\n";
-    fwd(nullptr);
-    
-    std::cout << "\n  nullptr 的优势：\n";
-    std::cout << "  1. 是指针类型，不是整数\n";
-    std::cout << "  2. 可以隐式转换为任何指针类型\n";
-    std::cout << "  3. 类型安全，不会与整数混淆\n";
-}
-
-// ==================== 案例3：重载函数名 ====================
-
-// 重载函数
-int overloadedFunc(int x) {
-    return x * 2;
-}
-
-double overloadedFunc(double x) {
-    return x * 2.0;
-}
-
-void processFunc(int (*func)(int)) {
-    std::cout << "  处理函数指针: " << (func ? "有效" : "无效") << "\n";
-}
-
-void case3OverloadedFunction() {
-    SECTION("案例3：重载函数名");
-    
-    std::cout << "问题描述：\n";
-    std::cout << "  重载函数名本身没有确定的类型\n";
-    std::cout << "  模板推导无法选择正确的重载\n\n";
-    
-    std::cout << "有多个重载版本的函数：\n";
-    std::cout << "  int overloadedFunc(int x);\n";
-    std::cout << "  double overloadedFunc(double x);\n\n";
-    
-    std::cout << "直接调用（成功）：\n";
-    std::cout << "  processFunc(overloadedFunc);  // 可能成功\n";
-    // processFunc(overloadedFunc);  // 可能仍有歧义
-    
-    std::cout << "\n通过完美转发（失败）：\n";
-    std::cout << "  fwd(overloadedFunc);  // 编译错误！\n";
-    // fwd(overloadedFunc);  // 错误：无法推导类型
-    
-    std::cout << "\n原因分析：\n";
-    std::cout << "  1. overloadedFunc 是重载函数名\n";
-    std::cout << "  2. 没有上下文时，编译器不知道选择哪个版本\n";
-    std::cout << "  3. 模板推导无法确定 T 的类型\n";
-    
-    std::cout << "\n解决方案：\n";
-    std::cout << "  方法1：显式转换\n";
-    std::cout << "  fwd(static_cast<int(*)(int)>(overloadedFunc));\n";
-    fwd(static_cast<int(*)(int)>(overloadedFunc));
-    
-    std::cout << "\n  方法2：使用函数指针变量\n";
-    int (*funcPtr)(int) = overloadedFunc;
-    std::cout << "  int (*funcPtr)(int) = overloadedFunc;\n";
-    std::cout << "  fwd(funcPtr);\n";
-    fwd(funcPtr);
-    
-    std::cout << "\n  方法3：使用lambda包装\n";
-    auto lambdaWrapper = [](int x) { return overloadedFunc(x); };
-    std::cout << "  fwd(lambdaWrapper);  // 但类型变了\n";
-}
-
-// ==================== 案例4：位域 ====================
-
-struct BitFieldStruct {
-    int a : 4;    // 4位有符号整数
-    int b : 4;    // 4位有符号整数
-    int c : 8;    // 8位有符号整数
+enum class TargetRoute {
+    VectorLvalue,
+    VectorRvalue,
+    Integer,
+    Pointer,
+    Function,
+    Size
 };
 
-void case4BitFields() {
-    SECTION("案例4：位域");
-    
-    BitFieldStruct bfs{5, 3, 100};
-    
-    std::cout << "问题描述：\n";
-    std::cout << "  位域不能被非const引用绑定\n";
-    std::cout << "  因为位域可能不是字节对齐的\n\n";
-    
-    std::cout << "位域结构体：\n";
-    std::cout << "  struct BitFieldStruct {\n";
-    std::cout << "      int a : 4;  // 4位\n";
-    std::cout << "      int b : 4;  // 4位\n";
-    std::cout << "      int c : 8;  // 8位\n";
-    std::cout << "  };\n\n";
-    
-    std::cout << "直接使用（部分成功）：\n";
-    std::cout << "  int x = bfs.a;  // 成功，复制值\n";
-    int x = bfs.a;
-    std::cout << "  x = " << x << "\n";
-    
-    std::cout << "\n通过完美转发（可能失败）：\n";
-    std::cout << "  fwd(bfs.a);  // 可能失败！\n";
-    // fwd(bfs.a);  // 取决于T&&如何绑定
-    
-    std::cout << "\n原因分析：\n";
-    std::cout << "  1. 位域成员可能跨越字节边界\n";
-    std::cout << "  2. 无法获取位域成员的地址\n";
-    std::cout << "  3. 非const引用需要可寻址的对象\n";
-    
-    std::cout << "\n解决方案：\n";
-    std::cout << "  方法：先复制到临时变量\n";
-    int temp = bfs.a;
-    std::cout << "  int temp = bfs.a;\n";
-    std::cout << "  fwd(temp);  // 成功\n";
-    fwd(temp);
-    
-    std::cout << "\n  或使用auto：\n";
-    std::cout << "  auto val = bfs.b;\n";
-    std::cout << "  fwd(val);\n";
-    auto val = bfs.b;
-    fwd(val);
+TargetRoute lastRoute = TargetRoute::Integer;
+int lastFunctionResult = 0;
+
+void target(const std::vector<int>& values) {
+    lastRoute = TargetRoute::VectorLvalue;
+    std::cout << "  target(const vector&)，元素数 = " << values.size() << "\n";
 }
 
-// ==================== 总结 ====================
+void target(std::vector<int>&& values) {
+    lastRoute = TargetRoute::VectorRvalue;
+    std::cout << "  target(vector&&)，元素数 = " << values.size() << "\n";
+}
+
+void target(int value) {
+    lastRoute = TargetRoute::Integer;
+    std::cout << "  target(int)，值 = " << value << "\n";
+}
+
+void target(void* pointer) {
+    lastRoute = TargetRoute::Pointer;
+    std::cout << "  target(void*)，指针为 " << (pointer == nullptr ? "空" : "非空") << "\n";
+}
+
+void target(std::nullptr_t) {
+    std::cout << "  target(nullptr_t)，随后可无歧义地转换为空对象指针\n";
+    target(static_cast<void*>(nullptr));
+}
+
+void target(int (*function)(int)) {
+    lastRoute = TargetRoute::Function;
+    lastFunctionResult = function(21);
+    std::cout << "  target(int(*)(int))，调用结果 = " << lastFunctionResult << "\n";
+}
+
+void target(std::size_t value) {
+    lastRoute = TargetRoute::Size;
+    std::cout << "  target(size_t)，值 = " << value << "\n";
+}
+
+template<typename T>
+decltype(auto) fwd(T&& param) {
+    // 真正把参数送到目标重载；测试输出来自 target，而不是只打印 T 的名字。
+    return target(std::forward<T>(param));
+}
+
+struct StaticConfig {
+    // 类内初始化足以把它当编译期值使用；一旦绑定引用，就会发生 ODR-use。
+    static const std::size_t MinValues = 2;
+};
+
+// 为引用绑定提供存储定义。若删掉这一行，fwd(StaticConfig::MinValues) 通常会链接失败。
+const std::size_t StaticConfig::MinValues;
+
+int overloaded(int value) {
+    return value * 2;
+}
+
+[[maybe_unused]] double overloaded(double value) {
+    return value * 2.0;
+}
+
+template<typename T>
+int functionTemplate(T value) {
+    return static_cast<int>(value) + 1;
+}
+
+struct BitFields {
+    unsigned mode : 3;
+};
+
+void caseBracedInitList() {
+    SECTION("案例1：大括号初始化列表");
+
+    std::cout << "  {1, 2, 3} 通常不是一个具有普通表达式类型的表达式，T&& 无从推导 T。\n";
+    std::cout << "  auto values = {1, 2, 3} 能工作，是 auto 对列表初始化的特殊规则，结果为 initializer_list<int>。\n";
+    std::cout << "  若目标语义是 vector，先明确构造 vector，避免依赖特殊推导规则：\n";
+
+    std::vector<int> values{1, 2, 3};
+    fwd(values);
+    fwd(std::vector<int>{4, 5});
+
+    auto list = {6, 7, 8};
+    static_assert(std::is_same_v<decltype(list), std::initializer_list<int>>);
+    std::cout << "  auto list 的类型经特殊规则成为 initializer_list<int>，元素数 = " << list.size() << "\n";
+    std::cout << "  被注释的 fwd({1, 2, 3}) 会因模板参数无法推导而编译失败。\n";
+}
+
+void caseNullPointer() {
+    SECTION("案例2：0、NULL 与 nullptr");
+
+    std::cout << "  fwd(0) 保留 int 类型，因此实际到达整数重载：\n";
+    fwd(0);
+
+    std::cout << "  fwd(nullptr) 保留 std::nullptr_t，再转换到指针重载：\n";
+    fwd(nullptr);
+
+    static_assert(std::is_same_v<decltype(nullptr), std::nullptr_t>);
+    static_assert(!std::is_pointer_v<std::nullptr_t>);
+    std::cout << "  nullptr 的类型是 std::nullptr_t；它不是指针类型，但能安全转换为各类指针。\n";
+    std::cout << "  NULL 常是整数宏，具体整数类型依实现而异，所以泛型代码应使用 nullptr。\n";
+}
+
+void caseStaticConstIntegral() {
+    SECTION("案例3：仅类内声明的 static const 整型成员");
+
+    std::cout << "  编译期按值使用 StaticConfig::MinValues 通常不需要额外存储。\n";
+    std::cout << "  转发引用会绑定到该成员并造成 ODR-use，因此需要类外定义：\n";
+    fwd(StaticConfig::MinValues);
+    std::cout << "  C++17 也可把成员写成 inline static constexpr，从定义层面消除这个陷阱。\n";
+}
+
+void caseFunctionNames() {
+    SECTION("案例4：重载函数名与函数模板名");
+
+    std::cout << "  单独的 overloaded 代表重载集合，fwd(overloaded) 没有目标类型帮助选择版本。\n";
+    std::cout << "  先固定函数指针类型，再让 fwd 真实转发到函数指针目标：\n";
+    auto function = static_cast<int (*)(int)>(overloaded);
+    fwd(function);
+
+    std::cout << "  functionTemplate 也代表尚未选择实例的函数模板，fwd(functionTemplate) 同样无法推导 T。\n";
+    std::cout << "  显式选择 functionTemplate<int> 并固定函数指针类型后，调用结果应为 22：\n";
+    auto specialization = static_cast<int (*)(int)>(functionTemplate<int>);
+    fwd(specialization);
+}
+
+void caseBitField() {
+    SECTION("案例5：位域");
+
+    BitFields bits{5};
+    std::cout << "  位域不是可独立寻址的对象，不能直接绑定到转发引用。\n";
+    const int copied = static_cast<int>(bits.mode);
+    std::cout << "  先复制到普通对象，再转发：\n";
+    fwd(copied);
+}
 
 void summary() {
-    SECTION("完美转发失败案例总结");
-    
-    std::cout << "┌─────────────────────────┬─────────────────────────┐\n";
-    std::cout << "│       失败情况          │        解决方案         │\n";
-    std::cout << "├─────────────────────────┼─────────────────────────┤\n";
-    std::cout << "│ 大括号初始化器 {1,2,3}  │ 使用auto声明或显式类型   │\n";
-    std::cout << "│ 0 或 NULL 作为空指针    │ 使用 nullptr            │\n";
-    std::cout << "│ 重载函数名              │ 显式转换或使用函数指针  │\n";
-    std::cout << "│ 位域成员                │ 先复制到临时变量        │\n";
-    std::cout << "└─────────────────────────┴─────────────────────────┘\n";
-    
-    std::cout << "\n核心原则：\n";
-    std::cout << "  完美转发依赖于类型推导\n";
-    std::cout << "  如果类型信息不明确或无法推导，转发就会失败\n";
-    std::cout << "  解决方案都是为了让类型信息变得明确\n";
+    SECTION("Item 30 边界清单");
+    std::cout << "  1. 大括号列表：给出明确对象类型。\n";
+    std::cout << "  2. 0/NULL：用 nullptr 表达空指针。\n";
+    std::cout << "  3. static const 整型成员：被引用绑定时提供定义，或使用 inline constexpr。\n";
+    std::cout << "  4. 重载函数名或函数模板名：先用函数指针、显式模板实参或 lambda 固定目标。\n";
+    std::cout << "  5. 位域：先复制到可寻址的普通对象。\n";
 }
 
-// ==================== 主演示函数 ====================
+bool verifySuccessBoundaries() {
+    std::vector<int> values{1, 2, 3};
+    fwd(values);
+    const bool vectorLvalue = lastRoute == TargetRoute::VectorLvalue;
+    fwd(std::vector<int>{4, 5});
+    const bool vectorRvalue = lastRoute == TargetRoute::VectorRvalue;
+    fwd(0);
+    const bool zeroStaysInteger = lastRoute == TargetRoute::Integer;
+    fwd(nullptr);
+    const bool nullptrReachesPointer = lastRoute == TargetRoute::Pointer;
+    fwd(StaticConfig::MinValues);
+    const bool staticMemberHasStorage = lastRoute == TargetRoute::Size;
+    auto function = static_cast<int (*)(int)>(overloaded);
+    fwd(function);
+    const bool overloadWasResolved =
+        lastRoute == TargetRoute::Function && lastFunctionResult == 42;
+    auto specialization = static_cast<int (*)(int)>(functionTemplate<int>);
+    fwd(specialization);
+    const bool templateWasResolved =
+        lastRoute == TargetRoute::Function && lastFunctionResult == 22;
+    BitFields bits{5};
+    const int copy = static_cast<int>(bits.mode);
+    fwd(copy);
+    const bool bitFieldCopyIsAddressable = lastRoute == TargetRoute::Integer;
+
+    return vectorLvalue && vectorRvalue && zeroStaysInteger &&
+           nullptrReachesPointer && staticMemberHasStorage &&
+           overloadWasResolved && templateWasResolved && bitFieldCopyIsAddressable;
+}
+
+} // namespace
 
 namespace emcpp {
 
 void item30PerfectForwardFail() {
-    std::cout << "【EMC++ Item 30: 完美转发失败案例】\n";
-    
-    case1BracedInitList();
-    case2NullPointer();
-    case3OverloadedFunction();
-    case4BitFields();
+    std::cout << "【EMC++ Item 30: 熟悉完美转发失败情形】\n";
+    caseBracedInitList();
+    caseNullPointer();
+    caseStaticConstIntegral();
+    caseFunctionNames();
+    caseBitField();
     summary();
-    
-    std::cout << "\n===== Item 30 总结 =====\n";
-    std::cout << "  完美转发虽然强大，但并非万能\n";
-    std::cout << "  了解失败情况有助于编写更健壮的代码\n";
-    std::cout << "  当遇到编译错误时，检查是否属于这些情况\n";
+}
+
+bool verifyItem30Contracts() {
+    return verifySuccessBoundaries();
 }
 
 } // namespace emcpp
 
-// 独立测试入口
+bool verify_item30_forwarding_boundaries_contract() {
+    return emcpp::verifyItem30Contracts();
+}
+
 #ifdef STANDALONE_TEST
 int main() {
     emcpp::item30PerfectForwardFail();

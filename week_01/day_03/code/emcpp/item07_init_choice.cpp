@@ -16,6 +16,8 @@
 #include <chrono>
 #include <complex>
 #include <mutex>
+#include <atomic>
+#include <utility>
 
 namespace emcpp {
 
@@ -33,6 +35,11 @@ void demo_initialization_diversity() {
     int x2(0);       // 直接初始化
     int x3 = {0};    // 拷贝列表初始化
     int x4{0};       // 直接列表初始化
+
+    (void)x1;
+    (void)x2;
+    (void)x3;
+    (void)x4;
 
     std::cout << "同一件事，四种写法：\n";
     std::cout << "  int x1 = 0;   // 拷贝初始化\n";
@@ -71,10 +78,12 @@ void demo_anywhere_init() {
     };
     std::cout << "类内成员初始化：{} 和 = 支持，() 不支持\n";
 
-    // 2. 不可拷贝对象
-    std::atomic<int> ai1{0};     // OK
-    // std::atomic<int> ai2 = 0; // 错误！
-    std::cout << "不可拷贝对象：{} 支持，= 不支持\n";
+    // 2. C++17 的拷贝消除会影响初始化是否合法
+    std::atomic<int> ai1{0};    // 直接列表初始化
+    std::atomic<int> ai2 = 0;   // C++17 起可行；C++11/14 会尝试已删除的拷贝构造
+    std::cout << "atomic：{} 直接构造；= 形式在 C++17 可依靠保证的拷贝消除\n";
+    (void)ai1;
+    (void)ai2;
 
     // 3. 括号初始化无法表达的场景
     std::cout << "动态数组初始化：new int[5]{1,2,3,4,5}（C++11）\n";
@@ -85,13 +94,14 @@ void demo_narrowing_prevention() {
     std::cout << "\n=== 优势 2：防止窄化转换 ===\n";
 
     double d = 1.5;
-    int i1 = d;     // OK，但丢失数据
-    int i2(d);      // OK，但丢失数据
+    int i1 = static_cast<int>(d);  // 显式接受数据丢失
+    int i2(static_cast<int>(d));
 
     // int i3{d};    // 错误！窄化转换
     // int i4 = {d}; // 错误！
 
-    std::cout << "圆括号允许窄化: double " << d << " -> int " << i1 << "\n";
+    std::cout << "圆括号允许窄化: double " << d << " -> int " << i1
+              << ", " << i2 << "（本示例用 static_cast 明示意图）\n";
     std::cout << "花括号禁止窄化: 编译时错误（保护性）\n";
 }
 
@@ -107,7 +117,7 @@ void demo_vexing_parse() {
 
     // Widget w1();    // 函数声明！
     Widget w2{};      // 明确是对象初始化
-    Widget w3();      // 这不是默认构造！
+    // Widget w3();   // 如果写进程序，这是函数声明，不是默认构造。
 
     std::cout << "w3 声明的是函数，不是对象！\n";
     std::cout << "使用 {} 可以避免这种歧义\n";
@@ -177,7 +187,7 @@ void demo_empty_brace() {
     EmptyBraceTest e1{};  // 默认构造，不是空的 initializer_list！
 
     std::cout << "EmptyBraceTest e2{{}}: ";
-    EmptyBraceTest e2{{}};  // 空的 initializer_list
+    EmptyBraceTest e2{{}};  // 一个值初始化的 int 元素（值为 0），size == 1
 
     std::cout << "EmptyBraceTest e3({}): ";
     EmptyBraceTest e3({});  // 空的 initializer_list（显式）
@@ -187,11 +197,12 @@ void demo_empty_brace() {
 class NarrowingTrap {
 public:
     NarrowingTrap(int a, int b, double c) {
-        std::cout << "  调用 (int, int, double) 构造\n";
+        std::cout << "  调用 (int, int, double) 构造: " << a << ", " << b
+                  << ", " << c << "\n";
     }
 
     NarrowingTrap(std::initializer_list<bool> list) {
-        std::cout << "  调用 initializer_list<bool> 构造\n";
+        std::cout << "  调用 initializer_list<bool> 构造，元素数: " << list.size() << "\n";
     }
 };
 

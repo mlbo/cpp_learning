@@ -78,6 +78,7 @@ void demonstrate_basic_usage() {
     // 修改b会影响x
     b = 20;
     std::cout << "修改b后, x = " << x << std::endl;
+    (void)p2; (void)arr2;
 }
 
 // ==================== 2. decltype推导规则 ====================
@@ -161,6 +162,7 @@ void demonstrate_decltype_vs_auto() {
     
     static_assert(std::is_same_v<decltype(a4), int*>);
     static_assert(std::is_same_v<decltype(d4), int[5]>);
+    (void)a1; (void)a3; (void)d1; (void)d3;
 }
 
 // ==================== 4. decltype典型应用 ====================
@@ -229,6 +231,7 @@ void demonstrate_pitfalls() {
     
     std::cout << "\n陷阱2: decltype(*ptr) -> int&" << std::endl;
     static_assert(std::is_same_v<decltype(c), int&>);
+    (void)a; (void)b;
 }
 
 // ==================== 主演示函数 ====================

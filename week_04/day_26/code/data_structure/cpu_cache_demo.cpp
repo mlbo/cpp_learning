@@ -1,189 +1,163 @@
 /**
- * CPU缓存演示
- * 展示缓存层次结构、缓存行、伪共享等概念
+ * CPU缓存演示：输出当前程序的实验现象，不把常见硬件参数写成语言保证。
  */
 
 #include "cpu_cache_demo.h"
+
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cstdint>
+#include <iomanip>
 #include <iostream>
 #include <thread>
 #include <vector>
-#include <chrono>
-#include <iomanip>
-#include <cstring>
 
-// 打印缓存层次信息
+namespace {
+
+using Clock = std::chrono::steady_clock;
+using Nanoseconds = std::chrono::nanoseconds;
+
+volatile std::uint64_t benchmarkSink = 0;
+
+Nanoseconds median(std::vector<Nanoseconds> samples) {
+    std::sort(samples.begin(), samples.end());
+    return samples[samples.size() / 2];
+}
+
+template<typename Counter>
+Nanoseconds runCounterPair(Counter& counters, std::uint64_t iterations) {
+    counters.count1.store(0, std::memory_order_relaxed);
+    counters.count2.store(0, std::memory_order_relaxed);
+    const auto start = Clock::now();
+    std::thread first([&] {
+        for (std::uint64_t i = 0; i < iterations; ++i) {
+            counters.count1.fetch_add(1, std::memory_order_relaxed);
+        }
+    });
+    std::thread second([&] {
+        for (std::uint64_t i = 0; i < iterations; ++i) {
+            counters.count2.fetch_add(1, std::memory_order_relaxed);
+        }
+    });
+    first.join();
+    second.join();
+    benchmarkSink = counters.count1.load(std::memory_order_relaxed)
+                  + counters.count2.load(std::memory_order_relaxed);
+    return std::chrono::duration_cast<Nanoseconds>(Clock::now() - start);
+}
+
+template<typename Function>
+Nanoseconds benchmarkMedian(Function&& function, std::size_t repeats = 7) {
+    function(); // 预热：触发页映射、分支与代码缓存等一次性成本
+    std::vector<Nanoseconds> samples;
+    samples.reserve(repeats);
+    for (std::size_t repeat = 0; repeat < repeats; ++repeat) {
+        const auto start = Clock::now();
+        benchmarkSink = function();
+        samples.push_back(std::chrono::duration_cast<Nanoseconds>(Clock::now() - start));
+    }
+    return median(std::move(samples));
+}
+
+} // namespace
+
 void printCacheInfo() {
-    std::cout << "\n--- 缓存层次结构信息 ---" << std::endl;
-    
-    std::cout << "┌─────────────────────────────────────────────┐" << std::endl;
-    std::cout << "│  CPU缓存层次结构                             │" << std::endl;
-    std::cout << "├───────────────┬───────────┬─────────────────┤" << std::endl;
-    std::cout << "│   缓存级别    │   大小    │    访问延迟     │" << std::endl;
-    std::cout << "├───────────────┼───────────┼─────────────────┤" << std::endl;
-    std::cout << "│   L1 Cache    │  32-64KB  │    4-5 周期     │" << std::endl;
-    std::cout << "│   L2 Cache    │ 256KB-1MB │   10-12 周期    │" << std::endl;
-    std::cout << "│   L3 Cache    │  8-64MB   │   30-40 周期    │" << std::endl;
-    std::cout << "│   主内存      │  8-128GB  │  100-300 周期   │" << std::endl;
-    std::cout << "└───────────────┴───────────┴─────────────────┘" << std::endl;
-    
-    std::cout << "\n缓存行大小: " << CACHE_LINE_SIZE << " 字节" << std::endl;
-    std::cout << "说明: 缓存行是CPU缓存与主内存交换数据的基本单位" << std::endl;
+    std::cout << "\n--- 缓存层次结构 ---\n";
+    std::cout << "  常见机器有多级缓存，但容量、共享方式、缓存行大小和延迟都依CPU型号而变。\n";
+    std::cout << "  精确参数应读取操作系统/处理器资料或使用硬件计数器，本演示不硬编码周期数。\n";
+    std::cout << "  后续alignas(" << DEMO_CACHE_LINE_BYTES << ")只是一个常见布局实验参数。\n";
 }
 
-// 演示缓存行概念
 void demoCacheLine() {
-    std::cout << "\n--- 缓存行概念演示 ---" << std::endl;
-    
-    std::cout << "当CPU读取一个变量时，会加载整个缓存行(64字节):" << std::endl;
-    
-    // 创建一个数组来演示缓存行加载
-    int arr[16] = {0};  // 16 * 4 = 64字节 = 1个缓存行
-    
-    std::cout << "int arr[16] 占用 " << sizeof(arr) << " 字节，正好一个缓存行" << std::endl;
-    
-    // 访问第一个元素会加载整个缓存行
-    std::cout << "访问 arr[0] 会将 arr[0]~arr[15] 都加载到缓存" << std::endl;
-    std::cout << "这就是空间局部性原理的体现" << std::endl;
-    
-    // 演示内存地址对缓存行的影响
-    int* ptr1 = arr;
-    int* ptr2 = arr + 8;
-    
-    std::cout << "\narr 地址: " << ptr1 << std::endl;
-    std::cout << "arr+8 地址: " << ptr2 << std::endl;
-    std::cout << "地址差: " << ((char*)ptr2 - (char*)ptr1) << " 字节" << std::endl;
-    
-    if (((char*)ptr2 - (char*)ptr1) < CACHE_LINE_SIZE) {
-        std::cout << "两个变量在同一缓存行中！" << std::endl;
-    }
+    std::cout << "\n--- 缓存行概念演示 ---\n";
+    std::array<int, 16> values{};
+    const auto first = reinterpret_cast<std::uintptr_t>(&values[0]);
+    const auto middle = reinterpret_cast<std::uintptr_t>(&values[8]);
+
+    std::cout << "  数组对象大小 = " << sizeof(values) << " 字节。\n";
+    std::cout << "  即使大小碰巧为64字节，也可能因起始地址未落在64字节边界而跨越两个64字节区间。\n";
+    std::cout << "  values[0] 与 values[8] 地址差 = " << middle - first << " 字节。\n";
+    const bool sameIllustrativeBlock = first / DEMO_CACHE_LINE_BYTES == middle / DEMO_CACHE_LINE_BYTES;
+    std::cout << "  按‘64字节区间’这个演示模型，它们"
+              << (sameIllustrativeBlock ? "落在同一区间" : "落在不同区间") << "。\n";
+    std::cout << "  地址差小于64并不能证明同一缓存行；还必须知道边界和真实硬件缓存行大小。\n";
 }
 
-// 演示伪共享问题
 void demoFalseSharing() {
-    std::cout << "\n--- 伪共享问题演示 ---" << std::endl;
-    
-    const int ITERATIONS = 50'000'000;
-    
-    std::cout << "测试场景: 两个线程分别修改不同的变量" << std::endl;
-    std::cout << "迭代次数: " << ITERATIONS << std::endl;
-    
-    // 测试存在伪共享的情况
-    CounterBad bad;
-    bad.count1 = 0;
-    bad.count2 = 0;
-    
-    std::cout << "\n[测试1] 存在伪共享的情况:" << std::endl;
-    std::cout << "  CounterBad 大小: " << sizeof(CounterBad) << " 字节" << std::endl;
-    std::cout << "  count1 和 count2 可能在同一缓存行" << std::endl;
-    
-    auto start = std::chrono::high_resolution_clock::now();
-    std::thread t1([&]() {
-        for (int i = 0; i < ITERATIONS; ++i) {
-            bad.count1++;
-        }
-    });
-    std::thread t2([&]() {
-        for (int i = 0; i < ITERATIONS; ++i) {
-            bad.count2++;
-        }
-    });
-    t1.join();
-    t2.join();
-    auto end = std::chrono::high_resolution_clock::now();
-    auto badTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    std::cout << "  耗时: " << badTime << " ms" << std::endl;
-    
-    // 测试避免伪共享的情况
-    CounterGood good;
-    good.count1 = 0;
-    good.count2 = 0;
-    
-    std::cout << "\n[测试2] 避免伪共享的情况:" << std::endl;
-    std::cout << "  CounterGood 大小: " << sizeof(CounterGood) << " 字节" << std::endl;
-    std::cout << "  count1 和 count2 在不同缓存行" << std::endl;
-    
-    start = std::chrono::high_resolution_clock::now();
-    std::thread t3([&]() {
-        for (int i = 0; i < ITERATIONS; ++i) {
-            good.count1++;
-        }
-    });
-    std::thread t4([&]() {
-        for (int i = 0; i < ITERATIONS; ++i) {
-            good.count2++;
-        }
-    });
-    t3.join();
-    t4.join();
-    end = std::chrono::high_resolution_clock::now();
-    auto goodTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    std::cout << "  耗时: " << goodTime << " ms" << std::endl;
-    
-    // 性能对比
-    std::cout << "\n性能对比:" << std::endl;
-    if (badTime > 0 && goodTime > 0) {
-        double improvement = 100.0 * (badTime - goodTime) / badTime;
-        std::cout << "  避免伪共享性能提升: " << std::fixed << std::setprecision(1) 
-                  << improvement << "%" << std::endl;
+    std::cout << "\n--- 伪共享实验 ---\n";
+    constexpr std::uint64_t iterations = 2'000'000;
+    constexpr std::size_t repeats = 5;
+    CounterBad adjacent;
+    CounterGood separated;
+
+    runCounterPair(adjacent, 10'000);
+    runCounterPair(separated, 10'000);
+
+    std::vector<Nanoseconds> adjacentSamples;
+    std::vector<Nanoseconds> separatedSamples;
+    for (std::size_t repeat = 0; repeat < repeats; ++repeat) {
+        adjacentSamples.push_back(runCounterPair(adjacent, iterations));
+        separatedSamples.push_back(runCounterPair(separated, iterations));
     }
-    
-    std::cout << "\n结论: 伪共享会导致缓存行在多核之间频繁传递，" << std::endl;
-    std::cout << "      使用缓存行填充可以有效避免此问题" << std::endl;
+
+    const auto adjacentMedian = median(std::move(adjacentSamples));
+    const auto separatedMedian = median(std::move(separatedSamples));
+    std::cout << "  每个线程执行相同的 " << iterations << " 次 relaxed 原子自增，预热后重复 "
+              << repeats << " 次并取中位数。\n";
+    std::cout << "  相邻原子中位数: "
+              << std::chrono::duration<double, std::milli>(adjacentMedian).count() << " ms\n";
+    std::cout << "  alignas(64)分隔原子中位数: "
+              << std::chrono::duration<double, std::milli>(separatedMedian).count() << " ms\n";
+    std::cout << "  分隔只是在常见64字节缓存行机器上的候选方案；调度、拓扑和真实缓存行大小都会改变结果。\n";
 }
 
-// 演示缓存命中率影响
 void demoCacheHitRate() {
-    std::cout << "\n--- 缓存命中率演示 ---" << std::endl;
-    
-    const int SIZE = 1024 * 1024;  // 4MB数据
-    std::vector<int> data(SIZE, 1);
-    
-    volatile long long sum = 0;
-    
-    // 顺序访问（缓存友好）
-    std::cout << "[测试1] 顺序访问 (缓存友好)" << std::endl;
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < SIZE; ++i) {
-        sum += data[i];
+    std::cout << "\n--- 顺序与跨步等量工作实验 ---\n";
+    constexpr std::size_t elementCount = 4 * 1024 * 1024;
+    constexpr std::size_t stride = 257;
+    std::vector<std::uint32_t> data(elementCount, 1);
+
+    const auto sequential = [&]() {
+        std::uint64_t sum = 0;
+        for (std::uint32_t value : data) {
+            sum += value;
+        }
+        return sum;
+    };
+
+    const auto strided = [&]() {
+        std::uint64_t sum = 0;
+        for (std::size_t offset = 0; offset < stride; ++offset) {
+            for (std::size_t index = offset; index < data.size(); index += stride) {
+                sum += data[index];
+            }
+        }
+        return sum;
+    };
+
+    const auto sequentialTime = benchmarkMedian(sequential);
+    const auto stridedTime = benchmarkMedian(strided);
+    if (sequential() != strided()) {
+        std::cout << "  [错误] 两种遍历没有处理相同元素。\n";
+        return;
     }
-    auto end = std::chrono::high_resolution_clock::now();
-    std::cout << "  耗时: " 
-              << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() 
-              << " ms" << std::endl;
-    
-    // 跳跃访问（缓存不友好）
-    std::cout << "\n[测试2] 跳跃访问 (缓存不友好)" << std::endl;
-    const int STRIDE = 64;  // 每次跳跃64个int（256字节，跨多个缓存行）
-    start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < SIZE; i += STRIDE) {
-        sum += data[i];
-    }
-    end = std::chrono::high_resolution_clock::now();
-    std::cout << "  耗时: " 
-              << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() 
-              << " ms" << std::endl;
-    
-    std::cout << "\n说明: 顺序访问能充分利用缓存行预取，" << std::endl;
-    std::cout << "      跳跃访问导致缓存利用率低" << std::endl;
+
+    std::cout << "  两种遍历都恰好读取 " << elementCount << " 个元素，预热后各重复7次取中位数。\n";
+    std::cout << "  顺序访问中位数: "
+              << std::chrono::duration<double, std::milli>(sequentialTime).count() << " ms\n";
+    std::cout << "  跨步访问中位数: "
+              << std::chrono::duration<double, std::milli>(stridedTime).count() << " ms\n";
+    std::cout << "  benchmarkSink=" << benchmarkSink << " 防止编译器删除求和；结果仅适用于当前机器和编译选项。\n";
 }
 
-// 主演示函数
 void cpuCacheDemo() {
-    std::cout << "╔══════════════════════════════════════╗" << std::endl;
-    std::cout << "║          CPU缓存知识演示             ║" << std::endl;
-    std::cout << "║   Cache Hierarchy & False Sharing    ║" << std::endl;
-    std::cout << "╚══════════════════════════════════════╝" << std::endl;
-    
+    std::cout << "╔══════════════════════════════════════╗\n";
+    std::cout << "║          CPU缓存实验                 ║\n";
+    std::cout << "╚══════════════════════════════════════╝\n";
     printCacheInfo();
     demoCacheLine();
     demoFalseSharing();
     demoCacheHitRate();
-    
-    std::cout << "\n========================================" << std::endl;
-    std::cout << "CPU缓存要点总结:" << std::endl;
-    std::cout << "  1. 缓存分层: L1最快最小，L3最慢最大" << std::endl;
-    std::cout << "  2. 缓存行: 数据传输的基本单位(64字节)" << std::endl;
-    std::cout << "  3. 伪共享: 多线程修改同一缓存行导致性能下降" << std::endl;
-    std::cout << "  4. 解决方案: 使用缓存行填充或alignas对齐" << std::endl;
-    std::cout << "========================================" << std::endl;
+    std::cout << "\n结论：局部性和伪共享是优化线索，必须在Release构建上用当前机器的重复测量验证。\n";
 }

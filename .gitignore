@@ -50,6 +50,26 @@ bin/
 lib/
 out/
 
+# Sphinx documentation
+docs/_build/
+docs/.doctrees/
+docs/.venv/
+docs/_generated/
+docs/content/
+.venv-docs/
+
+# Python tooling caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Crash dumps
+core
+core.*
+core-*
+core-*.dmp
+
 # OS generated files (macOS / Windows)
 .DS_Store
 .DS_Store?

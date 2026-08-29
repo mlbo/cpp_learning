@@ -16,11 +16,13 @@
  * - 注意 [-1, 0, 1] 和 [0, 1, -1] 是重复的，只保留一个
  */
 
-#ifndef SOLUTION_H
-#define SOLUTION_H
+#ifndef WEEK01_DAY04_LEETCODE_0015_SOLUTION_H
+#define WEEK01_DAY04_LEETCODE_0015_SOLUTION_H
 
 #include <vector>
 #include <algorithm>
+
+namespace leetcode_0015 {
 
 class Solution {
 public:
@@ -43,4 +45,6 @@ public:
     std::vector<std::vector<int>> threeSum(std::vector<int>& nums);
 };
 
-#endif // SOLUTION_H
+} // namespace leetcode_0015
+
+#endif // WEEK01_DAY04_LEETCODE_0015_SOLUTION_H

@@ -9,7 +9,11 @@
 #ifndef LC_0138_COPY_RANDOM_SOLUTION_H
 #define LC_0138_COPY_RANDOM_SOLUTION_H
 
+#include <memory>
+#include <new>
 #include <unordered_map>
+
+namespace leetcode_0138 {
 
 // 随机链表节点定义
 class Node {
@@ -18,7 +22,26 @@ public:
     Node* next;
     Node* random;
 
-    Node(int _val) : val(_val), next(nullptr), random(nullptr) {}
+    explicit Node(int value) : val(value), next(nullptr), random(nullptr) {
+        if (constructions_before_failure_ == 0) {
+            throw std::bad_alloc();
+        }
+        if (constructions_before_failure_ > 0) {
+            --constructions_before_failure_;
+        }
+    }
+
+    // 仅供异常路径测试：允许在成功构造指定数量的新节点后注入bad_alloc。
+    static void failAfterConstructionsForTest(int successful_constructions) noexcept {
+        constructions_before_failure_ = successful_constructions;
+    }
+
+    static void disableConstructionFailureForTest() noexcept {
+        constructions_before_failure_ = -1;
+    }
+
+private:
+    inline static int constructions_before_failure_ = -1;
 };
 
 class Solution {
@@ -32,6 +55,7 @@ public:
      *
      * 时间复杂度: O(n)
      * 空间复杂度: O(n) - 哈希表
+     * @note 不修改输入；分配或建表失败时，临时副本由RAII释放。
      */
     Node* copyRandomList(Node* head);
 
@@ -45,6 +69,8 @@ public:
      *
      * 时间复杂度: O(n)
      * 空间复杂度: O(1) - 不计返回结果
+     * @note 会在执行中临时穿插复制节点，但成功后恢复原链；若节点分配失败，
+     *       会回滚已经穿插的部分后再抛出，原链仍保持不变。
      */
     Node* copyRandomList_optimized(Node* head);
 
@@ -57,10 +83,11 @@ public:
     Node* copyRandomList_recursive(Node* head);
 
 private:
-    std::unordered_map<Node*, Node*> visited_;
+    std::unordered_map<Node*, std::unique_ptr<Node>> visited_;
 
-    Node* cloneNode(Node* node);
     Node* copyRecursive(Node* node);
 };
+
+} // namespace leetcode_0138
 
 #endif // LC_0138_COPY_RANDOM_SOLUTION_H

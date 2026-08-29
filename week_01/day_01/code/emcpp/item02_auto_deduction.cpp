@@ -81,6 +81,7 @@ void caseOne_ByValue() {
     cout << "const int* const p = &x;" << endl;
     cout << "auto v4 = p;  // v4是const int*" << endl;
     cout << "顶层const（指针本身）被忽略，底层const（指向对象）保留" << endl;
+    (void)v1; (void)v2; (void)v3; (void)v4;
     
     cout << endl;
 }
@@ -115,6 +116,7 @@ void caseTwo_Reference() {
     // r3 = 100;  // 编译错误！r3是const int&
     
     cout << endl << "【验证】r1可以修改，r2和r3不能修改（const）" << endl;
+    (void)r2; (void)r3;
     
     cout << endl;
 }
@@ -148,6 +150,7 @@ void caseThree_UniversalReference() {
     
     cout << endl << "【应用场景】" << endl;
     cout << "万能引用常用于转发和泛型编程" << endl;
+    (void)ur1; (void)ur2; (void)ur3; (void)ur4;
     
     cout << endl;
 }
@@ -193,6 +196,7 @@ void exception_InitializerList() {
     cout << "initializer_list<int> list = {1, 2, 3, 4, 5};" << endl;
     cout << "元素: ";
     for (int n : list) cout << n << " ";
+    (void)x1; (void)x2; (void)x3; (void)x4; (void)x5;
     cout << endl;
     
     cout << endl;
@@ -308,6 +312,7 @@ void commonPitfalls() {
     for (const auto& p : scores) {
         cout << "    " << p.first << ": " << p.second << endl;
     }
+    (void)s1; (void)size1;
     
     cout << endl;
 }

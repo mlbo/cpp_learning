@@ -21,7 +21,8 @@ struct Task {
 // 自定义比较器（优先级高的先出）
 struct TaskComparator {
     bool operator()(const Task& a, const Task& b) const {
-        return a.priority < b.priority;  // 优先级小的排后面
+        // 返回true表示a的优先级低于b；因此priority更大的任务位于top。
+        return a.priority < b.priority;
     }
 };
 
@@ -101,6 +102,7 @@ void priorityQueueDemo() {
         customHeap.pop();
     }
     std::cout << std::endl;
+    std::cout << "  记忆：Compare(a,b)==true表示a应排在b后面；a>b让较小值在top" << std::endl;
     
     // ========== 5. 常用操作 ==========
     std::cout << "\n--- 5. 常用操作 ---" << std::endl;

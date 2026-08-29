@@ -3,10 +3,14 @@
 
 #include <vector>
 
+namespace leetcode_0042 {
+
 class Solution {
 public:
-    int trap(std::vector<int>& height);
+    int trap(const std::vector<int>& height);
 };
+
+} // namespace leetcode_0042
 
 void testTrap();
 

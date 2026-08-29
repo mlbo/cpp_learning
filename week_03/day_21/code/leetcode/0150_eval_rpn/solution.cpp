@@ -6,36 +6,70 @@
 
 #include "solution.h"
 #include <iostream>
+#include <cstdint>
+#include <limits>
 #include <stack>
+#include <stdexcept>
 #include <string>
 
-int Solution::evalRPN(std::vector<std::string>& tokens) {
+namespace leetcode_0150 {
+
+int Solution::evalRPN(const std::vector<std::string>& tokens) {
     std::stack<int> stk;
     
     for (const std::string& token : tokens) {
         if (token == "+" || token == "-" || token == "*" || token == "/") {
+            if (stk.size() < 2) {
+                throw std::invalid_argument("运算符前缺少两个操作数");
+            }
             // 弹出两个操作数
             int b = stk.top(); stk.pop();
             int a = stk.top(); stk.pop();
             
-            int result;
-            if (token == "+") result = a + b;
-            else if (token == "-") result = a - b;
-            else if (token == "*") result = a * b;
-            else result = a / b;  // 整数除法
+            // 先提升到足以容纳任意两个 int 运算结果的 int64_t，再检查范围，
+            // 避免在 int 上先发生有符号溢出未定义行为。
+            std::int64_t wideResult = 0;
+            if (token == "+") {
+                wideResult = static_cast<std::int64_t>(a) + static_cast<std::int64_t>(b);
+            } else if (token == "-") {
+                wideResult = static_cast<std::int64_t>(a) - static_cast<std::int64_t>(b);
+            } else if (token == "*") {
+                wideResult = static_cast<std::int64_t>(a) * static_cast<std::int64_t>(b);
+            } else {
+                if (b == 0) {
+                    throw std::domain_error("逆波兰表达式不能除以0");
+                }
+                wideResult = static_cast<std::int64_t>(a) / static_cast<std::int64_t>(b);
+            }
+
+            if (wideResult < std::numeric_limits<int>::min() ||
+                wideResult > std::numeric_limits<int>::max()) {
+                throw std::overflow_error("逆波兰表达式的中间结果超出int范围");
+            }
+            const int result = static_cast<int>(wideResult);
             
             stk.push(result);
         } else {
             // 数字入栈
-            stk.push(std::stoi(token));
+            std::size_t parsed = 0;
+            const int value = std::stoi(token, &parsed);
+            if (parsed != token.size()) {
+                throw std::invalid_argument("token不是完整整数: " + token);
+            }
+            stk.push(value);
         }
     }
-    
+
+    if (stk.size() != 1) {
+        throw std::invalid_argument("表达式结束后必须恰好剩余一个结果");
+    }
     return stk.top();
 }
 
+} // namespace leetcode_0150
+
 void testEvalRPN() {
-    Solution sol;
+    leetcode_0150::Solution sol;
     
     std::cout << "LeetCode 150. 逆波兰表达式求值 测试结果：" << std::endl;
     

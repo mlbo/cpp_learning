@@ -5,6 +5,7 @@
 
 #include "solution.h"
 #include <iostream>
+#include <memory>
 
 namespace leetcode_0061 {
 
@@ -12,12 +13,12 @@ namespace leetcode_0061 {
 
 ListNode* Solution::rotateRight(ListNode* head, int k) {
     // 边界情况处理
-    if (head == nullptr || head->next == nullptr || k == 0) {
+    if (head == nullptr || head->next == nullptr || k <= 0) {
         return head;
     }
 
     // 步骤1: 计算链表长度并找到尾节点
-    int length = 1;
+    std::size_t length = 1U;
     ListNode* tail = head;
     while (tail->next != nullptr) {
         tail = tail->next;
@@ -26,8 +27,8 @@ ListNode* Solution::rotateRight(ListNode* head, int k) {
 
     // 步骤2: 计算有效旋转次数
     // 向右移动k次 = 向右移动 k % n 次
-    k = k % length;
-    if (k == 0) {
+    const std::size_t rotation = static_cast<std::size_t>(k) % length;
+    if (rotation == 0U) {
         return head;  // 不需要旋转
     }
 
@@ -37,11 +38,11 @@ ListNode* Solution::rotateRight(ListNode* head, int k) {
     // 步骤4: 找到新的断开点
     // 需要向右移动k个位置，即新的头节点是倒数第k个节点
     // 新的尾节点是倒数第k+1个节点，即第 n-k 个节点（从0开始计数）
-    int steps = length - k;
+    const std::size_t steps = length - rotation;
     ListNode* newTail = head;
 
     // 移动 steps-1 步到达新的尾节点
-    for (int i = 1; i < steps; i++) {
+    for (std::size_t i = 1U; i < steps; ++i) {
         newTail = newTail->next;
     }
 
@@ -55,20 +56,20 @@ ListNode* Solution::rotateRight(ListNode* head, int k) {
 // ========== 方法2: 快慢指针 ==========
 
 ListNode* Solution::rotateRightFastSlow(ListNode* head, int k) {
-    if (head == nullptr || head->next == nullptr || k == 0) {
+    if (head == nullptr || head->next == nullptr || k <= 0) {
         return head;
     }
 
     // 计算长度
-    int length = getListLength(head);
-    k = k % length;
-    if (k == 0) {
+    const std::size_t length = getListLength(head);
+    const std::size_t rotation = static_cast<std::size_t>(k) % length;
+    if (rotation == 0U) {
         return head;
     }
 
     // 快指针先走k步
     ListNode* fast = head;
-    for (int i = 0; i < k; i++) {
+    for (std::size_t i = 0; i < rotation; ++i) {
         fast = fast->next;
     }
 
@@ -91,12 +92,12 @@ ListNode* Solution::rotateRightFastSlow(ListNode* head, int k) {
 // ========== 方法3: 两次遍历 ==========
 
 ListNode* Solution::rotateRightTwoPass(ListNode* head, int k) {
-    if (head == nullptr || head->next == nullptr || k == 0) {
+    if (head == nullptr || head->next == nullptr || k <= 0) {
         return head;
     }
 
     // 第一次遍历：计算长度
-    int length = 0;
+    std::size_t length = 0U;
     ListNode* current = head;
     while (current != nullptr) {
         length++;
@@ -104,15 +105,15 @@ ListNode* Solution::rotateRightTwoPass(ListNode* head, int k) {
     }
 
     // 计算有效旋转次数
-    k = k % length;
-    if (k == 0) {
+    const std::size_t rotation = static_cast<std::size_t>(k) % length;
+    if (rotation == 0U) {
         return head;
     }
 
     // 第二次遍历：找到断开点
-    int steps = length - k;
+    const std::size_t steps = length - rotation;
     current = head;
-    for (int i = 1; i < steps; i++) {
+    for (std::size_t i = 1U; i < steps; ++i) {
         current = current->next;
     }
 
@@ -139,15 +140,18 @@ ListNode* createList(const std::vector<int>& values) {
         return nullptr;
     }
 
-    ListNode* head = new ListNode(values[0]);
-    ListNode* tail = head;
+    const auto delete_chain = [](ListNode* node) { deleteList(node); };
+    std::unique_ptr<ListNode, decltype(delete_chain)> owner(
+        new ListNode(values[0]), delete_chain);
+    ListNode* tail = owner.get();
 
-    for (size_t i = 1; i < values.size(); ++i) {
-        tail->next = new ListNode(values[i]);
+    for (std::size_t i = 1; i < values.size(); ++i) {
+        auto node = std::make_unique<ListNode>(values[i]);
+        tail->next = node.release();
         tail = tail->next;
     }
 
-    return head;
+    return owner.release();
 }
 
 std::vector<int> listToVector(ListNode* head) {
@@ -179,8 +183,8 @@ void deleteList(ListNode* head) {
     }
 }
 
-int getListLength(ListNode* head) {
-    int length = 0;
+std::size_t getListLength(ListNode* head) {
+    std::size_t length = 0U;
     while (head != nullptr) {
         length++;
         head = head->next;

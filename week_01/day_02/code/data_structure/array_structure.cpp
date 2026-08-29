@@ -138,8 +138,8 @@ void demonstrate_time_complexity() {
     std::cout << "├────────────┼─────────────┤" << std::endl;
     std::cout << "│  随机访问  │    O(1)     │" << std::endl;
     std::cout << "│  顺序搜索  │    O(n)     │" << std::endl;
-    std::cout << "│  二分搜索  │   O(log n)  │" << std::endl;
-    std::cout << "│  尾部插入  │    O(1)     │" << std::endl;
+    std::cout << "│二分搜索(有序)│ O(log n)  │" << std::endl;
+    std::cout << "│尾部写入(有空位且已知长度)│ O(1) │" << std::endl;
     std::cout << "│  中间插入  │    O(n)     │" << std::endl;
     std::cout << "│  尾部删除  │    O(1)     │" << std::endl;
     std::cout << "│  中间删除  │    O(n)     │" << std::endl;

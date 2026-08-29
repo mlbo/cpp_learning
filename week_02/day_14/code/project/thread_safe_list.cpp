@@ -7,11 +7,12 @@
  */
 
 #include "project/thread_safe_list.h"
+#include "project/thread_safe_list_demo.h"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
 
-namespace thread_safe_list_utils {
+namespace week2_concurrency::utils {
 
 /**
  * @brief 打印链表内容（用于调试）
@@ -22,8 +23,7 @@ std::string list_to_string(const ThreadSafeList<T>& list) {
     oss << "[";
 
     bool first = true;
-    auto& mutable_list = const_cast<ThreadSafeList<T>&>(list);
-    mutable_list.for_each([&](const T& value) {
+    list.for_each([&](const T& value) {
         if (!first) oss << ", ";
         oss << value;
         first = false;
@@ -39,8 +39,7 @@ std::string list_to_string(const ThreadSafeList<T>& list) {
 template<typename T>
 bool verify_content(const ThreadSafeList<T>& list, const std::vector<T>& expected) {
     std::vector<T> actual;
-    auto& mutable_list = const_cast<ThreadSafeList<T>&>(list);
-    mutable_list.for_each([&](const T& value) {
+    list.for_each([&](const T& value) {
         actual.push_back(value);
     });
 
@@ -61,13 +60,15 @@ bool verify_content(const ThreadSafeList<T>& list, const std::vector<T>& expecte
 template std::string list_to_string<int>(const ThreadSafeList<int>&);
 template bool verify_content<int>(const ThreadSafeList<int>&, const std::vector<int>&);
 
-} // namespace thread_safe_list_utils
+} // namespace week2_concurrency::utils
 
 // ============================================================
 // 示例使用
 // ============================================================
 
-void demo_thread_safe_list() {
+namespace week2_concurrency::demo {
+
+void run() {
     std::cout << "=== 线程安全链表示例 ===\n\n";
 
     ThreadSafeList<int> list;
@@ -116,3 +117,5 @@ void demo_thread_safe_list() {
 
     std::cout << "\n示例完成!\n";
 }
+
+} // namespace week2_concurrency::demo

@@ -1,5 +1,7 @@
 # Day 19：堆与优先队列
 
+> **学习定位**：队列按到达顺序处理，优先队列按优先级处理。本日先理解堆的数组表示和比较器方向，再做 Top K；不要把堆结构与“堆内存”混为一谈。
+
 ## 📅 学习目标
 
 - [ ] 理解堆数据结构的原理
@@ -114,6 +116,18 @@ auto cmp = [](int a, int b) { return a > b; };
 std::priority_queue<int, std::vector<int>, decltype(cmp)> customHeap(cmp);
 ```
 
+比较器方向是本日最容易写反的地方。对 `priority_queue<T, Container, Compare>`，可以把 `Compare(a, b) == true` 读成“`a` 的优先级低于 `b`，`a` 应排在后面”；因此默认 `std::less<int>` 让大值位于 `top()`，而 `std::greater<int>` 让小值位于 `top()`。不要只背“`>` 是小顶堆”，每次都用两个值验证：若 `cmp(5, 2)` 为 `true`，5 被排到 2 后面，所以 2 更接近堆顶。
+
+<a id="day19-priority-queue-contract"></a>
+
+### `priority_queue` 的底层容器与比较契约
+
+`std::priority_queue<T, Container, Compare>` 也是容器适配器，它通过堆算法在底层序列上维持 `top()`。该序列需要提供 `front/push_back/pop_back`，其迭代器还必须满足随机访问要求，所以 `std::vector` 和 `std::deque` 可用，`std::list` 不可用；默认底层类型是 `std::vector<T>`。它不提供对中间元素的迭代、查找或删除，因为那会让“只维持最高优先级访问”的接口意图变得模糊。
+
+`Compare` 必须对元素建立**严格弱序**：它应稳定、反自反，并满足适当的传递性；不能在比较时修改元素，也不能让结果依赖会悄悄变化的外部状态。违反这项前提时，堆不变量没有可靠含义，程序不能再用“这次恰好返回了某个值”作为正确性证据。对组合键，先写出排序优先级（例如频率升序、值降序），再将它翻译成比较器，不要边试边猜。
+
+`push/emplace/pop` 需要 O(log n) 次比较与交换/移动，`top` 为 O(1)；这些结论还假定元素移动和比较的成本按常数计。若比较器或元素操作抛出异常，容器必须仍可析构，但调用者不应自行假定一定获得强异常保证；应以对应标准库操作的明确契约为准。
+
 ---
 
 ## 🎯 LeetCode 刷题
@@ -145,6 +159,8 @@ std::priority_queue<int, std::vector<int>, decltype(cmp)> customHeap(cmp);
 **方法一：小顶堆**
 - 维护大小为K的小顶堆
 - 堆顶就是第K大的元素
+
+为什么不是大顶堆？处理完任意前缀后，维护不变量：“堆中恰好保存该前缀最大的至多 K 个元素，堆顶是这些候选中最小的”。新元素入堆后若大小超过 K，就删除候选中最小的那个；被删除元素连当前前 K 都进不了，之后也不可能成为最终第 K 大。遍历结束时堆保存全局前 K 大，堆顶自然是第 K 大。因此找“最大 K 个”用容量 K 的小顶堆，找“最小 K 个”反过来用大顶堆。
 
 ```mermaid
 graph LR
@@ -250,7 +266,8 @@ vector<int> topKFrequent(vector<int>& nums, int k) {
     
     // 2. 小顶堆
     auto cmp = [](const pair<int, int>& a, const pair<int, int>& b) {
-        return a.second > b.second;  // 频率小的优先级高
+        // a频率更大时返回true：a优先级更低，所以最小频率位于top
+        return a.second > b.second;
     };
     priority_queue<pair<int, int>, vector<pair<int, int>>, decltype(cmp)> minHeap(cmp);
     
@@ -272,6 +289,8 @@ vector<int> topKFrequent(vector<int>& nums, int k) {
     return result;
 }
 ```
+
+这里维护的是同一个不变量，只是“元素大小”换成了“出现频率”。若多个元素频率相同，题目允许任意合法顺序，测试应比较元素集合而不是强行要求哈希表遍历产生某个固定顺序。教程实现还把 `k` 的接口契约写清楚：`1 <= k <= 不同元素个数`；越界时抛出 `std::invalid_argument`，避免在空堆上调用 `top()`。
 
 ---
 
@@ -300,7 +319,21 @@ vector<int> topKFrequent(vector<int>& nums, int k) {
 | 找最大K个元素 | 小顶堆（堆顶是第K大） |
 | 找最小K个元素 | 大顶堆（堆顶是第K小） |
 | 优先级高的先处理 | 大顶堆 |
-| 按时间先后处理 | 小顶堆 |
+| 按最早时间戳先处理 | 小顶堆（以时间戳为键） |
+
+### 今日工程动作：用不变量检查 Top K
+
+在 Day 19 目录执行 `./build_and_run.sh /tmp/week3-day19-action`，然后手工跟踪输入 `[3, 2, 1, 5, 6, 4]`、`k=2`。每处理一个元素，都写下“小顶堆中保存了当前前缀的哪两个最大值”，而不是只画堆的数组形状；再把比较器从 `greater` 改成 `less`，观察哪条不变量最先被破坏并在实验后恢复。测试同时覆盖 `k=1`、`k=n`、重复值、负数和非法 `k`，用于验证边界契约。
+
+### 五句复盘
+
+用恰好五句话回答：
+
+1. `priority_queue` 的 `Compare(a, b) == true` 应如何理解？
+2. 为什么找最大的 K 个元素要维护容量 K 的小顶堆？
+3. “堆中保存已处理前缀的前 K 名”这个不变量如何完成正确性证明？
+4. Top K 高频元素遇到相同频率时，测试为什么不应依赖返回顺序？
+5. `k=1`、`k=n` 和非法 `k` 分别验证了接口的什么边界？
 
 ---
 
@@ -321,4 +354,7 @@ vector<int> topKFrequent(vector<int>& nums, int k) {
 
 1. [Hello-Algo - 堆](https://www.hello-algo.com/chapter_heap/)
 2. [cppreference - priority_queue](https://en.cppreference.com/w/cpp/container/priority_queue)
+3. [cppreference - Compare named requirement](https://en.cppreference.com/w/cpp/named_req/Compare)
+4. 《C++ Primer》第 5 版：容器适配器与泛型算法
+5. 《A Tour of C++》第 2 版：标准库容器与算法
 3. [维基百科 - 堆排序](https://zh.wikipedia.org/wiki/堆排序)

@@ -1,6 +1,6 @@
 /**
  * @file init_review.cpp
- * @brief 初始化方式复习 - 统一初始化、初始化列表
+ * @brief 初始化方式复习 - 列表初始化、初始化列表
  */
 
 #include <iostream>
@@ -37,9 +37,9 @@ void initialization_forms_demo() {
     std::cout << "-------------------------------------------\n";
 
     std::cout << "  // 默认初始化\n";
-    int a;          // 未定义值（自动存储期）
+    int a;          // 值不确定（自动存储期，读取前必须先写入）
     int b{};        // 值初始化为0
-    std::cout << "  int a;       // 未定义值\n";
+    std::cout << "  int a;       // 值不确定，读取前必须先写入\n";
     std::cout << "  int b{};     // 值初始化为 0, b = " << b << "\n";
 
     std::cout << "\n  // 直接初始化\n";
@@ -48,7 +48,7 @@ void initialization_forms_demo() {
     int e{42};
     std::cout << "  int c(42);   // 直接初始化\n";
     std::cout << "  int d = 42;  // 拷贝初始化\n";
-    std::cout << "  int e{42};   // 统一初始化\n";
+    std::cout << "  int e{42};   // 直接列表初始化\n";
 
     std::cout << "\n  // 指针初始化\n";
     int* p1 = nullptr;
@@ -57,6 +57,12 @@ void initialization_forms_demo() {
     delete p3;
     std::cout << "  int* p1 = nullptr;  // C++11空指针\n";
     std::cout << "  int* p2{};          // 值初始化为 nullptr\n";
+    (void)a;  // 只演示声明形式，绝不读取未初始化值。
+    (void)c;
+    (void)d;
+    (void)e;
+    (void)p1;
+    (void)p2;
 }
 
 // ============================================================================
@@ -71,11 +77,11 @@ void uniform_init_advantages_demo() {
     std::cout << "  // 优势1: 防止窄化转换\n";
     double d = 3.14;
     // int i{d};  // 编译错误！窄化转换
-    int j(d);     // 可能警告，但编译通过
+    int j(static_cast<int>(d));  // 显式接受小数部分被丢弃
     
     std::cout << "  double d = 3.14;\n";
     std::cout << "  // int i{d};  // 编译错误！窄化转换\n";
-    std::cout << "  int j(d);     // 可能警告，但编译通过\n";
+    std::cout << "  int j(static_cast<int>(d)); // 显式表达窄化意图\n";
     std::cout << "  j = " << j << "\n";
 
     // 优势2: 免于"最令人恼火的解析"
@@ -126,7 +132,7 @@ void initializer_list_demo() {
     Widget w6 = {10};
 
     // 空初始化列表
-    std::cout << "\n  Widget w7{};  // 默认构造（空列表不匹配 initializer_list）\n";
+    std::cout << "\n  Widget w7{};  // 有默认构造函数时，空列表调用默认构造\n";
     Widget w7{};
 }
 
@@ -188,7 +194,7 @@ void best_practices_demo() {
     
     std::cout << "\n  ⚠️ 注意:\n";
     std::cout << "  • 有 initializer_list 构造函数时，{} 可能不是预期行为\n";
-    std::cout << "  • auto + {} 推导为 initializer_list\n";
+    std::cout << "  • auto x = {1} 推导为 initializer_list；C++17中 auto x{1} 是 int\n";
     std::cout << "  • vector<string> v{10} 是10个空字符串，不是\"10\"\n";
     
     std::cout << "\n  // vector 陷阱示例:\n";

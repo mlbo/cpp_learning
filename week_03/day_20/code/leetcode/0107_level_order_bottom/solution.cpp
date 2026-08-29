@@ -9,6 +9,8 @@
 #include <queue>
 #include <algorithm>
 
+namespace leetcode_0107 {
+
 std::vector<std::vector<int>> Solution::levelOrderBottom(TreeNode* root) {
     std::vector<std::vector<int>> result;
     if (!root) return result;
@@ -17,10 +19,11 @@ std::vector<std::vector<int>> Solution::levelOrderBottom(TreeNode* root) {
     q.push(root);
     
     while (!q.empty()) {
-        int levelSize = q.size();
+        const std::size_t levelSize = q.size();
         std::vector<int> level;
-        
-        for (int i = 0; i < levelSize; ++i) {
+        level.reserve(levelSize);
+
+        for (std::size_t i = 0; i < levelSize; ++i) {
             TreeNode* node = q.front();
             q.pop();
             
@@ -39,8 +42,10 @@ std::vector<std::vector<int>> Solution::levelOrderBottom(TreeNode* root) {
     return result;
 }
 
+} // namespace leetcode_0107
+
 void testLevelOrderBottom() {
-    Solution sol;
+    leetcode_0107::Solution sol;
     
     std::cout << "LeetCode 107. 自底向上层序遍历 测试结果：" << std::endl;
     
@@ -62,9 +67,9 @@ void testLevelOrderBottom() {
     
     std::cout << "\n  自底向上层序遍历结果：" << std::endl;
     std::cout << "    [";
-    for (int i = 0; i < result.size(); ++i) {
+    for (std::size_t i = 0; i < result.size(); ++i) {
         std::cout << "[";
-        for (int j = 0; j < result[i].size(); ++j) {
+        for (std::size_t j = 0; j < result[i].size(); ++j) {
             std::cout << result[i][j];
             if (j < result[i].size() - 1) std::cout << ", ";
         }

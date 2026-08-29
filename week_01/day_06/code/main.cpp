@@ -8,14 +8,15 @@
  * 3. 查找右边界
  */
 
+#include <cmath>
+#include <functional>
 #include <iostream>
-#include <vector>
 #include <iomanip>
+#include <stdexcept>
+#include <vector>
 
-#include "binary_search_basic.cpp"
-#include "binary_search_left.cpp"
-#include "binary_search_right.cpp"
-#include "binary_search_template.cpp"
+#include "algorithm/binary_search.h"
+#include "algorithm/binary_search_template.h"
 #include "leetcode/0704_binary_search/solution.h"
 #include "leetcode/0034_find_first_and_last/solution.h"
 
@@ -137,6 +138,43 @@ void demoBinarySearchTemplate() {
     std::cout << "索引 = " << searcher.upperBound(target) << "\n";
 }
 
+// 用会击穿错误返回侧的反例锁定“左假、右真、返回可行侧”契约。
+void verifyAnswerSearchContracts() {
+    const int integer_answer = binarySearchTemplate<int>(
+        0, 10, std::function<bool(int)>{[](int value) { return value >= 7; }});
+    if (integer_answer != 7) {
+        throw std::runtime_error("integer answer binary search returned the wrong boundary");
+    }
+
+    const double coarse_answer = binarySearchDouble(
+        0.0, 1.0, 0.5,
+        std::function<bool(double)>{[](double value) { return value >= 0.75; }});
+    if (coarse_answer < 0.75 || coarse_answer - 0.75 > 0.5) {
+        throw std::runtime_error("real answer binary search returned the infeasible side");
+    }
+
+    constexpr double eps = 1.0e-12;
+    const double root_two = binarySearchDouble(
+        0.0, 2.0, eps,
+        std::function<bool(double)>{[](double value) { return value * value >= 2.0; }});
+    if (root_two * root_two < 2.0 || root_two - std::sqrt(2.0) > eps) {
+        throw std::runtime_error("real answer binary search violated its feasible-side error bound");
+    }
+
+    bool rejected_missing_endpoint = false;
+    try {
+        (void)binarySearchTemplate<int>(
+            0, 10, std::function<bool(int)>{[](int) { return false; }});
+    } catch (const std::invalid_argument&) {
+        rejected_missing_endpoint = true;
+    }
+    if (!rejected_missing_endpoint) {
+        throw std::runtime_error("answer binary search accepted an interval with no feasible endpoint");
+    }
+
+    std::cout << "  整数/实数答案二分契约反例: ✓ 通过\n";
+}
+
 // 演示LeetCode 704
 void demoLeetCode704() {
     std::cout << "\n📐 LeetCode 704: 二分查找\n";
@@ -183,6 +221,7 @@ int main() {
     demoLeftBinarySearch();
     demoRightBinarySearch();
     demoBinarySearchTemplate();
+    verifyAnswerSearchContracts();
     
     // 演示LeetCode题目
     demoLeetCode704();

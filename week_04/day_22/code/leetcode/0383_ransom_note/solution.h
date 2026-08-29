@@ -9,6 +9,11 @@
 #include <string>
 
 /**
+ * 本模块两种解法统一接受空串或仅由 'a'..'z' 组成的字符串。
+ * 任一输入含其他字节时抛出 std::invalid_argument；校验先于数量判断。
+ */
+
+/**
  * 测试函数
  */
 void testRansomNote();
@@ -21,7 +26,7 @@ void testRansomNote();
 bool canConstruct_hash(const std::string& ransomNote, const std::string& magazine);
 
 /**
- * 方法二：数组解法（最优）
+ * 方法二：小写字母数组解法
  * 时间复杂度: O(m + n)
  * 空间复杂度: O(1) - 固定26大小数组
  */

@@ -6,8 +6,8 @@
 #include "bfs_template.h"
 #include <iostream>
 #include <queue>
+#include <unordered_set>
 #include <vector>
-#include <set>
 
 // 简单的图节点
 struct GraphNode {
@@ -22,7 +22,7 @@ void bfsGraph(GraphNode* start) {
     if (!start) return;
     
     std::queue<GraphNode*> q;
-    std::set<GraphNode*> visited;
+    std::unordered_set<GraphNode*> visited;
     
     q.push(start);
     visited.insert(start);
@@ -37,8 +37,9 @@ void bfsGraph(GraphNode* start) {
         
         for (GraphNode* neighbor : curr->neighbors) {
             if (visited.find(neighbor) == visited.end()) {
-                q.push(neighbor);
+                // 发现时立即标记：从这一刻起，其他前驱不能再次把它放入队列。
                 visited.insert(neighbor);
+                q.push(neighbor);
             }
         }
     }
@@ -49,22 +50,46 @@ void bfsGraph(GraphNode* start) {
 int bfsMaze(const std::vector<std::vector<int>>& maze, 
             std::pair<int, int> start, 
             std::pair<int, int> end) {
-    int rows = maze.size();
-    int cols = maze[0].size();
+    if (maze.empty() || maze.front().empty()) return -1;
+
+    const std::size_t columnCount = maze.front().size();
+    for (const auto& row : maze) {
+        if (row.size() != columnCount) {
+            return -1;
+        }
+    }
+
+    const int rows = static_cast<int>(maze.size());
+    const int cols = static_cast<int>(maze.front().size());
+    const auto inside = [rows, cols](int row, int col) {
+        return row >= 0 && row < rows && col >= 0 && col < cols;
+    };
+    if (!inside(start.first, start.second) || !inside(end.first, end.second)) {
+        return -1;
+    }
+    const auto startRow = static_cast<std::size_t>(start.first);
+    const auto startCol = static_cast<std::size_t>(start.second);
+    const auto endRow = static_cast<std::size_t>(end.first);
+    const auto endCol = static_cast<std::size_t>(end.second);
+    if (maze[startRow][startCol] != 0 || maze[endRow][endCol] != 0) {
+        return -1;
+    }
     
     std::queue<std::pair<int, int>> q;
-    std::set<std::pair<int, int>> visited;
+    std::vector<std::vector<bool>> visited(
+        static_cast<std::size_t>(rows),
+        std::vector<bool>(static_cast<std::size_t>(cols), false));
     
     q.push(start);
-    visited.insert(start);
+    visited[startRow][startCol] = true;
     
     int steps = 0;
     int dirs[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
     
     while (!q.empty()) {
-        int size = q.size();
+        const std::size_t levelSize = q.size();
         
-        for (int i = 0; i < size; ++i) {
+        for (std::size_t i = 0; i < levelSize; ++i) {
             auto [r, c] = q.front();
             q.pop();
             
@@ -76,10 +101,15 @@ int bfsMaze(const std::vector<std::vector<int>>& maze,
                 int nr = r + dir[0];
                 int nc = c + dir[1];
                 
-                if (nr >= 0 && nr < rows && nc >= 0 && nc < cols &&
-                    maze[nr][nc] == 0 && visited.find({nr, nc}) == visited.end()) {
+                if (!inside(nr, nc)) {
+                    continue;
+                }
+                const auto nextRow = static_cast<std::size_t>(nr);
+                const auto nextCol = static_cast<std::size_t>(nc);
+                if (maze[nextRow][nextCol] == 0 && !visited[nextRow][nextCol]) {
+                    // 入队即标记，保证每个可达格子最多入队一次。
+                    visited[nextRow][nextCol] = true;
                     q.push({nr, nc});
-                    visited.insert({nr, nc});
                 }
             }
         }
@@ -146,18 +176,20 @@ void bfsTemplateDemo() {
     std::cout << "       a. 弹出队首" << std::endl;
     std::cout << "       b. 处理当前节点" << std::endl;
     std::cout << "       c. 遍历相邻节点，未访问的入队" << std::endl;
+    std::cout << "       d. 邻居在入队时立即标记，避免被多个前驱重复入队" << std::endl;
     
     std::cout << "\n  层序遍历BFS（记录层数）：" << std::endl;
     std::cout << "    1. 每轮开始记录当前层大小" << std::endl;
     std::cout << "    2. 处理该数量的节点" << std::endl;
-    std::cout << "    3. 收集该层结果" << std::endl;
+    std::cout << "    3. 本轮新入队节点属于下一层，不计入当前层" << std::endl;
+    std::cout << "    4. 收集该层结果" << std::endl;
     
     // ========== 4. BFS vs DFS ==========
     std::cout << "\n--- 4. BFS vs DFS ---" << std::endl;
     std::cout << "  BFS：" << std::endl;
     std::cout << "    - 使用队列" << std::endl;
     std::cout << "    - 先访问近的节点" << std::endl;
-    std::cout << "    - 适合找最短路径" << std::endl;
+    std::cout << "    - 无权图或等权边图中可找最少边数路径" << std::endl;
     std::cout << "  DFS：" << std::endl;
     std::cout << "    - 使用栈（递归）" << std::endl;
     std::cout << "    - 先深入到底" << std::endl;

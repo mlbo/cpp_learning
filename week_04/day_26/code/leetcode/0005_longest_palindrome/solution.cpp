@@ -19,40 +19,34 @@
 #include <algorithm>
 
 std::string Solution::longestPalindrome(std::string s) {
-    int n = s.length();
+    const std::size_t n = s.length();
     if (n < 2) return s;
     
-    int start = 0;   // 最长回文子串的起始位置
-    int maxLen = 1;  // 最长回文子串的长度
+    std::size_t start = 0;   // 最长回文子串的起始位置
+    std::size_t maxLen = 1;  // 最长回文子串的长度
     
-    // 中心扩展函数（使用lambda）
-    // left, right 为中心的左右边界
-    // 返回扩展后的回文长度
-    auto expandAroundCenter = [&](int left, int right) {
-        // 当左右都在边界内且字符相等时，继续扩展
-        while (left >= 0 && right < n && s[left] == s[right]) {
-            left--;
-            right++;
+    // 用半开区间 [left, right) 表示当前已知回文，避免 size_t 向左扩展时下溢。
+    auto expandAroundCenter = [&](std::size_t left, std::size_t right) {
+        while (left > 0 && right < n && s[left - 1] == s[right]) {
+            --left;
+            ++right;
         }
-        // 循环结束时，left和right是多扩展了一步的
-        // 实际回文范围是 [left+1, right-1]
-        // 回文长度 = right - left - 1
-        int len = right - left - 1;
+        const std::size_t len = right - left;
         if (len > maxLen) {
             maxLen = len;
-            start = left + 1;  // 更新起始位置
+            start = left;
         }
     };
     
     // 遍历每个可能的中心点
-    for (int i = 0; i < n; ++i) {
+    for (std::size_t i = 0; i < n; ++i) {
         // 情况1：以s[i]为中心的奇数长度回文
         // 例如：在"aba"中，以'b'为中心
-        expandAroundCenter(i, i);
+        expandAroundCenter(i, i + 1);
         
         // 情况2：以s[i]和s[i+1]之间为中心的偶数长度回文
         // 例如：在"abba"中，以两个'b'之间为中心
-        expandAroundCenter(i, i + 1);
+        expandAroundCenter(i + 1, i + 1);
     }
     
     // 返回最长回文子串

@@ -1,84 +1,42 @@
-/**
- * 并发综合演示
- */
-
-#include <iostream>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
 #include <atomic>
 #include <future>
-#include <queue>
+#include <iostream>
+#include <thread>
+#include <vector>
 
-void concurrencyDemo() {
-    std::cout << "=== 并发综合演示 ===" << std::endl;
-    
-    // 1. mutex + condition_variable
-    std::cout << "\n--- 1. mutex + cv ---" << std::endl;
-    std::mutex mtx;
-    std::condition_variable cv;
-    std::queue<int> dataQueue;
-    bool finished = false;
-    
-    std::thread producer([&]() {
-        for (int i = 0; i < 5; ++i) {
-            {
-                std::lock_guard<std::mutex> lock(mtx);
-                dataQueue.push(i);
-                std::cout << "生产: " << i << std::endl;
-            }
-            cv.notify_one();
-        }
-        {
-            std::lock_guard<std::mutex> lock(mtx);
-            finished = true;
-        }
-        cv.notify_one();
-    });
-    
-    std::thread consumer([&]() {
-        while (true) {
-            std::unique_lock<std::mutex> lock(mtx);
-            cv.wait(lock, [&]{ return !dataQueue.empty() || finished; });
-            
-            while (!dataQueue.empty()) {
-                int data = dataQueue.front();
-                dataQueue.pop();
-                std::cout << "消费: " << data << std::endl;
-            }
-            
-            if (finished) break;
-        }
-    });
-    
-    producer.join();
-    consumer.join();
-    
-    // 2. atomic
-    std::cout << "\n--- 2. atomic ---" << std::endl;
+#include "joining_thread_group.h"
+
+int main() {
     std::atomic<int> counter{0};
-    std::vector<std::thread> threads;
-    
-    for (int i = 0; i < 5; ++i) {
-        threads.emplace_back([&counter]() {
-            for (int j = 0; j < 1000; ++j) {
+    week5::JoiningThreadGroup workers;
+    for (int worker = 0; worker < 4; ++worker) {
+        static_cast<void>(worker);
+        workers.start([&counter] {
+            for (int iteration = 0; iteration < 1'000; ++iteration) {
                 counter.fetch_add(1, std::memory_order_relaxed);
             }
         });
     }
-    
-    for (auto& t : threads) t.join();
-    std::cout << "atomic计数器: " << counter.load() << std::endl;
-    
-    // 3. async
-    std::cout << "\n--- 3. async ---" << std::endl;
-    auto future = std::async(std::launch::async, []() {
-        return 42;
-    });
-    std::cout << "async结果: " << future.get() << std::endl;
-}
+    workers.join_all();
 
-int main() {
-    concurrencyDemo();
-    return 0;
+    auto square = std::async(std::launch::async, [] { return 12 * 12; });
+
+    std::promise<void> start_promise;
+    std::future<void> start_future = start_promise.get_future();
+    std::atomic<bool> event_observed{false};
+    std::thread waiter{
+        [future = std::move(start_future), &event_observed]() mutable {
+            future.wait();
+            event_observed.store(true, std::memory_order_release);
+        }};
+    start_promise.set_value();
+    waiter.join();
+
+    const bool passed = counter.load(std::memory_order_relaxed) == 4'000 &&
+                        square.get() == 144 &&
+                        event_observed.load(std::memory_order_acquire);
+    std::cout << "atomic 计数: " << counter.load(std::memory_order_relaxed) << '\n';
+    std::cout << "一次性事件已观察: " << std::boolalpha
+              << event_observed.load(std::memory_order_acquire) << '\n';
+    return passed ? 0 : 1;
 }

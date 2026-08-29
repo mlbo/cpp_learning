@@ -6,11 +6,10 @@
 #ifndef HASH_TABLE_DEMO_H
 #define HASH_TABLE_DEMO_H
 
-#include <iostream>
-#include <unordered_map>
-#include <unordered_set>
+#include <array>
+#include <cstddef>
+#include <optional>
 #include <string>
-#include <vector>
 
 /**
  * 哈希表演示函数
@@ -24,7 +23,7 @@ void hashTableDemo();
  */
 class SimpleHashTable {
 public:
-    static const int TABLE_SIZE = 10;
+    static constexpr std::size_t BUCKET_COUNT = 10;
     
     struct Node {
         std::string key;
@@ -35,15 +34,28 @@ public:
     
     SimpleHashTable();
     ~SimpleHashTable();
+
+    // 每个节点只能由一个哈希表释放。浅复制桶指针会造成重复释放，
+    // 所以在尚未实现深拷贝前明确禁止复制和移动。
+    SimpleHashTable(const SimpleHashTable&) = delete;
+    SimpleHashTable& operator=(const SimpleHashTable&) = delete;
+    SimpleHashTable(SimpleHashTable&&) = delete;
+    SimpleHashTable& operator=(SimpleHashTable&&) = delete;
     
     void insert(const std::string& key, int value);
-    int get(const std::string& key);
-    void remove(const std::string& key);
-    void print();
+    std::optional<int> get(const std::string& key) const;
+    bool contains(const std::string& key) const;
+    bool remove(const std::string& key);
+    std::size_t size() const noexcept { return size_; }
+    double loadFactor() const noexcept;
+    void print() const;
     
 private:
-    Node* table[TABLE_SIZE];
-    int hash(const std::string& key);
+    std::array<Node*, BUCKET_COUNT> table_{};
+    std::size_t size_ = 0;
+
+    std::size_t hash(const std::string& key) const noexcept;
+    void clear() noexcept;
 };
 
 /**

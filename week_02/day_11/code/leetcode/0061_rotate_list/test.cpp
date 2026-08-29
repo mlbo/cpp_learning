@@ -5,8 +5,8 @@
 
 #include "solution.h"
 #include <iostream>
+#include <string>
 #include <vector>
-#include <cassert>
 #include <chrono>
 
 using namespace leetcode_0061;
@@ -20,7 +20,7 @@ struct TestCase {
 };
 
 // 运行单个测试用例
-void runTest(Solution& sol, const TestCase& tc, int testNum) {
+bool runTest(Solution& sol, const TestCase& tc, int testNum) {
     std::cout << "测试 " << testNum << ": " << tc.description << std::endl;
 
     // 创建输入链表
@@ -55,7 +55,7 @@ void runTest(Solution& sol, const TestCase& tc, int testNum) {
     // 清理
     deleteList(result);
 
-    assert(passed && "测试失败！");
+    return passed;
 }
 
 // 演示旋转过程
@@ -88,7 +88,7 @@ void demonstrateRotation() {
 }
 
 // 比较三种方法
-void compareMethods() {
+int compareMethods() {
     std::cout << "\n=== 三种方法对比 ===\n" << std::endl;
 
     Solution sol;
@@ -102,6 +102,20 @@ void compareMethods() {
     std::cout << "测试规模: " << largeInput.size() << " 个节点" << std::endl;
     std::cout << "k = 1000" << std::endl;
     std::cout << std::endl;
+    std::vector<int> expected;
+    expected.reserve(largeInput.size());
+    expected.insert(expected.end(), largeInput.end() - 1000, largeInput.end());
+    expected.insert(expected.end(), largeInput.begin(), largeInput.end() - 1000);
+    int failures = 0;
+
+    auto reportResult = [&expected, &failures](ListNode* result) {
+        if (listToVector(result) != expected) {
+            ++failures;
+            std::cout << "  结果校验: ✗" << std::endl;
+        } else {
+            std::cout << "  结果校验: ✓" << std::endl;
+        }
+    };
 
     // 方法1: 成环后断开
     {
@@ -113,6 +127,7 @@ void compareMethods() {
 
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
         std::cout << "方法1 (成环后断开): " << duration.count() << " μs" << std::endl;
+        reportResult(result);
 
         deleteList(result);
     }
@@ -127,6 +142,7 @@ void compareMethods() {
 
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
         std::cout << "方法2 (快慢指针): " << duration.count() << " μs" << std::endl;
+        reportResult(result);
 
         deleteList(result);
     }
@@ -141,28 +157,39 @@ void compareMethods() {
 
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
         std::cout << "方法3 (两次遍历): " << duration.count() << " μs" << std::endl;
+        reportResult(result);
 
         deleteList(result);
     }
+
+    return failures;
 }
 
 // 边界情况测试
-void testEdgeCases() {
+int testEdgeCases() {
     std::cout << "\n=== 边界情况测试 ===\n" << std::endl;
 
     Solution sol;
+    int failures = 0;
+
+    auto check = [&failures](bool condition, const std::string& description) {
+        std::cout << description << ": " << (condition ? "✓" : "✗") << std::endl;
+        if (!condition) {
+            ++failures;
+        }
+    };
 
     // 空链表
     {
         ListNode* result = sol.rotateRight(nullptr, 1);
-        std::cout << "空链表: " << (result == nullptr ? "nullptr ✓" : "失败 ✗") << std::endl;
+        check(result == nullptr, "空链表");
     }
 
     // 单节点
     {
         ListNode* head = createList({1});
         ListNode* result = sol.rotateRight(head, 100);
-        std::cout << "单节点: " << ((result != nullptr && result->val == 1) ? "✓" : "✗") << std::endl;
+        check(listToVector(result) == std::vector<int>{1}, "单节点");
         deleteList(result);
     }
 
@@ -172,7 +199,7 @@ void testEdgeCases() {
         ListNode* result = sol.rotateRight(head, 0);
         std::vector<int> expected = {1, 2, 3};
         std::vector<int> actual = listToVector(result);
-        std::cout << "k=0: " << (actual == expected ? "✓" : "✗") << std::endl;
+        check(actual == expected, "k=0");
         deleteList(result);
     }
 
@@ -182,7 +209,7 @@ void testEdgeCases() {
         ListNode* result = sol.rotateRight(head, 3);
         std::vector<int> expected = {1, 2, 3};
         std::vector<int> actual = listToVector(result);
-        std::cout << "k=n: " << (actual == expected ? "✓" : "✗") << std::endl;
+        check(actual == expected, "k=n");
         deleteList(result);
     }
 
@@ -192,9 +219,11 @@ void testEdgeCases() {
         ListNode* result = sol.rotateRight(head, 5);  // 5 % 3 = 2
         std::vector<int> expected = {2, 3, 1};
         std::vector<int> actual = listToVector(result);
-        std::cout << "k>n (k=5,n=3): " << (actual == expected ? "✓" : "✗") << std::endl;
+        check(actual == expected, "k>n (k=5,n=3)");
         deleteList(result);
     }
+
+    return failures;
 }
 
 // 可视化旋转
@@ -215,7 +244,7 @@ void visualizeRotation() {
         for (int step = 1; step <= k && step <= 3; ++step) {
             std::cout << "  步骤" << step << ": [";
             // 简单显示旋转后的结果
-            size_t newStart = arr.size() - step;
+            const std::size_t newStart = arr.size() - static_cast<std::size_t>(step);
             bool first = true;
             for (size_t i = newStart; i < arr.size(); ++i) {
                 if (!first) std::cout << ", ";
@@ -243,6 +272,7 @@ int main() {
     std::cout << std::endl;
 
     Solution sol;
+    int failures = 0;
 
     // 测试用例
     std::vector<TestCase> testCases = {
@@ -260,7 +290,9 @@ int main() {
 
     // 运行测试
     for (size_t i = 0; i < testCases.size(); ++i) {
-        runTest(sol, testCases[i], static_cast<int>(i) + 1);
+        if (!runTest(sol, testCases[i], static_cast<int>(i) + 1)) {
+            ++failures;
+        }
     }
 
     // 演示旋转过程
@@ -270,14 +302,18 @@ int main() {
     visualizeRotation();
 
     // 边界情况
-    testEdgeCases();
+    failures += testEdgeCases();
 
     // 比较方法
-    compareMethods();
+    failures += compareMethods();
 
-    std::cout << "\n╔════════════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║              所有测试通过！                                 ║" << std::endl;
-    std::cout << "╚════════════════════════════════════════════════════════════╝" << std::endl;
+    if (failures == 0) {
+        std::cout << "\n╔════════════════════════════════════════════════════════════╗" << std::endl;
+        std::cout << "║              所有测试通过！                                 ║" << std::endl;
+        std::cout << "╚════════════════════════════════════════════════════════════╝" << std::endl;
+        return 0;
+    }
 
-    return 0;
+    std::cerr << "\n共有 " << failures << " 项检查失败。" << std::endl;
+    return 1;
 }

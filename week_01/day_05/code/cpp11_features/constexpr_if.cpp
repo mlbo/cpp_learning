@@ -11,6 +11,10 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <limits>
+#include <stdexcept>
+
+#include "../constexpr_math.h"
 
 using namespace std;
 
@@ -21,6 +25,9 @@ template <typename T>
 auto get_value(T t) {
     if constexpr (is_pointer_v<T>) {
         cout << "  [指针类型] 解引用: ";
+        if (t == nullptr) {
+            throw invalid_argument("get_value cannot dereference a null pointer");
+        }
         return *t;
     } else {
         cout << "  [值类型] 直接返回: ";
@@ -89,32 +96,36 @@ void analyze_type() {
 // 编译期斐波那契
 template <int N>
 constexpr int fibonacci() {
+    static_assert(N >= 0 && N <= 30,
+                  "recursive fibonacci<int> demo requires 0 <= N <= 30");
     if constexpr (N <= 1) {
         return N;
     } else {
-        return fibonacci<N - 1>() + fibonacci<N - 2>();
+        return day05::checked_add(fibonacci<N - 1>(), fibonacci<N - 2>());
     }
 }
 
 // 编译期阶乘
 template <int N>
 constexpr int factorial() {
+    static_assert(N >= 0 && N <= day05::max_factorial_input,
+                  "factorial<int> requires 0 <= N <= 12");
     if constexpr (N <= 1) {
         return 1;
     } else {
-        return N * factorial<N - 1>();
+        return day05::checked_multiply(N, factorial<N - 1>());
     }
 }
 
 // 编译期幂运算
 template <int Base, int Exp>
 constexpr int power() {
+    static_assert(Exp >= 0 && Exp <= 64,
+                  "this recursive integer power demo requires 0 <= Exp <= 64");
     if constexpr (Exp == 0) {
         return 1;
-    } else if constexpr (Exp < 0) {
-        return 1.0 / power<Base, -Exp>();
     } else {
-        return Base * power<Base, Exp - 1>();
+        return day05::checked_multiply(Base, power<Base, Exp - 1>());
     }
 }
 
@@ -145,7 +156,15 @@ constexpr auto sum_all(T first, Args... rest) {
     if constexpr (sizeof...(rest) == 0) {
         return first;
     } else {
-        return first + sum_all(rest...);
+        using Result = common_type_t<T, Args...>;
+        const auto tail = sum_all(rest...);
+        if constexpr (is_integral_v<Result>) {
+            static_assert(is_same_v<Result, int>,
+                          "the checked integral sum_all demo intentionally supports int only");
+            return day05::checked_add(static_cast<int>(first), static_cast<int>(tail));
+        } else {
+            return static_cast<Result>(first) + static_cast<Result>(tail);
+        }
     }
 }
 
@@ -178,6 +197,11 @@ void print_container(const Container& c) {
 template <typename T>
 constexpr T abs_value(T x) {
     if constexpr (is_signed_v<T>) {
+        if constexpr (is_integral_v<T>) {
+            if (x == numeric_limits<T>::min()) {
+                throw overflow_error("abs_value result does not fit in its signed type");
+            }
+        }
         return x < 0 ? -x : x;
     } else {
         return x;  // 无符号类型不需要处理
@@ -306,8 +330,9 @@ void demonstrate_if_constexpr_vs_if() {
     
     cout << "if constexpr：\n";
     cout << "  - 条件在编译时计算\n";
-    cout << "  - 只有符合条件的分支被编译\n";
-    cout << "  - 可以避免编译错误\n";
+    cout << "  - 未选中分支在模板实例化时被丢弃\n";
+    cout << "  - 可避免实例化与当前类型不匹配的依赖代码\n";
+    cout << "  - 但源码仍需可解析，与模板参数无关的错误仍会被诊断\n";
     
     // 示例：普通if无法这样写
     // template <typename T>
@@ -327,6 +352,36 @@ void demonstrate_if_constexpr_vs_if() {
     cout << "  }\n";
 }
 
+bool demonstrate_boundary_contracts() {
+    cout << "\n【模板边界契约】\n";
+    bool passed = true;
+    int* null_pointer = nullptr;
+    try {
+        (void)get_value(null_pointer);
+        cerr << "  [FAIL] get_value 未拒绝空指针\n";
+        passed = false;
+    } catch (const invalid_argument&) {
+        cout << "  [PASS] get_value 拒绝空指针\n";
+    }
+
+    try {
+        (void)abs_value(numeric_limits<int>::min());
+        cerr << "  [FAIL] abs_value 未拒绝 INT_MIN\n";
+        passed = false;
+    } catch (const overflow_error&) {
+        cout << "  [PASS] abs_value 拒绝 INT_MIN\n";
+    }
+
+    try {
+        (void)sum_all(numeric_limits<int>::max(), 1);
+        cerr << "  [FAIL] sum_all 未拒绝 int 溢出\n";
+        passed = false;
+    } catch (const overflow_error&) {
+        cout << "  [PASS] sum_all 拒绝 int 溢出\n";
+    }
+    return passed;
+}
+
 // ==================== main函数 ====================
 
 int main() {
@@ -340,14 +395,15 @@ int main() {
     demonstrate_variadic();
     demonstrate_condition_compilation();
     demonstrate_if_constexpr_vs_if();
+    const bool boundaries_passed = demonstrate_boundary_contracts();
     
     cout << "\n╔════════════════════════════════════════════════════════════╗\n";
     cout << "║     if constexpr要点：                                      ║\n";
     cout << "║     1. 编译期条件判断（C++17）                              ║\n";
-    cout << "║     2. 只有符合条件的分支被编译                             ║\n";
+    cout << "║     2. 未选中分支不实例化依赖代码                           ║\n";
     cout << "║     3. 常用于模板元编程                                     ║\n";
-    cout << "║     4. 可避免无效分支的编译错误                             ║\n";
+    cout << "║     4. 不会屏蔽语法或非依赖错误                             ║\n";
     cout << "╚════════════════════════════════════════════════════════════╝\n";
     
-    return 0;
+    return boundaries_passed ? 0 : 1;
 }

@@ -33,33 +33,42 @@
 这道题是二分查找的经典应用，使用标准二分查找模板即可解决。
 
 **算法步骤**：
-1. 初始化左右边界 `left = 0`, `right = n - 1`
-2. 循环条件：`left <= right`
+1. 初始化半开区间 `left = 0`, `right = n`
+2. 循环条件：`left < right`
 3. 计算中间位置 `mid = left + (right - left) / 2`（防溢出）
 4. 比较 `nums[mid]` 与 `target`：
    - 相等：返回 `mid`
    - 小于：`left = mid + 1`
-   - 大于：`right = mid - 1`
+   - 大于：`right = mid`
 5. 循环结束未找到，返回 `-1`
 
 ## 代码实现
 
+下面是可复制到本题 `solution.cpp` 的完整类实现；它与公开头文件的 `Solution704::search` 签名一致，并复用本周统一的下标转换检查。
+
 ```cpp
-int search(vector<int>& nums, int target) {
-    int left = 0, right = nums.size() - 1;
-    
-    while (left <= right) {
-        int mid = left + (right - left) / 2;  // 防溢出
-        
+#include "solution.h"
+
+#include "../../../../common/integer_contracts.h"
+
+int Solution704::search(const std::vector<int>& nums, int target) {
+    (void)week01::checked_index(nums.size());
+    std::size_t left = 0;
+    std::size_t right = nums.size();
+
+    while (left < right) {
+        const std::size_t mid = left + (right - left) / 2;
+
         if (nums[mid] == target) {
-            return mid;
-        } else if (nums[mid] < target) {
+            return week01::checked_index(mid);
+        }
+        if (nums[mid] < target) {
             left = mid + 1;
         } else {
-            right = mid - 1;
+            right = mid;
         }
     }
-    
+
     return -1;
 }
 ```
@@ -73,9 +82,9 @@ int search(vector<int>& nums, int target) {
 
 ## 关键点
 
-1. **循环条件**：`left <= right`，使用闭区间
+1. **循环条件**：`left < right`，使用半开区间 `[left, right)`
 2. **mid计算**：使用 `left + (right - left) / 2` 防止整数溢出
-3. **边界更新**：`left = mid + 1` 和 `right = mid - 1`，确保每次搜索范围都在缩小
+3. **边界更新**：`left = mid + 1` 和 `right = mid`，确保每次搜索范围都在缩小
 
 ## 运行测试
 

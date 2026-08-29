@@ -12,7 +12,9 @@ add_compile_options(
     -Wextra
     -Wpedantic
     -Wconversion
+    -Wsign-conversion
     -Wshadow
+    -Werror
 )
 
 # Debug模式
@@ -34,11 +36,18 @@ add_executable(day_07_main
 # LeetCode 42: 接雨水
 add_executable(leetcode_42
     code/leetcode/0042_trapping_rain_water/test.cpp
+    code/leetcode/0042_trapping_rain_water/solution.cpp
 )
 
 # LeetCode 189: 轮转数组
 add_executable(leetcode_189
     code/leetcode/0189_rotate_array/test.cpp
+    code/leetcode/0189_rotate_array/solution.cpp
+)
+
+# DynamicArray 独立单元测试，包含用户自定义 Point 类型的模板实例化。
+add_executable(dynamic_array_tests
+    code/project/dynamic_array_test.cpp
 )
 
 # 链接线程库（如果需要）
@@ -50,3 +59,5 @@ enable_testing()
 
 add_test(NAME TestLeetCode42 COMMAND leetcode_42)
 add_test(NAME TestLeetCode189 COMMAND leetcode_189)
+add_test(NAME TestDynamicArray COMMAND dynamic_array_tests)
+add_test(NAME TestDay07Main COMMAND day_07_main)

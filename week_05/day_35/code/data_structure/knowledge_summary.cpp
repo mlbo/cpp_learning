@@ -1,40 +1,48 @@
-/**
- * 知识体系总结演示
- */
-
+#include <array>
 #include <iostream>
-#include <vector>
-#include <string>
+#include <string_view>
 
-void dataStructureSummary() {
-    std::cout << "=== 数据结构知识体系 ===" << std::endl;
-    
-    std::cout << "\n数组 (Array):" << std::endl;
-    std::cout << "  - 连续内存存储，O(1)随机访问" << std::endl;
-    std::cout << "  - 插入删除O(n)，需要移动元素" << std::endl;
-    
-    std::cout << "\n链表 (Linked List):" << std::endl;
-    std::cout << "  - 指针连接，O(1)插入删除" << std::endl;
-    std::cout << "  - O(n)随机访问" << std::endl;
-    
-    std::cout << "\n栈 (Stack):" << std::endl;
-    std::cout << "  - LIFO，O(1)入栈出栈" << std::endl;
-    std::cout << "  - 应用：表达式求值、括号匹配" << std::endl;
-    
-    std::cout << "\n队列 (Queue):" << std::endl;
-    std::cout << "  - FIFO，O(1)入队出队" << std::endl;
-    std::cout << "  - 应用：BFS、任务调度" << std::endl;
-    
-    std::cout << "\n哈希表 (Hash Table):" << std::endl;
-    std::cout << "  - 平均O(1)查找插入删除" << std::endl;
-    std::cout << "  - 不支持有序遍历" << std::endl;
-    
-    std::cout << "\n树 (Tree):" << std::endl;
-    std::cout << "  - 层次结构，递归定义" << std::endl;
-    std::cout << "  - BST: O(log n)查找" << std::endl;
-}
+struct ComplexityCard {
+    std::string_view structure;
+    std::string_view strength;
+    std::string_view boundary;
+};
 
 int main() {
-    dataStructureSummary();
-    return 0;
+    constexpr std::array<ComplexityCard, 7> cards{{
+        {"vector", "O(1) random access", "middle insertion moves elements"},
+        {"list", "O(1) relink with a known position and predecessor",
+         "locating a position is O(n) and cache locality is weak"},
+        {"stack/queue", "restricted O(1) end operations", "no arbitrary access contract"},
+        {"unordered_map", "average O(1) lookup", "worst case is O(n)"},
+        {"BST", "operations are O(h) for tree height h",
+         "balanced h is O(log n); unbalanced worst case is O(n)"},
+        {"tree DFS", "O(n) traversal", "recursive/explicit stack is O(h)"},
+        {"tree BFS", "O(n) traversal", "queue is O(w) for maximum tree width w"},
+    }};
+
+    bool all_fields_present = true;
+    bool list_precondition_present = false;
+    bool bst_height_present = false;
+    bool traversal_space_split = false;
+    for (const ComplexityCard& card : cards) {
+        all_fields_present = all_fields_present && !card.structure.empty() &&
+                             !card.strength.empty() && !card.boundary.empty();
+        list_precondition_present = list_precondition_present ||
+                                    (card.structure == "list" &&
+                                     card.strength.find("known position") != std::string_view::npos);
+        bst_height_present = bst_height_present ||
+                             (card.structure == "BST" &&
+                              card.strength.find("O(h)") != std::string_view::npos &&
+                              card.boundary.find("O(n)") != std::string_view::npos);
+        traversal_space_split = traversal_space_split ||
+                                (card.structure == "tree BFS" &&
+                                 card.boundary.find("O(w)") != std::string_view::npos);
+        std::cout << card.structure << ": " << card.strength
+                  << "; boundary: " << card.boundary << '\n';
+    }
+    return all_fields_present && list_precondition_present && bst_height_present &&
+                   traversal_space_split
+               ? 0
+               : 1;
 }

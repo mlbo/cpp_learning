@@ -13,6 +13,8 @@
 #include <vector>
 #include <cstring>
 
+#include "../../../common/noexcept_output.h"
+
 // ============================================
 // 辅助类
 // ============================================
@@ -23,7 +25,9 @@ public:
         std::cout << "  Widget(" << id_ << ") 构造\n";
     }
     ~Widget() {
-        std::cout << "  Widget(" << id_ << ") 析构\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  Widget(" << id_ << ") 析构\n";
+        });
     }
     
     void doWork() {

@@ -6,6 +6,8 @@
 #include "leetcode/0234_palindrome/solution.h"
 #include <vector>
 
+namespace leetcode_0234 {
+
 // ============================================================
 // 方法1: 快慢指针 + 反转链表（推荐）
 // ============================================================
@@ -45,7 +47,7 @@ bool Solution::isPalindrome(ListNode* head) {
         p2 = p2->next;
     }
 
-    // 第四步：恢复链表（可选，取决于是否允许修改原链表）
+    // 第四步：查询接口承诺不修改输入，因此无论比较成功还是失败都恢复链表。
     slow->next = reverseList(secondHalfStart);
 
     return result;
@@ -92,15 +94,15 @@ bool Solution::isPalindrome_array(ListNode* head) {
     }
 
     // 双指针比较
-    int left = 0;
-    int right = static_cast<int>(values.size()) - 1;
+    std::size_t left = 0U;
+    std::size_t right = values.size();
 
     while (left < right) {
+        --right;
         if (values[left] != values[right]) {
             return false;
         }
-        left++;
-        right--;
+        ++left;
     }
 
     return true;
@@ -111,8 +113,8 @@ bool Solution::isPalindrome_array(ListNode* head) {
 // ============================================================
 
 bool Solution::isPalindrome_recursive(ListNode* head) {
-    frontPointer_ = head;
-    return checkRecursive(frontPointer_, head);
+    ListNode* front = head;
+    return checkRecursive(front, head);
 }
 
 bool Solution::checkRecursive(ListNode*& front, ListNode* back) {
@@ -131,3 +133,5 @@ bool Solution::checkRecursive(ListNode*& front, ListNode* back) {
 
     return result;
 }
+
+} // namespace leetcode_0234

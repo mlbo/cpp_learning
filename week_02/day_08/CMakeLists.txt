@@ -3,10 +3,17 @@ project(day_08_linked_list_unique_ptr LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+include(CTest)
+
 # 编译选项
-add_compile_options(-Wall -Wextra -Wpedantic)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(
+        -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow
+    )
+endif()
 
 # 添加调试信息
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
@@ -24,6 +31,11 @@ add_library(list_data_structure STATIC
 target_include_directories(list_data_structure PUBLIC
     ${CMAKE_SOURCE_DIR}/code/data_structure
 )
+
+add_executable(list_demo
+    code/data_structure/list_demo.cpp
+)
+target_link_libraries(list_demo PRIVATE list_data_structure)
 
 # ============ C++11特性模块 ============
 # unique_ptr基本演示
@@ -57,6 +69,10 @@ add_executable(item18_unique_ptr
     code/emcpp/item18_unique_ptr.cpp
 )
 
+add_executable(special_member_contract_test
+    code/emcpp/special_member_contract_test.cpp
+)
+
 # ============ LeetCode题目模块 ============
 # LeetCode 203: 移除链表元素
 add_executable(leetcode_0203
@@ -88,6 +104,9 @@ add_custom_target(run_all
     COMMAND echo "========== 运行 unique_ptr_demo =========="
     COMMAND unique_ptr_demo
     COMMAND echo ""
+    COMMAND echo "========== 运行 list_demo =========="
+    COMMAND list_demo
+    COMMAND echo ""
     COMMAND echo "========== 运行 unique_ptr_advanced =========="
     COMMAND unique_ptr_advanced
     COMMAND echo ""
@@ -97,6 +116,12 @@ add_custom_target(run_all
     COMMAND echo "========== 运行 item17_item18 (合并版) =========="
     COMMAND item17_item18
     COMMAND echo ""
+    COMMAND echo "========== 运行 item17_special_members =========="
+    COMMAND item17_special_members
+    COMMAND echo ""
+    COMMAND echo "========== 运行 item18_unique_ptr =========="
+    COMMAND item18_unique_ptr
+    COMMAND echo ""
     COMMAND echo "========== 运行 LeetCode 203 =========="
     COMMAND leetcode_0203
     COMMAND echo ""
@@ -105,7 +130,21 @@ add_custom_target(run_all
     COMMAND echo ""
     COMMAND echo "========== 运行 day_08_demo =========="
     COMMAND day_08_demo
-    DEPENDS unique_ptr_demo unique_ptr_advanced make_unique_demo
-            item17_item18
+    DEPENDS list_demo unique_ptr_demo unique_ptr_advanced make_unique_demo
+            item17_item18 item17_special_members item18_unique_ptr
             leetcode_0203 leetcode_0206 day_08_demo
 )
+
+if(BUILD_TESTING)
+    add_test(NAME day08_list_demo COMMAND list_demo)
+    add_test(NAME day08_unique_ptr_basic COMMAND unique_ptr_demo)
+    add_test(NAME day08_unique_ptr_advanced COMMAND unique_ptr_advanced)
+    add_test(NAME day08_make_unique COMMAND make_unique_demo)
+    add_test(NAME day08_item17_item18 COMMAND item17_item18)
+    add_test(NAME day08_item17_special_members COMMAND item17_special_members)
+    add_test(NAME day08_item18_unique_ptr COMMAND item18_unique_ptr)
+    add_test(NAME day08_special_member_contract COMMAND special_member_contract_test)
+    add_test(NAME day08_remove_elements COMMAND leetcode_0203)
+    add_test(NAME day08_reverse_list COMMAND leetcode_0206)
+    add_test(NAME day08_smoke_demo COMMAND day_08_demo)
+endif()

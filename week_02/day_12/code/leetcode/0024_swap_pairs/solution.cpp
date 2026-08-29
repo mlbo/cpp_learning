@@ -5,6 +5,8 @@
 
 #include "solution.h"
 
+namespace leetcode_24 {
+
 // ============================================
 // 方法1：递归法
 // ============================================
@@ -83,6 +85,8 @@ ListNode* Solution::swapPairs_iterative(ListNode* head) {
     
     return dummy.next;
 }
+
+} // namespace leetcode_24
 
 /*
  * ============================================

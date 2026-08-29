@@ -1,5 +1,7 @@
 # Day 27：字符串专题
 
+> **学习定位**：把 Week 1 的滑动窗口、Day 22 的哈希计数和 Day 26 的连续存储综合到字符串问题。先掌握窗口合法性与计数变化，再把 KMP 作为需要单独画前缀/后缀关系的进阶内容。
+
 ## 📅 学习目标
 
 今天我们深入探索C++中的字符串处理技术，这是编程中最基础也是最重要的技能之一。字符串处理几乎出现在所有的软件开发场景中，从前端用户输入验证到后端数据处理，从算法竞赛到实际工程应用。通过今天的学习，你将掌握C++标准库中的字符串操作、字符串匹配算法的核心思想，以及滑动窗口这一经典算法技巧。这些知识不仅能帮助你解决LeetCode上的字符串相关题目，更能提升你处理实际文本数据的能力。我们将从基础操作开始，逐步深入到算法层面，最终通过两道经典题目巩固所学知识。
@@ -51,18 +53,18 @@ s.erase(5, 1);                     // 删除空格
 
 ### 1.3 底层实现原理
 
-理解`std::string`的底层实现有助于写出更高效的代码。现代C++实现通常采用"短字符串优化"（SSO, Short String Optimization）技术：对于较短的字符串（通常15-22个字符以内），直接存储在对象本身的栈空间中，避免堆内存分配；对于长字符串，则在堆上分配内存。这种设计使得短字符串操作非常高效，因为避免了动态内存分配的开销。
+理解`std::string`的底层实现有助于写出更高效的代码。许多现代C++实现采用“短字符串优化”（SSO, Short String Optimization）：较短字符序列可能直接存储在 `std::string` 对象自身的表示中，从而避免单独的动态分配。对象自身可能位于栈、堆、静态存储区或另一个对象内部，所以 SSO 描述的是“内联于对象”，并不等于“字符串存储在栈上”；阈值和布局也都不是标准保证。
 
-字符串的拷贝操作在C++11之前是深拷贝，会复制整个字符数组。C++11引入了移动语义后，字符串的转移操作变得非常高效，只需转移内存所有权而不需要复制数据。在函数返回字符串或容器存储字符串时，移动语义会自动生效。
+字符串拷贝需要得到独立的字符序列；C++11 引入移动语义后，`std::string` 在表示形式与分配器允许时可能低成本接管资源，但短字符串等情形仍不能一概视为只转移指针。在函数返回字符串或容器存储字符串时，编译器和标准库会按复制消除、可用重载与异常保证选择路径，不能把每次结果都先验地称为移动。
 
 ```cpp
 // 移动语义示例
 std::string createString() {
     std::string result = "Hello";
-    return result;  // 触发返回值优化或移动语义
+    return result;  // 允许复制消除；若未消除，再按返回规则考虑移动或复制
 }
 
-std::string s = createString();  // 无内存复制
+std::string s = createString();  // 常可直接构造结果，但不能把所有实现路径绝对称为零复制
 ```
 
 ## 📖 知识点二：字符串匹配算法
@@ -117,7 +119,7 @@ std::vector<int> computeNext(const std::string& pattern) {
 
 Rabin-Karp算法采用完全不同的思路：将字符串比较转化为数值比较。它使用哈希函数计算模式串和文本串中各子串的哈希值，通过比较哈希值来判断是否可能匹配。
 
-由于哈希值可能存在冲突，当哈希值相等时还需要进行实际字符串比较来确认。Rabin-Karp算法的优势在于可以高效地进行多模式匹配，而且在某些实际应用中（如查重、入侵检测）表现良好。
+由于哈希值可能存在冲突，当哈希值相等时还需要进行实际字符串比较来确认。滚动哈希可以复用窗口计算，并可扩展到一组等长模式；更一般的多模式需求还应比较 Trie/AC 自动机等方案。工程代码应先使用标准库接口并测量，标准库并不承诺内部采用哪一种字符串查找算法。
 
 ```cpp
 // Rabin-Karp算法的核心：滚动哈希
@@ -182,6 +184,8 @@ flowchart TB
 
 ### 3.4 滑动窗口代码模板
 
+下面是只表达控制流骨架的**结构伪代码**，不是可直接编译的 C++：`窗口需要收缩的条件`、状态更新、结果类型与返回值都必须由具体问题定义。仓库中的 LC 76/567 真实实现使用半开区间、256 项无符号字节计数，并分别落实最小覆盖与固定长度排列窗口的空模式契约。
+
 ```cpp
 /**
  * 滑动窗口通用模板
@@ -216,6 +220,26 @@ string slidingWindowTemplate(string s, string t) {
     return result;
 }
 ```
+
+<a id="day27-window-invariants"></a>
+
+### 3.5 边界、窗口不变量与失效规则
+
+写滑动窗口时，先用一句能在循环每一轮都成立的话描述窗口，而不是先背模板。LC 76 的不变量是“`[left, right)` 内的计数与 `window` 一致，`valid` 只统计已经达到目标次数的字节种类”；LC 567 的不变量是“当前窗口长度始终等于 `s1.size()`，计数差只描述这个窗口与目标的差别”。半开区间让空窗口自然表示为 `[0, 0)`，长度直接等于 `right - left`，也减少 `+1/-1` 错误。
+
+状态更新必须与边界移动配对：扩张时先读 `s[right]` 再增加 `right`，收缩时先记住 `s[left]` 再增加 `left`，随后同步修改计数。LC 76 中，移出一个刚好满足需要量的字节会使窗口失效，所以必须在递减计数前降低 `valid`；反过来，多余字符被移出并不会立刻失效。LC 567 是固定窗口，每轮恰好加入一个、移出一个；若只加入不移出，比较的已经不是排列窗口。
+
+本仓库实现按 256 种无符号字节计数，转换 `unsigned char` 后才做数组下标，避免平台上 `char` 为有符号类型时出现负下标。这仍然是“字节算法”：UTF-8 中文可能由多个字节组成，若需求是按 Unicode 字符计数，需要先解码成码点序列。接口还明确约定空目标：LC 76 返回空串，LC 567 把空模式视为能匹配任意字符串开头的空窗口。
+
+同日 LC 209 演示的可变窗口依赖另一条输入契约：`target > 0` 且数组元素全部为正数，只有这样窗口和才会随右扩单调增加、随左缩单调减少。`target <= 0` 可能让收缩循环越过右边界，负数则会破坏“当前不满足时继续右扩”的正确性；真实演示在入口抛 `std::invalid_argument` 并用可失败契约自检覆盖两条负例。字符串大小写转换也先把 `char` 转成 `unsigned char` 再调用 `<cctype>`，避免负 `char` 违反 `std::toupper/std::tolower` 的前置条件。
+
+### 今日工程动作：把窗口契约变成回归测试
+
+1. 在写实现前列出空串、目标更长、重复字符、大小写和高位字节五类输入。
+2. 让普通计数版与差值优化版运行同一张测试表，防止“优化后语义漂移”。
+3. 测试程序累计失败数并以非零退出码结束，使脚本和 CI 能真正发现错误。
+4. 测试只包含 `solution.h`，CMake 把 `solution.cpp` 编译成库 target 后再链接测试，`ctest --output-on-failure` 负责传播非零退出码。
+5. 修改窗口更新顺序时先运行测试，再用手算窗口轨迹解释为什么结果仍正确。
 
 ## 🎯 LeetCode 刷题
 
@@ -379,21 +403,40 @@ s2 = "e i d b a o o o"
 与LC 76不同，这里的窗口大小是固定的，不需要动态收缩，只需要判断当前窗口是否满足条件。
 
 ```cpp
-// 核心思路：维护一个固定大小的窗口
-// 窗口内的字符计数与s1相同时，返回true
-bool checkInclusion(string s1, string s2) {
-    int n1 = s1.size(), n2 = s2.size();
-    if (n1 > n2) return false;
-    
-    // 统计s1的字符计数
-    vector<int> count(26, 0);
-    for (char c : s1) count[c - 'a']++;
-    
-    // 滑动窗口
-    for (int i = 0; i <= n2 - n1; i++) {
-        // 检查窗口[i, i+n1)是否满足条件
-        // ...
+#include <array>
+#include <cstddef>
+#include <string>
+
+// WEEK04_VERIFY_NON_MAIN: day27_lc567_arbitrary_bytes
+std::size_t byteIndex(char character) noexcept {
+    return static_cast<std::size_t>(static_cast<unsigned char>(character));
+}
+
+// 基础版：固定窗口计数与目标计数相同时返回 true。
+// 这是完整可编译函数；空 s1 对应开头的空窗口，因此返回 true。
+bool checkInclusion(const std::string& s1, const std::string& s2) {
+    if (s1.size() > s2.size()) {
+        return false;
     }
+
+    std::array<int, 256> target{};
+    std::array<int, 256> window{};
+    for (std::size_t i = 0; i < s1.size(); ++i) {
+        ++target[byteIndex(s1[i])];
+        ++window[byteIndex(s2[i])];
+    }
+    if (window == target) {
+        return true;
+    }
+
+    for (std::size_t right = s1.size(); right < s2.size(); ++right) {
+        ++window[byteIndex(s2[right])];
+        --window[byteIndex(s2[right - s1.size()])];
+        if (window == target) {
+            return true;
+        }
+    }
+    return false;
 }
 ```
 
@@ -406,21 +449,27 @@ bool checkInclusion(string s1, string s2) {
 #### 复杂度分析
 
 - **时间复杂度**：O(n)，其中n是s2的长度。使用优化后，每个字符最多被处理两次。
-- **空间复杂度**：O(1)，因为字符集大小固定（26个小写字母）。
+- **空间复杂度**：O(1)，因为字符集大小固定为 256 种字节值；这不是 Unicode 码点计数。
 
 ## 🚀 运行代码
 
+LC 76 和 LC 567 都按“头文件写接口、源文件写实现、库 target 负责编译实现、测试 target 只链接库”组织。公开类仍保留 LeetCode 熟悉的 `class Solution` 形式，但分别位于 `day27::lc0076` 与 `day27::lc0567` 命名空间；提交单题时取出对应类体即可，真实项目则能在同一翻译单元安全包含两个头。`day27_solution_composition` 同时包含两头并链接 `day27_lc0076`、`day27_lc0567`，因此组合边界和实现依赖都由 CMake 直接验证；目录级 `include_directories` 已移除，公开包含路径只通过各库 target 传播给实际使用者。
+
 ```bash
 # 进入Day 27目录
-cd /home/z/my-project/download/week_04/day_27
+cd week_04/day_27
 
 # 编译并运行
 ./build_and_run.sh
 
+# 同一入口启用 ASan/UBSan
+ENABLE_SANITIZERS=ON ./build_and_run.sh
+
 # 或手动编译
 mkdir build && cd build
-cmake ..
-make
+cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON ..
+cmake --build .
+ctest --output-on-failure
 ./day_27_demo
 ```
 
@@ -435,7 +484,7 @@ make
 | 滑动窗口 | Sliding Window | 维护可变/固定长度区间的算法技巧 |
 | 哈希函数 | Hash Function | 将任意长度数据映射到固定长度的函数 |
 | 字符编码 | Character Encoding | 字符与二进制数据的对应关系 |
-| SSO | Short String Optimization | 短字符串优化，小字符串直接存储在栈上 |
+| SSO | Short String Optimization | 短字符序列可能内联于 `std::string` 对象表示中，是否采用及阈值由实现决定 |
 
 ## 💡 学习提示
 
@@ -445,7 +494,7 @@ make
 
 3. **区分子串和子序列**：子串要求连续，子序列不要求连续。滑动窗口适用于子串问题，不适用于子序列问题。
 
-4. **字符计数技巧**：对于只包含小写字母的字符串，可以用长度为26的数组代替哈希表，效率更高。
+4. **字符计数技巧**：若接口明确只接受小写字母，可以用 26 项数组；本日 LC 567 的公开契约接受任意字节，因此使用 256 项数组并先转 `unsigned char`。
 
 5. **窗口的两种类型**：固定长度窗口（如LC 567）和可变长度窗口（如LC 76），它们的处理方式有所不同。
 
@@ -458,3 +507,11 @@ make
 - [Sliding Window Technique](https://www.geeksforgeeks.org/window-sliding-technique/)
 - 《算法导论》第32章：字符串匹配
 - 《剑指Offer》字符串章节
+
+## 恰好五句复盘
+
+1. 字符串滑动窗口处理的是连续区间，开始前必须先写清固定窗口还是可变窗口。
+2. 窗口计数、左右边界和合法性变量组成同一个不变量，任何一个变化都要同步更新其余状态。
+3. 重复字符要求比较次数而不只是“是否出现”，这正是 LC 76 容易提前收缩的原因。
+4. 数组下标应来自无符号字节，而 UTF-8 字符需求则必须增加独立的解码层。
+5. 今日把边界表变成可失败的 CTest，下一次优化只要保持这些契约就能安全演进。

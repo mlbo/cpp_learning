@@ -8,9 +8,8 @@
 #include "cpp11_features/lambda_demo.h"
 #include "cpp11_features/lambda_capture_demo.h"
 #include "emcpp/item31_avoid_default_capture.h"
-
-void testValidParentheses();
-void testRemoveDuplicates();
+#include "leetcode/0020_valid_parentheses/solution.h"
+#include "leetcode/1047_remove_adjacent_duplicates/solution.h"
 
 int main() {
     std::cout << "========================================" << std::endl;
@@ -35,15 +34,16 @@ int main() {
 
     // 5. LeetCode 20 测试
     std::cout << "\n【5. LeetCode 20: 有效的括号】" << std::endl;
-    testValidParentheses();
+    const bool lc20Passed = lc20::testValidParentheses();
 
     // 6. LeetCode 1047 测试
     std::cout << "\n【6. LeetCode 1047: 删除相邻重复项】" << std::endl;
-    testRemoveDuplicates();
+    const bool lc1047Passed = lc1047::testRemoveDuplicates();
 
     std::cout << "\n========================================" << std::endl;
-    std::cout << "  Day 15 学习完成！" << std::endl;
+    const bool allPassed = lc20Passed && lc1047Passed;
+    std::cout << "  Day 15 测试" << (allPassed ? "全部通过！" : "存在失败！") << std::endl;
     std::cout << "========================================" << std::endl;
 
-    return 0;
+    return allPassed ? 0 : 1;
 }

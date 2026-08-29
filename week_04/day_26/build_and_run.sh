@@ -21,16 +21,23 @@ mkdir -p "${BUILD_DIR}"
 
 echo -e "${YELLOW}[2/4] CMake 配置...${NC}"
 cd "${BUILD_DIR}"
-cmake ..
+cmake .. \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_TESTING=ON \
+    -DBUILD_TESTS=ON \
+    -DENABLE_SANITIZERS="${ENABLE_SANITIZERS:-OFF}" \
+    -DENABLE_ASAN="${ENABLE_ASAN:-OFF}" \
+    -DENABLE_UBSAN="${ENABLE_UBSAN:-OFF}"
 
 echo -e "${YELLOW}[3/4] 编译项目...${NC}"
 make -j$(nproc)
 
 echo -e "${YELLOW}[4/4] 运行程序...${NC}"
 echo -e "${GREEN}----------------------------------------${NC}"
+ctest --output-on-failure
 ./day26_main
 
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  Day 26 学习完成！${NC}"
-echo -e "${GREEN}  下节预告：哈希表原理与实现${NC}"
+echo -e "${GREEN}  下节预告：字符串操作、匹配算法与滑动窗口${NC}"
 echo -e "${GREEN}========================================${NC}"

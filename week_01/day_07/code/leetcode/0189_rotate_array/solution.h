@@ -10,7 +10,7 @@
 
 #include <vector>
 
-namespace leetcode {
+namespace leetcode::p0189 {
 
 class Solution {
 public:
@@ -60,6 +60,6 @@ public:
     }
 };
 
-} // namespace leetcode
+} // namespace leetcode::p0189
 
 #endif // ROTATE_ARRAY_H

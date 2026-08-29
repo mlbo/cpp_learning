@@ -22,6 +22,6 @@ public:
     std::vector<int> twoSum_optimized(std::vector<int>& nums, int target);
 };
 
-#endif // LEETCODE_0001_TWO_SUM_H
-
 } // namespace LC0001
+
+#endif // LEETCODE_0001_TWO_SUM_H

@@ -12,6 +12,11 @@
 #include <iostream>
 #include "list_node.h"
 
+using day13_lists::ListNode;
+using day13_lists::createList;
+using day13_lists::deleteList;
+using day13_lists::listToString;
+
 // ============================================
 // 技巧一：虚拟头节点
 // ============================================
@@ -136,26 +141,33 @@ ListNode* mergeTwoLists(ListNode* l1, ListNode* l2) {
 // ============================================
 
 ListNode* removeNthFromEnd(ListNode* head, int n) {
+    if (n <= 0) {
+        return head;
+    }
+
     ListNode dummy(0);
     dummy.next = head;
     
     ListNode* first = &dummy;
     ListNode* second = &dummy;
     
-    // first 先走 n 步
-    for (int i = 0; i <= n; ++i) {
+    // first 先走 n 步；若不足n步，说明n大于链表长度，保持原链表。
+    for (int i = 0; i < n; ++i) {
+        if (!first->next) {
+            return head;
+        }
         first = first->next;
     }
     
-    // 同时移动，直到 first 到达末尾
-    while (first) {
+    // 同时移动，直到 first 到达尾节点。second随后位于待删除节点之前。
+    while (first->next) {
         first = first->next;
         second = second->next;
     }
     
     // 删除节点
     ListNode* toDelete = second->next;
-    second->next = second->next->next;
+    second->next = toDelete->next;
     delete toDelete;
     
     return dummy.next;

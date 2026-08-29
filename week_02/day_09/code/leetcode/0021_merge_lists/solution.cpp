@@ -7,8 +7,10 @@
 
 #include "solution.h"
 #include <iostream>
+#include <memory>
 #include <vector>
-#include <cassert>
+
+namespace leetcode_0021 {
 
 // ============================================================
 // 迭代解法：使用虚拟头节点
@@ -70,14 +72,17 @@ ListNode* Solution::mergeTwoLists(ListNode* list1, ListNode* list2) {
 
 ListNode* Solution::createList(const std::vector<int>& vals) {
     if (vals.empty()) return nullptr;
-    
-    ListNode* head = new ListNode(vals[0]);
-    ListNode* cur = head;
-    for (size_t i = 1; i < vals.size(); ++i) {
-        cur->next = new ListNode(vals[i]);
+
+    const auto delete_chain = [this](ListNode* node) { deleteList(node); };
+    std::unique_ptr<ListNode, decltype(delete_chain)> owner(
+        new ListNode(vals[0]), delete_chain);
+    ListNode* cur = owner.get();
+    for (std::size_t i = 1; i < vals.size(); ++i) {
+        auto node = std::make_unique<ListNode>(vals[i]);
+        cur->next = node.release();
         cur = cur->next;
     }
-    return head;
+    return owner.release();
 }
 
 std::vector<int> Solution::listToArray(ListNode* head) {
@@ -111,8 +116,17 @@ void Solution::deleteList(ListNode* head) {
 // 测试函数
 // ============================================================
 
-void testMergeLists() {
+bool testMergeLists() {
     Solution sol;
+    bool all_passed = true;
+    const auto record = [&all_passed](bool passed, const char* message) {
+        all_passed = passed && all_passed;
+        if (passed) {
+            std::cout << "  ✓ " << message << "\n";
+        } else {
+            std::cerr << "  ✗ " << message << "\n";
+        }
+    };
     
     std::cout << "【测试用例】\n\n";
     
@@ -132,8 +146,7 @@ void testMergeLists() {
         std::cout << "  合并结果: "; sol.printList(merged); std::cout << "\n";
         std::cout << "  期望结果: [1, 1, 2, 3, 4, 4]\n";
         
-        assert(result == expected);
-        std::cout << "  ✓ 通过\n";
+        record(result == expected, "正常合并结果正确");
         
         sol.deleteList(merged);
     }
@@ -152,8 +165,7 @@ void testMergeLists() {
         std::cout << "  l2: [1, 3, 5]\n";
         std::cout << "  合并结果: "; sol.printList(merged); std::cout << "\n";
         
-        assert(result == expected);
-        std::cout << "  ✓ 通过\n";
+        record(result == expected, "空链表与非空链表合并正确");
         
         sol.deleteList(merged);
     }
@@ -167,8 +179,7 @@ void testMergeLists() {
         std::cout << "  l2: []\n";
         std::cout << "  合并结果: []\n";
         
-        assert(merged == nullptr);
-        std::cout << "  ✓ 通过\n";
+        record(merged == nullptr, "两个空链表合并仍为空");
     }
     
     // 测试4：不同长度
@@ -186,8 +197,7 @@ void testMergeLists() {
         
         std::cout << "  合并结果: "; sol.printList(merged); std::cout << "\n";
         
-        assert(result == expected);
-        std::cout << "  ✓ 通过\n";
+        record(result == expected, "不同长度链表合并正确");
         
         sol.deleteList(merged);
     }
@@ -210,14 +220,13 @@ void testMergeLists() {
         std::cout << "  迭代结果: "; sol.printList(resultIter); std::cout << "\n";
         std::cout << "  递归结果: "; sol.printList(resultRecur); std::cout << "\n";
         
-        assert(iterArray == recurArray);
-        std::cout << "  ✓ 两种方法结果一致\n";
+        record(iterArray == recurArray, "迭代与递归结果一致");
         
         sol.deleteList(resultIter);
         sol.deleteList(resultRecur);
     }
     
-    std::cout << "\n所有测试通过！\n";
+    std::cout << (all_passed ? "\n所有演示检查通过！\n" : "\n存在演示检查失败！\n");
     
     std::cout << "\n【算法分析】\n";
     std::cout << "┌─────────────────────────────────────────────────────┐\n";
@@ -228,4 +237,7 @@ void testMergeLists() {
     std::cout << "│ 优点: 空间效率高       │ 优点: 代码简洁           │\n";
     std::cout << "│ 缺点: 代码稍长         │ 缺点: 递归栈开销         │\n";
     std::cout << "└─────────────────────────────────────────────────────┘\n";
+    return all_passed;
 }
+
+} // namespace leetcode_0021

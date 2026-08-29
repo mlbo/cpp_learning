@@ -8,6 +8,9 @@
 #include <iostream>
 #include <queue>
 #include <algorithm>
+#include <stdexcept>
+
+namespace leetcode_0215 {
 
 // 方法1：小顶堆
 int findKthLargestHeap(std::vector<int>& nums, int k) {
@@ -15,7 +18,7 @@ int findKthLargestHeap(std::vector<int>& nums, int k) {
     
     for (int num : nums) {
         minHeap.push(num);
-        if (minHeap.size() > k) {
+        if (minHeap.size() > static_cast<std::size_t>(k)) {
             minHeap.pop();  // 弹出最小的
         }
     }
@@ -24,25 +27,29 @@ int findKthLargestHeap(std::vector<int>& nums, int k) {
 }
 
 // 方法2：快速选择
-int quickSelect(std::vector<int>& nums, int left, int right, int k) {
+int quickSelect(std::vector<int>& nums,
+                std::size_t left,
+                std::size_t right,
+                std::size_t k) {
     if (left == right) return nums[left];
     
-    int pivot = nums[right];
-    int i = left;
+    const int pivot = nums[right];
+    std::size_t i = left;
     
     // 分区：大的放左边
-    for (int j = left; j < right; ++j) {
+    for (std::size_t j = left; j < right; ++j) {
         if (nums[j] > pivot) {
             std::swap(nums[i], nums[j]);
-            i++;
+            ++i;
         }
     }
     std::swap(nums[i], nums[right]);
     
-    // i是pivot的最终位置
-    if (i == k - 1) {
+    // i是pivot的最终位置，pivotRank是从1开始的排名。
+    const std::size_t pivotRank = i + 1;
+    if (pivotRank == k) {
         return nums[i];  // 找到第k大
-    } else if (i < k - 1) {
+    } else if (pivotRank < k) {
         return quickSelect(nums, i + 1, right, k);
     } else {
         return quickSelect(nums, left, i - 1, k);
@@ -50,11 +57,16 @@ int quickSelect(std::vector<int>& nums, int left, int right, int k) {
 }
 
 int Solution::findKthLargest(std::vector<int>& nums, int k) {
+    if (k <= 0 || static_cast<std::size_t>(k) > nums.size()) {
+        throw std::invalid_argument("k必须位于[1, nums.size()]范围内");
+    }
     return findKthLargestHeap(nums, k);
 }
 
+} // namespace leetcode_0215
+
 void testFindKthLargest() {
-    Solution sol;
+    leetcode_0215::Solution sol;
     
     std::cout << "LeetCode 215. 第K个最大元素 测试结果：" << std::endl;
     

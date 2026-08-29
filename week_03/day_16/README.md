@@ -1,5 +1,7 @@
 # Day 16：队列入门与Lambda进阶
 
+> **学习定位**：承接 Day 15 的栈和 Lambda，本日进入 FIFO、均摊复杂度、初始化捕获与泛型 Lambda。C++14 特性会明确标注，统一用 C++17 环境编译。
+
 ## 📅 学习目标
 
 - [ ] 理解队列数据结构的先进先出(FIFO)原理
@@ -68,7 +70,7 @@ flowchart LR
     end
     
     subgraph "出队 Dequeue"
-    A2[队首元素] --> B2[移除并返回]
+    A2[队首元素] --> B2[删除元素，不返回值]
     end
     
     subgraph "查看队首 Front"
@@ -86,6 +88,16 @@ flowchart LR
 | back() | O(1) | 查看队尾 |
 | empty() | O(1) | 判空 |
 | size() | O(1) | 获取大小 |
+
+和 `std::stack` 一样，`std::queue::pop()` **只删除、不返回元素**。需要取出队首时应先确认队列非空，再读取 `front()`，最后 `pop()`。对空队列调用 `front()`、`back()` 或 `pop()` 不满足接口前置条件；标准库不会替你返回 `0` 或空字符串。`std::queue` 也是容器适配器，只公开 FIFO 所需接口，不提供随机访问和迭代器。
+
+<a id="day16-queue-adaptor"></a>
+
+### 容器适配器与底层容器契约
+
+`std::queue<T, Container>` 把队首操作映射到 `front/pop_front`，把队尾操作映射到 `back/push_back`。底层容器因此必须提供这四类操作；默认 `std::deque` 满足要求，`std::list` 也可用，而 `std::vector` 没有 `pop_front()`，不能直接作为 `std::queue` 的底层容器。
+
+选择底层容器不改变 FIFO 语义，但会影响节点开销、局部性、分配行为和元素引用的失效规则。本日算法只依赖适配器的受限接口，因此测试不应偷看底层容器；若业务需要两端操作或迭代，应直接使用 `std::deque`，而不是想办法绕过 `std::queue` 的接口。
 
 ### C++ STL queue 使用
 
@@ -123,6 +135,8 @@ void queueDemo() {
 
 ## 📖 知识点二：Lambda进阶
 
+Day 15 已系统说明闭包类型、捕获时机、`this` 与悬空边界，请先回看 [Lambda 捕获与生命周期边界](../day_15/README.md#day15-lambda-lifetime)。本日只新增两件事：用初始化捕获构造闭包成员，以及用泛型 Lambda 的模板调用运算符接受多种类型。
+
 ### 泛型Lambda（C++14）
 
 C++14允许Lambda参数使用`auto`，实现泛型Lambda：
@@ -138,6 +152,8 @@ add(1.5, 2.5);    // double + double
 add(std::string("Hello"), std::string(" World"));  // string + string
 ```
 
+编译器会为泛型 Lambda 生成带模板调用运算符的闭包类型。这里两个 `auto` 分别推导，所以 `add(1, 2.5)` 也是允许尝试实例化的；能否调用最终取决于函数体中的 `a + b` 对这组类型是否合法。C++14/17 中，错误通常在实例化时暴露；C++20 才可以用 `requires` 更直接地写出约束。本日先掌握调用模型，模板约束会在后续模板课程深化。
+
 ### 初始化捕获（C++14）
 
 C++14允许在捕获列表中初始化新变量：
@@ -151,10 +167,13 @@ auto f = [p = std::move(ptr)]() {
 };
 
 // 也可以创建新变量
-auto g = [x = 10, y = x + 5]() {
+int base = 10;
+auto g = [x = base, y = base + 5]() {
     return x + y;  // 15
 };
 ```
+
+初始化捕获不是“先捕获再赋值”，而是在**创建闭包对象时**用右侧表达式初始化闭包中的新成员。左侧名字只在 Lambda 体内代表这个成员；右侧表达式在外层作用域求值。因此不能指望同一捕获列表里刚声明的 `x` 给后面的捕获初始化。若右侧使用 `std::move(ptr)`，资源所有权进入闭包，原对象仍然有效但处于移动后状态，不应假定除类型承诺之外的具体值。
 
 ### EMC++ Item 32：使用初始化捕获将对象移入闭包
 
@@ -184,6 +203,10 @@ auto f = [data = std::move(data)]() {
 };
 ```
 
+这解决的是**所有权**问题：闭包直接拥有资源，不再依赖外部局部变量的生命周期。还要注意，Lambda 的 `operator()` 默认是 `const`，可以读取捕获成员，但若要再次把该成员移动出去，通常要写 `() mutable`。初始化捕获也可用于改名、预计算或只捕获对象的某个成员快照，不只服务于 `unique_ptr`。
+
+捕获 `unique_ptr` 使闭包成为 move-only，这在使用 `auto` 保存或传入接受具体可调用类型的模板时没有问题，但 C++17 的 `std::function` 不能存储这种目标。若闭包会被调用多次，还必须明确“第一次调用是否会把资源再移走”；能编译不等于多次调用后仍有同一业务语义。
+
 ### EMC++ Item 33：对auto&&参数使用decltype来std::forward
 
 **泛型Lambda中的完美转发**：
@@ -198,6 +221,14 @@ f(42);           // x是int&&，转发为右值
 int y = 10;
 f(y);            // x是int&，转发为左值
 ```
+
+这里有三步推理：
+
+1. `auto&&` 发生类型推导，因此是转发引用：左值实参让 `decltype(x)` 成为 `T&`，右值实参让它成为 `T&&`。
+2. 进入函数体后，`x` 有名字，所以表达式 `x` 本身永远是左值；直接写 `doSomething(x)` 会丢掉右值属性。
+3. `std::forward<decltype(x)>(x)` 根据推导结果有条件地恢复原值类别。这里要用 `decltype(x)`，不要手写一个猜测出来的类型。
+
+多参数包装器对每个参数分别写 `std::forward<decltype(args)>(args)...`。Day 16 只建立第一次正确认识；[Day 22](../../week_04/day_22/README.md) 区分值类别与右值引用，[Day 23](../../week_04/day_23/README.md) 讲移动特殊成员与所有权，[Day 24](../../week_04/day_24/README.md) 系统推导转发引用和引用折叠，[Day 25](../../week_04/day_25/README.md) 再把完美转发放回模板接口中。
 
 ---
 
@@ -268,6 +299,9 @@ public:
         if (outStack.empty()) {
             transfer();
         }
+        if (outStack.empty()) {
+            throw std::underflow_error("不能从空队列弹出元素");
+        }
         int val = outStack.top();
         outStack.pop();
         return val;
@@ -277,10 +311,13 @@ public:
         if (outStack.empty()) {
             transfer();
         }
+        if (outStack.empty()) {
+            throw std::underflow_error("空队列没有队首元素");
+        }
         return outStack.top();
     }
     
-    bool empty() {
+    bool empty() const noexcept {
         return inStack.empty() && outStack.empty();
     }
 };
@@ -289,8 +326,12 @@ public:
 #### 复杂度分析
 
 - **push**: O(1)
-- **pop/peek**: 均摊O(1)（每个元素最多被转移一次）
+- **pop/peek**: 单次最坏 O(n)，均摊 O(1)
 - **empty**: O(1)
+
+为什么不是简单地说每次都是 O(1)？当 `outStack` 为空时，一次 `pop()` 可能把 `inStack` 的 n 个元素全部转移，确实要 O(n)。但从一串操作整体看，每个元素只会：进入 `inStack` 一次、从 `inStack` 弹出并压入 `outStack` 一次、最后从 `outStack` 弹出一次。它不会来回转移。因此 n 个元素对应的总栈操作数仍是 O(n)，平均到每次队列操作就是均摊 O(1)。均摊分析不是“某次操作很快”，而是“昂贵操作不会对同一元素反复发生”。
+
+**状态不变量**：`outStack` 非空时，它的栈顶始终是当前队首；`outStack` 为空时，`inStack` 的栈底是当前队首。只有在前者为空时才能整体转移，否则会让后入队的新元素跑到老元素前面。题目保证 `pop/peek` 调用时队列非空；脱离题目写工程接口时，应自行检查并选择异常、`optional` 或显式前置条件。
 
 ---
 
@@ -354,9 +395,12 @@ public:
     }
     
     int pop() {
-        int n = q.size() - 1;
-        // 把前n-1个元素移到队尾
-        for (int i = 0; i < n; ++i) {
+        if (q.empty()) {
+            throw std::underflow_error("不能从空栈弹出元素");
+        }
+        const std::size_t rotations = q.size() - 1;
+        // 把栈顶之前的元素移到队尾
+        for (std::size_t i = 0; i < rotations; ++i) {
             q.push(q.front());
             q.pop();
         }
@@ -371,7 +415,7 @@ public:
         return val;
     }
     
-    bool empty() {
+    bool empty() const noexcept {
         return q.empty();
     }
 };
@@ -383,6 +427,8 @@ public:
 - **pop/top**: O(n)
 - **empty**: O(1)
 
+`top()` 的语义是查看而不删除，所以单队列实现先做一次与 `pop()` 相同的轮转，再把取出的值放回队尾。应检查“连续调用两次 `top()` 结果是否相同”，否则很容易写成一次隐藏的删除。与 LC 232 一样，题目保证 `pop/top` 时栈非空，普通工程代码必须明确空结构行为。
+
 ---
 
 ## 🚀 运行代码
@@ -392,11 +438,22 @@ public:
 ./build_and_run.sh
 
 # 或者手动编译
-mkdir build && cd build
-cmake ..
-make
-./day16_main
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
+
+### 今日工程动作：验证队列接口与均摊账本
+
+在 Day 16 目录执行 `./build_and_run.sh /tmp/week3-day16-action`，确认 CTest 同时覆盖正常 FIFO 序列和空队列 `pop/peek` 的 `std::underflow_error` 契约。再为双栈队列写出“每个元素一生经历哪些栈操作”的账本，并构造“连续入队 n 次后第一次出队”的最坏用例，区分单次复杂度与均摊复杂度；随后给泛型 Lambda 写两个重载目标函数，分别接收 `int&` 和 `int&&`，删掉 `std::forward` 观察两个调用都落到左值重载，再恢复转发并用测试输出证明值类别得到保留。
+
+### 五句复盘
+
+1. **核心问题**：FIFO 如何由受限接口表示，闭包又如何拥有资源并保持调用者的值类别？
+2. **旧误解**：`queue::pop()` 不返回元素；均摊 O(1) 不等于每次 O(1)；有名字的 `auto&& x` 在函数体中仍是左值表达式。
+3. **规则前提**：访问队首前必须非空；移动捕获后只依赖移动后状态保证；完美转发必须处于类型推导语境。
+4. **测试/反例证据**：首次批量转移、交替入队出队、连续两次 `top()`、左值/右值重载共同验证实现。
+5. **与前后课连接**：Day 15 的栈和捕获生命周期支撑本日；Day 17 将把栈升级为维护候选关系的单调栈，Day 23–25 再深化值类别与转发。
 
 ---
 
@@ -442,4 +499,7 @@ graph TB
 
 1. [Hello-Algo - 队列](https://www.hello-algo.com/chapter_stack_and_queue/queue/)
 2. [cppreference - queue](https://en.cppreference.com/w/cpp/container/queue)
-3. [Effective Modern C++ - Item 32-33](https://www.aristeia.com/EMC++.html)
+3. [cppreference - Lambda expressions](https://en.cppreference.com/w/cpp/language/lambda)
+4. [cppreference - std::forward](https://en.cppreference.com/w/cpp/utility/forward)
+5. [Effective Modern C++ - Item 32-33](https://www.aristeia.com/EMC++.html)
+6. 《C++ Primer》第 5 版：Lambda 表达式与可调用对象

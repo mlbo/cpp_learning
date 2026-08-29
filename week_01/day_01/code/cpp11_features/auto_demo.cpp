@@ -67,6 +67,7 @@ void auto_basics() {
     
     std::cout << "  auto sum = i + 10 -> int\n";
     std::cout << "  auto div_result = d / 2 -> double\n";
+    (void)f; (void)c; (void)s; (void)sum; (void)div_result;
 }
 
 // ============================================
@@ -104,6 +105,7 @@ void auto_with_const_ref() {
     // 修改演示
     ra1 = 100;  // 通过引用修改x
     std::cout << "\n  通过 ra1 修改后，x = " << x << "\n";
+    (void)a1; (void)a2; (void)a3; (void)a4; (void)ca1; (void)ca2;
 }
 
 // ============================================
@@ -129,6 +131,7 @@ void auto_with_pointers() {
     
     std::cout << "\n  *p1 = " << *p1 << "\n";
     std::cout << "  *p3 = " << *p3 << "\n";
+    (void)p2; (void)p4;
 }
 
 // ============================================
@@ -158,6 +161,7 @@ void auto_with_containers() {
     // C++11 初始化
     auto vec2 = std::vector<int>{1, 2, 3};
     std::cout << "  auto vec2 = vector<int>{1,2,3} -> vector<int>\n";
+    (void)it; (void)mit;
 }
 
 // ============================================
@@ -193,6 +197,7 @@ void auto_traps() {
     
     std::cout << "  vec.size() 类型: size_t (unsigned)\n";
     std::cout << "  警告：有符号与无符号数比较是危险的！\n";
+    (void)list; (void)ref; (void)arr_copy; (void)arr_ref;
 }
 
 // ============================================

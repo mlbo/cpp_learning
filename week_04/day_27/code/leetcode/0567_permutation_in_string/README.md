@@ -78,29 +78,34 @@ s2 = "e i d b a o o o"
 ### 代码模板
 
 ```cpp
-bool checkInclusion(string s1, string s2) {
-    int n1 = s1.size(), n2 = s2.size();
+std::size_t byteIndex(char character) {
+    return static_cast<unsigned char>(character);
+}
+
+bool checkInclusion(std::string s1, std::string s2) {
+    const std::size_t n1 = s1.size();
+    const std::size_t n2 = s2.size();
     if (n1 > n2) return false;
-    
-    // 统计 s1 的字符计数
-    vector<int> count1(26, 0);
-    for (char c : s1) count1[c - 'a']++;
-    
+
+    // 固定 256 项无符号字节计数；空 s1 的两个全零数组会立即相等。
+    std::array<int, 256> count1{};
+    std::array<int, 256> count2{};
+    for (char c : s1) ++count1[byteIndex(c)];
+
     // 初始化窗口
-    vector<int> count2(26, 0);
-    for (int i = 0; i < n1; i++) {
-        count2[s2[i] - 'a']++;
+    for (std::size_t i = 0; i < n1; ++i) {
+        ++count2[byteIndex(s2[i])];
     }
-    
+
     if (count1 == count2) return true;
-    
+
     // 滑动窗口
-    for (int i = n1; i < n2; i++) {
-        count2[s2[i] - 'a']++;           // 加入新字符
-        count2[s2[i - n1] - 'a']--;      // 移除旧字符
+    for (std::size_t i = n1; i < n2; ++i) {
+        ++count2[byteIndex(s2[i])];       // 加入新字节
+        --count2[byteIndex(s2[i - n1])];  // 移除旧字节
         if (count1 == count2) return true;
     }
-    
+
     return false;
 }
 ```
@@ -110,10 +115,12 @@ bool checkInclusion(string s1, string s2) {
 - **时间复杂度**：O(n)，其中 n 是 s2 的长度
   - 初始化窗口：O(n1)
   - 滑动窗口：O(n2 - n1)
-  - 数组比较：O(26) = O(1)
+  - 数组比较：O(256) = O(1)
   
 - **空间复杂度**：O(1)
-  - 使用固定大小的数组（26个元素）
+  - 使用固定大小的数组（256个元素）
+
+该实现处理的是任意字节序列，并在做下标前转换为 `unsigned char`；它不等同于按 Unicode 字符处理 UTF-8。公开实现与演示函数共享同一契约，空模式返回 `true`，不会因“小写字母演示”而在短路路径或后续字节上产生另一套失败方式。
 
 ## 与 LC 76 的对比
 

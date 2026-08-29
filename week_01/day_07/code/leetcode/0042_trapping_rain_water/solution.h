@@ -11,10 +11,11 @@
 
 #include <vector>
 
-namespace leetcode {
+namespace leetcode::p0042 {
 
 class Solution {
 public:
+    // 所有解法要求高度非负；结果超出 int 时抛出 std::overflow_error。
     /**
      * @brief 解法1: 双指针法
      * @param height 高度数组
@@ -52,15 +53,17 @@ public:
      * 
      * 时间复杂度: O(n * max_height)
      * 空间复杂度: O(1)
+     * 教学资源边界: max_height > 1,000,000 时抛出 std::length_error，
+     * 此时应改用 O(n) 的双指针法。
      */
     static int trap_by_row(std::vector<int>& height);
 
-    // 默认使用最优解法
+    // 默认使用线性时间、常数额外空间的双指针实现
     int trap(std::vector<int>& height) {
         return trap_two_pointers(height);
     }
 };
 
-} // namespace leetcode
+} // namespace leetcode::p0042
 
 #endif // TRAPPING_RAIN_WATER_H

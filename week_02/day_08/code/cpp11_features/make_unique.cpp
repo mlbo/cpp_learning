@@ -16,6 +16,8 @@
 #include <string>
 #include <vector>
 
+#include "../../../common/noexcept_output.h"
+
 // 辅助打印
 void printSeparator(const std::string& title = "") {
     std::cout << "\n======== " << title << " ========\n";
@@ -30,7 +32,9 @@ public:
     }
     
     ~TestClass() {
-        std::cout << "TestClass析构\n";
+        week2_support::write_noexcept([] {
+            std::cout << "TestClass析构\n";
+        });
     }
     
     void print() const {
@@ -77,11 +81,11 @@ void demoArrayCreation() {
     // 创建数组（不初始化）
     std::cout << "\n【创建数组（值初始化）】\n";
     auto arr1 = std::make_unique<int[]>(5);
-    for (int i = 0; i < 5; ++i) {
-        arr1[i] = i * 10;
+    for (std::size_t i = 0; i < 5U; ++i) {
+        arr1[i] = static_cast<int>(i) * 10;
     }
     std::cout << "数组内容: ";
-    for (int i = 0; i < 5; ++i) {
+    for (std::size_t i = 0; i < 5U; ++i) {
         std::cout << arr1[i] << " ";
     }
     std::cout << "\n";

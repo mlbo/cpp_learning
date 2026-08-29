@@ -8,7 +8,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # 编译选项
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    add_compile_options(-Wall -Wextra -Wpedantic -Wconversion)
+    add_compile_options(
+        -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion
+        -Wshadow -Werror
+    )
 endif()
 
 # 源文件收集
@@ -45,27 +48,34 @@ target_include_directories(day03_tutorial PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/code/leetcode/0283_move_zeroes
 )
 
-# 测试可执行文件（可选）
-option(BUILD_TESTS "Build test executables" OFF)
+# 测试默认开启；初学者执行标准脚本时不应意外得到“0 tests”。
+option(BUILD_TESTS "Build test executables" ON)
+
+enable_testing()
+add_test(NAME day03_main_all_demos COMMAND day03_tutorial --all)
 
 if(BUILD_TESTS)
     # LeetCode 88 测试
     add_executable(test_0088
         code/leetcode/0088_merge_sorted_array/solution.cpp
         code/leetcode/0088_merge_sorted_array/test.cpp
+        code/leetcode/0088_merge_sorted_array/test_main.cpp
     )
     target_include_directories(test_0088 PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/code/leetcode/0088_merge_sorted_array
     )
+    add_test(NAME day03_leetcode_0088 COMMAND test_0088)
     
     # LeetCode 283 测试
     add_executable(test_0283
         code/leetcode/0283_move_zeroes/solution.cpp
         code/leetcode/0283_move_zeroes/test.cpp
+        code/leetcode/0283_move_zeroes/test_main.cpp
     )
     target_include_directories(test_0283 PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/code/leetcode/0283_move_zeroes
     )
+    add_test(NAME day03_leetcode_0283 COMMAND test_0283)
 endif()
 
 # 打印配置信息

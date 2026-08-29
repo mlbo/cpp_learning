@@ -25,6 +25,7 @@
 #ifndef SOLUTION_704_H
 #define SOLUTION_704_H
 
+#include <cstddef>
 #include <vector>
 
 class Solution704 {
@@ -35,18 +36,19 @@ public:
      * @param target 目标值
      * @return 目标值的下标，不存在则返回 -1
      */
-    int search(std::vector<int>& nums, int target);
+    int search(const std::vector<int>& nums, int target);
     
     /**
      * @brief 二分查找（递归版本）
      */
-    int searchRecursive(std::vector<int>& nums, int target);
+    int searchRecursive(const std::vector<int>& nums, int target);
     
 private:
     /**
      * @brief 递归辅助函数
      */
-    int binarySearchHelper(std::vector<int>& nums, int target, int left, int right);
+    int binarySearchHelper(const std::vector<int>& nums, int target,
+                           std::size_t left, std::size_t right);
 };
 
 #endif // SOLUTION_704_H

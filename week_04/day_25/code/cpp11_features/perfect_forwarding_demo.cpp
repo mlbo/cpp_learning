@@ -5,14 +5,15 @@
  * 本文件演示：
  * 1. 普通转发的问题
  * 2. 完美转发的解决方案
- * 3. 万能引用的概念
+ * 3. 转发引用成立所需的类型推导与T&&形式
  * 4. 引用折叠规则
  */
 
+#include "perfect_forwarding_demo.h"
+
 #include <iostream>
-#include <string>
-#include <utility>
 #include <memory>
+#include <stdexcept>
 #include <type_traits>
 
 // ==================== 辅助函数 ====================
@@ -21,13 +22,18 @@
 #define PRINT_TYPE(expr) \
     std::cout << #expr << " 的类型: " << typeid(expr).name() << std::endl
 
-// 目标函数：处理左值和右值
-void process(const std::string& s) {
+// 目标函数：处理左值和右值。公开包装器与测试都走这两个真实重载。
+cpp11_features::ForwardingRoute cpp11_features::detail::forwardingTarget(
+    const std::string& s) {
     std::cout << "  [左值版本] 处理: \"" << s << "\"" << std::endl;
+    return cpp11_features::ForwardingRoute::Lvalue;
 }
 
-void process(std::string&& s) {
-    std::cout << "  [右值版本] 处理: \"" << s << "\" (可移动)" << std::endl;
+cpp11_features::ForwardingRoute cpp11_features::detail::forwardingTarget(
+    std::string&& s) {
+    std::cout << "  [右值版本] 处理: \"" << s
+              << "\" (到达右值重载，资源是否移动由目标实现决定)" << std::endl;
+    return cpp11_features::ForwardingRoute::Rvalue;
 }
 
 // ==================== 问题演示：普通转发 ====================
@@ -36,17 +42,18 @@ namespace bad_forward {
 
 // 问题：普通引用无法区分左值和右值
 template<typename T>
-void wrapper(T& param) {
+cpp11_features::ForwardingRoute wrapperByLvalueReference(T& param) {
     std::cout << "  普通转发(wrapper<T&>): ";
-    process(param);  // 永远调用左值版本！
+    return cpp11_features::detail::forwardingTarget(param);  // 只能接收左值。
 }
 
-// 问题：右值引用也无法正确转发
+// 问题：这里 T 在调用时推导，所以 T&& 是转发引用，不是固定右值引用。
+// 它能同时接收左值和右值，但命名形参 param 作为表达式是左值；
+// 不使用 std::forward 就会丢掉调用点的值类别信息。
 template<typename T>
-void wrapperRightRef(T&& param) {
-    std::cout << "  右值引用转发(无forward): ";
-    // 注意：param在函数内部是左值（有名字的变量都是左值）
-    process(param);  // 仍然调用左值版本！
+cpp11_features::ForwardingRoute wrapperWithoutForward(T&& param) {
+    std::cout << "  转发引用未恢复值类别(wrapper<T&&>): ";
+    return cpp11_features::detail::forwardingTarget(param);  // 左、右值调用都到左值重载。
 }
 
 } // namespace bad_forward
@@ -55,11 +62,11 @@ void wrapperRightRef(T&& param) {
 
 namespace perfect_forward {
 
-// 完美转发：使用万能引用 + std::forward
+// 完美转发：使用转发引用 + std::forward
 template<typename T>
-void wrapper(T&& param) {
+cpp11_features::ForwardingRoute wrapper(T&& param) {
     std::cout << "  完美转发(wrapper<T&&>): ";
-    process(std::forward<T>(param));  // 根据T的类型选择正确版本
+    return cpp11_features::forwardingRoute(std::forward<T>(param));
 }
 
 } // namespace perfect_forward
@@ -79,14 +86,16 @@ void demonstrateReferenceCollapsing() {
     int x = 10;
     int& lr = x;    // 左值引用
     int&& rr = 10;  // 右值引用
+
+    std::cout << "  lr 当前值: " << lr << "，rr 当前值: " << rr << "\n";
     
     std::cout << "示例代码：\n";
     std::cout << "  int x = 10;\n";
     std::cout << "  int& lr = x;     // lr 是左值引用\n";
     std::cout << "  int&& rr = 10;   // rr 是右值引用\n\n";
     
-    // 演示万能引用的类型推导
-    std::cout << "万能引用类型推导：\n";
+    // 演示转发引用的类型推导
+    std::cout << "转发引用类型推导（被推导的T&&）：\n";
     std::cout << "  当传入左值时，T推导为左值引用类型\n";
     std::cout << "  当传入右值时，T推导为非引用类型\n";
     std::cout << "  这就是为什么T能保存值类别信息\n";
@@ -143,23 +152,39 @@ void perfectForwardingDemo() {
     
     std::cout << "1. 普通引用转发:\n";
     std::cout << "  传入左值 \"" << str << "\":\n";
-    bad_forward::wrapper(str);
-    // bad_forward::wrapper(std::string("World"));  // 编译错误！
+    const auto lvalueOnlyRoute = bad_forward::wrapperByLvalueReference(str);
+    // bad_forward::wrapperByLvalueReference(std::string("World"));  // 编译错误：T& 不接受右值。
     
-    std::cout << "\n  传入右值 \"" << str << "\" (使用右值引用参数):\n";
-    bad_forward::wrapperRightRef(str);
-    bad_forward::wrapperRightRef(std::string("Temporary"));
-    // 注意：即使是右值，在函数内部也变成了左值！
+    std::cout << "\n2. 转发引用不使用 std::forward:\n";
+    std::cout << "  T 在两次调用中都会推导，所以这个 T&& 能接收左值和右值。\n";
+    std::cout << "  传入左值 \"" << str << "\":\n";
+    const auto lostLvalueRoute = bad_forward::wrapperWithoutForward(str);
+    std::cout << "  传入右值(临时对象):\n";
+    const auto lostRvalueRoute =
+        bad_forward::wrapperWithoutForward(std::string("Temporary"));
+    std::cout << "  结论：转发引用可以接收左值和右值，但命名形参是左值，"
+                 "不使用 std::forward 时两次都到左值重载。\n";
+
+    if (lvalueOnlyRoute != ForwardingRoute::Lvalue ||
+        lostLvalueRoute != ForwardingRoute::Lvalue ||
+        lostRvalueRoute != ForwardingRoute::Lvalue) {
+        throw std::logic_error("普通转发的左值路由契约失效");
+    }
     
     // ========== 解决方案 ==========
     std::cout << "\n===== 解决方案：完美转发 =====\n\n";
     
-    std::cout << "2. 完美转发:\n";
+    std::cout << "3. 完美转发:\n";
     std::cout << "  传入左值 \"" << str << "\":\n";
-    perfect_forward::wrapper(str);
+    const auto forwardedLvalueRoute = perfect_forward::wrapper(str);
     
     std::cout << "\n  传入右值(临时对象):\n";
-    perfect_forward::wrapper(std::string("World"));
+    const auto forwardedRvalueRoute =
+        perfect_forward::wrapper(std::string("World"));
+    if (forwardedLvalueRoute != ForwardingRoute::Lvalue ||
+        forwardedRvalueRoute != ForwardingRoute::Rvalue) {
+        throw std::logic_error("完美转发未保持调用点值类别");
+    }
     
     // ========== 引用折叠 ==========
     demonstrateReferenceCollapsing();

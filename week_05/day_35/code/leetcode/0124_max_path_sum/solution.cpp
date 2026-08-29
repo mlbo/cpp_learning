@@ -1,51 +1,33 @@
-/**
- * LeetCode 124: 二叉树最大路径和
- */
-
 #include <iostream>
-#include <algorithm>
+#include <memory>
+#include <stdexcept>
 
-struct TreeNode {
-    int val;
-    TreeNode* left;
-    TreeNode* right;
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
-};
-
-class Solution {
-private:
-    int maxSum = -1000000;  // INT_MIN approximation
-    
-    int maxGain(TreeNode* node) {
-        if (!node) return 0;
-        
-        int leftGain = std::max(maxGain(node->left), 0);
-        int rightGain = std::max(maxGain(node->right), 0);
-        
-        int pathSum = node->val + leftGain + rightGain;
-        maxSum = std::max(maxSum, pathSum);
-        
-        return node->val + std::max(leftGain, rightGain);
-    }
-    
-public:
-    int maxPathSum(TreeNode* root) {
-        maxGain(root);
-        return maxSum;
-    }
-};
+#include "solution.h"
 
 int main() {
-    std::cout << "=== LeetCode 124: 最大路径和 ===" << std::endl;
-    
-    TreeNode* root = new TreeNode(-10);
-    root->left = new TreeNode(9);
-    root->right = new TreeNode(20);
-    root->right->left = new TreeNode(15);
-    root->right->right = new TreeNode(7);
-    
-    Solution sol;
-    std::cout << "最大路径和: " << sol.maxPathSum(root) << std::endl;
-    
-    return 0;
+    using day35::max_path::MaxPathSum;
+    using day35::max_path::TreeNode;
+
+    auto root = std::make_unique<TreeNode>(-10);
+    root->add_left(9);
+    TreeNode* twenty = root->add_right(20);
+    twenty->add_left(15);
+    twenty->add_right(7);
+
+    MaxPathSum solve;
+    const std::int64_t classic = solve(root.get());
+
+    auto negative = std::make_unique<TreeNode>(-3);
+    negative->add_left(-8);
+    const std::int64_t all_negative = solve(negative.get());
+
+    bool rejects_empty = false;
+    try {
+        static_cast<void>(solve(nullptr));
+    } catch (const std::invalid_argument&) {
+        rejects_empty = true;
+    }
+
+    std::cout << "最大路径和: " << classic << "（15 + 20 + 7）\n";
+    return classic == 42 && all_negative == -3 && rejects_empty ? 0 : 1;
 }

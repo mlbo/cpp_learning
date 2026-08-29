@@ -4,37 +4,38 @@
  * 
  * 解题思路：
  * 1. 哈希集合法：将所有数放入集合，只从"起点"开始计数
- * 2. 核心思想：一个序列的起点是指 num-1 不存在的数字
- * 3. 时间复杂度：O(n)，每个元素最多被访问两次
+ * 2. 核心思想：一个序列的起点在 int 定义域内没有前驱
+ * 3. 期望时间复杂度：O(n)，依赖哈希查找平均 O(1)
  */
 
 #include "solution.h"
 #include <iostream>
 #include <algorithm>
+#include <limits>
 
 /**
  * @brief 方法一：哈希集合法
  * 
  * 算法步骤：
- * 1. 将所有数字放入哈希集合（自动去重 + O(1) 查找）
- * 2. 对于每个数字，判断是否是序列的起点（num-1 不存在）
+ * 1. 将所有数字放入哈希集合（自动去重 + 平均 O(1) 查找）
+ * 2. 对于每个数字，先检查 INT_MIN 边界，再判断 num-1 是否存在
  * 3. 如果是起点，向后查找连续序列的长度
  * 4. 更新最大长度
  * 
- * 为什么时间复杂度是 O(n)？
+ * 为什么期望时间复杂度是 O(n)？
  * - 虽然有两层循环，但每个数字最多被访问两次：
  *   1. 作为"起点判断"：检查 num-1 是否存在
  *   2. 作为"序列计数"：被某个起点向后遍历时计数
- * - 即使有嵌套循环，总操作次数仍然是 O(n)
+ * - 在哈希操作平均 O(1) 的前提下，总操作次数是 O(n)；最坏情况仍可能退化
  */
-int Solution::longestConsecutive(std::vector<int>& nums) {
+int day24::lc128::Solution::longestConsecutive(std::vector<int>& nums) {
     // 边界情况：空数组
     if (nums.empty()) {
         return 0;
     }
     
     // 将所有数字放入哈希集合
-    // 作用：1. 自动去重  2. O(1) 时间查找
+    // 作用：1. 自动去重  2. 哈希假设下平均 O(1) 时间查找
     std::unordered_set<int> numSet(nums.begin(), nums.end());
     
     int maxLen = 0;
@@ -44,7 +45,8 @@ int Solution::longestConsecutive(std::vector<int>& nums) {
         // 关键优化：只从序列的"起点"开始计数
         // 如果 num-1 存在于集合中，说明 num 不是起点，跳过
         // 这样可以保证每个序列只被计算一次
-        if (numSet.find(num - 1) != numSet.end()) {
+        if (num != std::numeric_limits<int>::min() &&
+            numSet.find(num - 1) != numSet.end()) {
             continue;  // num 不是起点，跳过
         }
         
@@ -53,7 +55,8 @@ int Solution::longestConsecutive(std::vector<int>& nums) {
         int current = num;
         
         // 向后查找 num+1, num+2, ... 是否存在
-        while (numSet.find(current + 1) != numSet.end()) {
+        while (current != std::numeric_limits<int>::max() &&
+               numSet.find(current + 1) != numSet.end()) {
             current++;
             currentLen++;
         }
@@ -66,13 +69,13 @@ int Solution::longestConsecutive(std::vector<int>& nums) {
 }
 
 /**
- * @brief 方法二：优化的哈希集合法
- * 
- * 进一步优化：
- * 1. 可以在查找过程中删除已访问的元素
- * 2. 减少重复查找的开销
+ * @brief 方法二：消耗式哈希集合
+ *
+ * 从任意未处理数字向两侧扩展，并立即删除已访问元素。
+ * 这样每个不同数字只会被一次序列扩展消费；它用于展示另一种不变量，
+ * 不把“optimized”这个历史接口名解释成无条件更快。
  */
-int Solution::longestConsecutiveOptimized(std::vector<int>& nums) {
+int day24::lc128::Solution::longestConsecutiveOptimized(std::vector<int>& nums) {
     if (nums.empty()) {
         return 0;
     }
@@ -80,21 +83,33 @@ int Solution::longestConsecutiveOptimized(std::vector<int>& nums) {
     std::unordered_set<int> numSet(nums.begin(), nums.end());
     int maxLen = 0;
     
-    for (int num : numSet) {
-        // 只从起点开始
-        if (numSet.count(num - 1)) {
-            continue;
-        }
-        
+    while (!numSet.empty()) {
+        const int seed = *numSet.begin();
+        numSet.erase(seed);
         int currentLen = 1;
-        int current = num;
-        
-        // 向后查找
-        while (numSet.count(current + 1)) {
-            currentLen++;
-            current++;
+
+        int lower = seed;
+        while (lower != std::numeric_limits<int>::min()) {
+            const auto previous = numSet.find(lower - 1);
+            if (previous == numSet.end()) {
+                break;
+            }
+            lower = *previous;
+            numSet.erase(previous);
+            ++currentLen;
         }
-        
+
+        int upper = seed;
+        while (upper != std::numeric_limits<int>::max()) {
+            const auto next = numSet.find(upper + 1);
+            if (next == numSet.end()) {
+                break;
+            }
+            upper = *next;
+            numSet.erase(next);
+            ++currentLen;
+        }
+
         maxLen = std::max(maxLen, currentLen);
     }
     
@@ -123,7 +138,7 @@ void testLongestConsecutive() {
     std::cout << "   LC 128: 最长连续序列\n";
     std::cout << "========================================\n";
     
-    Solution solution;
+    day24::lc128::Solution solution;
     
     // 测试用例 1
     std::cout << "\n=== 测试用例 1 ===\n";
@@ -190,7 +205,7 @@ void testLongestConsecutive() {
     std::cout << "========================================\n";
     
     std::cout << "\n算法复杂度分析:\n";
-    std::cout << "  时间复杂度: O(n)\n";
+    std::cout << "  期望时间复杂度: O(n)，依赖哈希查找平均O(1)\n";
     std::cout << "    - 每个数字最多被访问两次\n";
     std::cout << "    - 一次判断是否是起点，一次在序列中计数\n";
     std::cout << "  空间复杂度: O(n)\n";
@@ -202,4 +217,5 @@ void testLongestConsecutive() {
     std::cout << "  2. 找「起点牌」：前面没有相邻数字的牌\n";
     std::cout << "  3. 从起点开始，数有多少张连续的牌\n";
     std::cout << "  4. 记录最长的连续序列\n";
+    std::cout << "  5. 计算前驱/后继前先检查INT_MIN/INT_MAX，避免有符号溢出\n";
 }

@@ -11,6 +11,8 @@
 
 #include "data_structure/list_node.h"
 
+using day08_lists::ListNode;
+
 // 分隔线
 void printSeparator(const std::string& title) {
     std::cout << "\n======== " << title << " ========\n";
@@ -95,11 +97,12 @@ void demoUniquePtr() {
     // 数组
     std::cout << "\n【数组unique_ptr】\n";
     auto arr = std::make_unique<int[]>(5);
-    for (int i = 0; i < 5; ++i) {
-        arr[i] = i * i;
+    for (std::size_t i = 0; i < 5U; ++i) {
+        const int value = static_cast<int>(i);
+        arr[i] = value * value;
     }
     std::cout << "数组元素: ";
-    for (int i = 0; i < 5; ++i) {
+    for (std::size_t i = 0; i < 5U; ++i) {
         std::cout << arr[i] << " ";
     }
     std::cout << "\n";
@@ -129,13 +132,13 @@ int main() {
     
     printSeparator("今日总结");
     std::cout << "\n链表核心要点:\n";
-    std::cout << "  1. 离散内存布局，O(1)插入删除，O(n)访问\n";
+    std::cout << "  1. 离散内存布局；已知位置时O(1)改链，查找位置仍需O(n)\n";
     std::cout << "  2. 虚拟头节点简化边界处理\n";
     std::cout << "  3. 快慢指针解决中间值/环检测问题\n";
     
     std::cout << "\nunique_ptr核心要点:\n";
     std::cout << "  1. 独占所有权，不可拷贝，可移动\n";
-    std::cout << "  2. 零开销抽象，与原生指针同等性能\n";
+    std::cout << "  2. 默认删除器下通常是零额外开销；自定义删除器按其状态付费\n";
     std::cout << "  3. 优先使用make_unique创建\n";
     std::cout << "  4. 支持自定义删除器\n";
     

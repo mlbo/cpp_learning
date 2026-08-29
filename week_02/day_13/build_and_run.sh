@@ -2,50 +2,32 @@
 
 # Day 13 链表综合练习 - 编译运行脚本
 
-set -e
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BUILD_DIR="${DAY13_BUILD_DIR:-${SCRIPT_DIR}/build}"
+BUILD_TYPE="${BUILD_TYPE:-Debug}"
 
 echo "========================================"
 echo "Day 13: 链表综合练习"
 echo "========================================"
 
-# 创建构建目录
-BUILD_DIR="build"
-if [ -d "$BUILD_DIR" ]; then
-    echo "清理旧的构建目录..."
-    rm -rf "$BUILD_DIR"
-fi
-
-mkdir -p "$BUILD_DIR"
-cd "$BUILD_DIR"
-
 # 配置和编译
 echo ""
 echo "[1/3] 配置 CMake..."
-cmake ..
+cmake -S "$SCRIPT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 
 echo ""
 echo "[2/3] 编译项目..."
-make -j$(nproc)
+cmake --build "$BUILD_DIR" --parallel "$(nproc 2>/dev/null || echo 4)"
 
 echo ""
 echo "[3/3] 运行程序..."
 echo ""
 echo "========================================"
-echo "运行主程序 (day_13)"
+echo "运行 CTest（主程序 smoke + LeetCode 测试）"
 echo "========================================"
-./day_13
-
-echo ""
-echo "========================================"
-echo "运行 LeetCode 160 测试"
-echo "========================================"
-./test_160_intersection
-
-echo ""
-echo "========================================"
-echo "运行 LeetCode 148 测试"
-echo "========================================"
-./test_148_sort_list
+ctest --test-dir "$BUILD_DIR" --output-on-failure
 
 echo ""
 echo "========================================"

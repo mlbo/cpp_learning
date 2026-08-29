@@ -13,13 +13,15 @@
 
 #include <vector>
 
+namespace leetcode_0234 {
+
 // 链表节点定义
 struct ListNode {
     int val;
     ListNode* next;
     ListNode() : val(0), next(nullptr) {}
     ListNode(int x) : val(x), next(nullptr) {}
-    ListNode(int x, ListNode* next) : val(x), next(next) {}
+    ListNode(int x, ListNode* next_node) : val(x), next(next_node) {}
 };
 
 class Solution {
@@ -31,10 +33,11 @@ public:
      * 1. 使用快慢指针找到链表中点
      * 2. 反转后半部分链表
      * 3. 比较前后两半
-     * 4. 恢复链表（可选）
+     * 4. 恢复链表
      *
      * 时间复杂度: O(n)
      * 空间复杂度: O(1)
+     * @note 查询接口保证返回前恢复全部next关系，输入拓扑保持不变。
      */
     bool isPalindrome(ListNode* head);
 
@@ -78,7 +81,8 @@ private:
      */
     bool checkRecursive(ListNode*& front, ListNode* back);
 
-    ListNode* frontPointer_;  // 用于递归方法
 };
+
+} // namespace leetcode_0234
 
 #endif // LC_0234_PALINDROME_SOLUTION_H

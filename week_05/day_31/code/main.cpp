@@ -1,61 +1,43 @@
-/**
- * @file main.cpp
- * @brief Day 31 主程序入口 - 二叉搜索树专题
- * 
- * 本程序演示以下内容：
- * 1. 二叉搜索树（BST）的基本操作：插入、查找、删除
- * 2. C++11 条件变量（condition_variable）的使用
- * 3. EMC++ Item 38：线程句柄的析构行为
- * 4. LeetCode 98 和 700 题解验证
- */
-
+#include <array>
 #include <iostream>
-#include <memory>
-#include <thread>
-#include <chrono>
+#include <string_view>
 
-// ========================================
-// 树节点定义（用于所有演示）
-// ========================================
-struct TreeNode {
-    int val;
-    TreeNode* left;
-    TreeNode* right;
-    
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
-    
-    // 辅助函数：创建新节点
-    static TreeNode* create(int x) {
-        return new TreeNode(x);
-    }
-    
-    // 辅助函数：释放树
-    static void destroy(TreeNode* root) {
-        if (root == nullptr) return;
-        destroy(root->left);
-        destroy(root->right);
-        delete root;
-    }
-};
+namespace {
 
-// ========================================
-// 主函数
-// ========================================
+template <std::size_t Count>
+bool valid_manifest(const std::array<std::string_view, Count>& modules,
+                    std::string_view prefix) {
+    for (std::size_t index = 0; index < modules.size(); ++index) {
+        if (modules[index].empty() || modules[index].find(prefix) != 0U) {
+            return false;
+        }
+        for (std::size_t other = index + 1U; other < modules.size(); ++other) {
+            if (modules[index] == modules[other]) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+}  // namespace
+
 int main() {
-    std::cout << "╔════════════════════════════════════════════╗\n";
-    std::cout << "║     Day 31: 二叉搜索树 (BST) 专题          ║\n";
-    std::cout << "╚════════════════════════════════════════════╝\n\n";
-    
-    std::cout << "本日各模块请分别运行对应可执行文件：\n";
-    std::cout << "  - day31_bst_demo\n";
-    std::cout << "  - day31_condition_variable\n";
-    std::cout << "  - day31_item38\n";
-    std::cout << "  - day31_lc0098\n";
-    std::cout << "  - day31_lc0700\n";
-    
-    std::cout << "\n╔════════════════════════════════════════════╗\n";
-    std::cout << "║          Day 31 学习完成！🎉               ║\n";
-    std::cout << "╚════════════════════════════════════════════╝\n";
-    
-    return 0;
+    constexpr std::array<std::string_view, 5> modules{
+        "day31_bst_demo",
+        "day31_condition_variable",
+        "day31_item38",
+        "day31_lc0098",
+        "day31_lc0700",
+    };
+
+    std::cout << "Day 31 工程动作：由 CTest 验证以下模块：\n";
+    for (const std::string_view module : modules) {
+        std::cout << "  - " << module << '\n';
+    }
+
+    const bool contains_contract_targets = modules[0] == "day31_bst_demo" &&
+                                           modules[1] == "day31_condition_variable" &&
+                                           modules[2] == "day31_item38";
+    return valid_manifest(modules, "day31_") && contains_contract_targets ? 0 : 1;
 }

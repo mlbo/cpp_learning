@@ -10,17 +10,18 @@
 #include <iostream>
 #include <stack>
 
-std::vector<int> Solution::dailyTemperatures(std::vector<int>& temperatures) {
-    int n = temperatures.size();
-    std::vector<int> answer(n, 0);
-    std::stack<int> stk;  // 存储下标
+namespace lc739 {
+
+std::vector<int> Solution::dailyTemperatures(const std::vector<int>& temperatures) {
+    std::vector<int> answer(temperatures.size(), 0);
+    std::stack<std::size_t> stk;  // 存储下标
     
-    for (int i = 0; i < n; ++i) {
+    for (std::size_t i = 0; i < temperatures.size(); ++i) {
         // 当前温度比栈顶温度高，找到了栈顶天数的答案
         while (!stk.empty() && temperatures[i] > temperatures[stk.top()]) {
-            int prev = stk.top();
+            const std::size_t prev = stk.top();
             stk.pop();
-            answer[prev] = i - prev;  // 天数差
+            answer[prev] = static_cast<int>(i - prev);  // 题目结果类型为int
         }
         stk.push(i);
     }
@@ -30,36 +31,31 @@ std::vector<int> Solution::dailyTemperatures(std::vector<int>& temperatures) {
     return answer;
 }
 
-void testDailyTemperatures() {
+bool testDailyTemperatures() {
     Solution sol;
-    
+
     std::cout << "LeetCode 739. 每日温度 测试结果：" << std::endl;
-    
-    // 测试用例1
-    std::vector<int> temps1 = {73, 74, 75, 71, 69, 72, 76, 73};
-    auto result1 = sol.dailyTemperatures(temps1);
-    
-    std::cout << "  输入: [73, 74, 75, 71, 69, 72, 76, 73]" << std::endl;
-    std::cout << "  输出: [";
-    for (int i = 0; i < result1.size(); ++i) {
-        std::cout << result1[i];
-        if (i < result1.size() - 1) std::cout << ", ";
+
+    struct TestCase {
+        std::vector<int> input;
+        std::vector<int> expected;
+        const char* description;
+    };
+    const std::vector<TestCase> tests = {
+        {{}, {}, "空输入"},
+        {{73, 74, 75, 71, 69, 72, 76, 73}, {1, 1, 4, 2, 1, 1, 0, 0}, "标准案例"},
+        {{30, 40, 50, 60}, {1, 1, 1, 0}, "严格递增"},
+        {{60, 50, 40, 30}, {0, 0, 0, 0}, "严格递减"},
+        {{42, 42, 42}, {0, 0, 0}, "全部相等"}
+    };
+
+    bool allPassed = true;
+    for (const auto& test : tests) {
+        const auto result = sol.dailyTemperatures(test.input);
+        const bool passed = result == test.expected;
+        allPassed = allPassed && passed;
+        std::cout << "  " << test.description << ": " << (passed ? "✓" : "✗") << std::endl;
     }
-    std::cout << "]" << std::endl;
-    std::cout << "  期望: [1, 1, 4, 2, 1, 1, 0, 0]" << std::endl;
-    
-    // 测试用例2
-    std::vector<int> temps2 = {30, 40, 50, 60};
-    auto result2 = sol.dailyTemperatures(temps2);
-    
-    std::cout << "\n  输入: [30, 40, 50, 60]" << std::endl;
-    std::cout << "  输出: [";
-    for (int i = 0; i < result2.size(); ++i) {
-        std::cout << result2[i];
-        if (i < result2.size() - 1) std::cout << ", ";
-    }
-    std::cout << "]" << std::endl;
-    std::cout << "  期望: [1, 1, 1, 0]" << std::endl;
     
     // 图解过程
     std::cout << "\n  单调栈过程（输入: [73, 74, 75, 71, 69, 72, 76, 73]）：" << std::endl;
@@ -76,4 +72,8 @@ void testDailyTemperatures() {
     std::cout << "         76入栈, 栈=[6]" << std::endl;
     std::cout << "    i=7: 73<76, 73入栈, 栈=[6,7]" << std::endl;
     std::cout << "    结束: ans[6]=0, ans[7]=0" << std::endl;
+
+    return allPassed;
 }
+
+}  // namespace lc739

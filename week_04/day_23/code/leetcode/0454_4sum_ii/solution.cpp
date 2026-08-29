@@ -30,6 +30,9 @@
 #include <vector>
 #include <unordered_map>
 #include <iostream>
+#include <limits>
+
+namespace leetcode::lc0454 {
 
 class Solution {
 public:
@@ -50,12 +53,13 @@ public:
     int fourSumCount(std::vector<int>& nums1, std::vector<int>& nums2,
                      std::vector<int>& nums3, std::vector<int>& nums4) {
         // 哈希表：两数之和 -> 出现次数
-        std::unordered_map<int, int> sumCount;
+        std::unordered_map<long long, int> sumCount;
         
         // 第一阶段：计算 nums1 + nums2 的所有和
         for (int a : nums1) {
             for (int b : nums2) {
-                sumCount[a + b]++;
+                const long long pairSum = static_cast<long long>(a) + b;
+                ++sumCount[pairSum];
             }
         }
         
@@ -64,10 +68,11 @@ public:
         // 第二阶段：查找 nums3 + nums4 的相反数
         for (int c : nums3) {
             for (int d : nums4) {
-                int target = -(c + d);
+                const long long target = -(static_cast<long long>(c) + d);
                 // 如果找到相反数，累加出现次数
-                if (sumCount.find(target) != sumCount.end()) {
-                    result += sumCount[target];
+                const auto found = sumCount.find(target);
+                if (found != sumCount.end()) {
+                    result += found->second;
                 }
             }
         }
@@ -84,13 +89,14 @@ public:
     int fourSumCountBruteForce(std::vector<int>& nums1, std::vector<int>& nums2,
                                std::vector<int>& nums3, std::vector<int>& nums4) {
         int count = 0;
-        int n = nums1.size();
-        
-        for (int i = 0; i < n; ++i) {
-            for (int j = 0; j < n; ++j) {
-                for (int k = 0; k < n; ++k) {
-                    for (int l = 0; l < n; ++l) {
-                        if (nums1[i] + nums2[j] + nums3[k] + nums4[l] == 0) {
+
+        // 范围 for 不但避开有符号下标问题，也正确支持四个数组长度不同的情况。
+        for (int a : nums1) {
+            for (int b : nums2) {
+                for (int c : nums3) {
+                    for (int d : nums4) {
+                        const long long sum = static_cast<long long>(a) + b + c + d;
+                        if (sum == 0) {
                             ++count;
                         }
                     }
@@ -151,10 +157,19 @@ void testFourSumII() {
     std::cout << "=== 算法复杂度对比 ===\n";
     std::cout << "暴力解法: O(n⁴) 时间, O(1) 空间\n";
     std::cout << "分组哈希表解法: O(n²) 时间, O(n²) 空间\n";
-    std::cout << "\n当 n = 100 时：\n";
-    std::cout << "  O(n⁴) = 100,000,000 次操作\n";
-    std::cout << "  O(n²) = 10,000 次操作\n";
-    std::cout << "  差距 10,000 倍！\n";
+    constexpr long long n = 100;
+    constexpr long long onePairStage = n * n;
+    constexpr long long groupedPairEnumerations = 2 * onePairStage;
+    constexpr long long bruteTupleEnumerations = onePairStage * onePairStage;
+    constexpr long long enumerationRatio =
+        bruteTupleEnumerations / groupedPairEnumerations;
+    std::cout << "\n当 n = " << n << " 时，只按循环枚举次数估算：\n";
+    std::cout << "  暴力四重循环 n⁴ = " << bruteTupleEnumerations << " 次四元组枚举\n";
+    std::cout << "  分组法第一阶段 n² = " << onePairStage << " 次数对枚举\n";
+    std::cout << "  分组法第二阶段 n² = " << onePairStage << " 次数对枚举\n";
+    std::cout << "  两阶段合计约 2 * n² = " << groupedPairEnumerations << " 次数对枚举\n";
+    std::cout << "  枚举数量比约 " << enumerationRatio
+              << " 倍；真实耗时还受哈希、分配和缓存影响\n";
 }
 
 /**
@@ -176,12 +191,12 @@ void visualizeFourSumII() {
     
     // 第一阶段：计算 nums1 + nums2
     std::cout << "第一阶段：计算 nums1 + nums2 的所有和\n";
-    std::unordered_map<int, int> sumCount;
+    std::unordered_map<long long, int> sumCount;
     
     for (int a : nums1) {
         for (int b : nums2) {
-            int sum = a + b;
-            sumCount[sum]++;
+            const long long sum = static_cast<long long>(a) + b;
+            ++sumCount[sum];
             std::cout << "  " << a << " + " << b << " = " << sum << "\n";
         }
     }
@@ -197,14 +212,15 @@ void visualizeFourSumII() {
     
     for (int c : nums3) {
         for (int d : nums4) {
-            int sum = c + d;
-            int target = -sum;
+            const long long sum = static_cast<long long>(c) + d;
+            const long long target = -sum;
             std::cout << "  " << c << " + " << d << " = " << sum;
             std::cout << ", 需要找 " << target;
             
-            if (sumCount.find(target) != sumCount.end()) {
-                std::cout << " → 找到! 贡献 " << sumCount[target] << " 个元组\n";
-                result += sumCount[target];
+            const auto found = sumCount.find(target);
+            if (found != sumCount.end()) {
+                std::cout << " → 找到! 贡献 " << found->second << " 个元组\n";
+                result += found->second;
             } else {
                 std::cout << " → 未找到\n";
             }
@@ -239,9 +255,21 @@ void explainDivideAndConquer() {
     std::cout << "用 O(n²) 空间存储中间结果，将 O(n⁴) 降到 O(n²)\n";
 }
 
+} // namespace leetcode::lc0454
+
+bool verify_lc0454_wide_pair_sum_contract() {
+    leetcode::lc0454::Solution solution;
+    std::vector<int> first{std::numeric_limits<int>::max()};
+    std::vector<int> second{1};
+    std::vector<int> third{std::numeric_limits<int>::min()};
+    std::vector<int> fourth{0};
+    return solution.fourSumCount(first, second, third, fourth) == 1 &&
+           solution.fourSumCountBruteForce(first, second, third, fourth) == 1;
+}
+
 // 导出测试函数供 main.cpp 调用
 void run_four_sum_ii_test() {
-    testFourSumII();
-    visualizeFourSumII();
-    explainDivideAndConquer();
+    leetcode::lc0454::testFourSumII();
+    leetcode::lc0454::visualizeFourSumII();
+    leetcode::lc0454::explainDivideAndConquer();
 }

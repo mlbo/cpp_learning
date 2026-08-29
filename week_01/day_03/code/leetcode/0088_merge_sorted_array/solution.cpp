@@ -6,6 +6,26 @@
 #include "solution.h"
 #include <algorithm>
 #include <iostream>
+#include <stdexcept>
+
+namespace {
+
+std::pair<std::size_t, std::size_t> validate_lengths(
+        const std::vector<int>& nums1, int m,
+        const std::vector<int>& nums2, int n) {
+    if (m < 0 || n < 0) {
+        throw std::invalid_argument("merge lengths must be nonnegative");
+    }
+    const auto first_size = static_cast<std::size_t>(m);
+    const auto second_size = static_cast<std::size_t>(n);
+    if (first_size > nums1.size() || second_size > nums2.size() ||
+        second_size > nums1.size() - first_size) {
+        throw std::length_error("merge lengths exceed input buffers");
+    }
+    return {first_size, second_size};
+}
+
+}  // namespace
 
 namespace leetcode_0088 {
 
@@ -23,28 +43,30 @@ void Solution::merge(std::vector<int>& nums1, int m,
      * 空间复杂度：O(1)
      */
 
-    int p1 = m - 1;          // nums1 有效元素的末尾索引
-    int p2 = n - 1;          // nums2 的末尾索引
-    int p = m + n - 1;       // 合并后数组的末尾索引
+    const auto [first_size, second_size] = validate_lengths(nums1, m, nums2, n);
+    std::size_t p1 = first_size;                   // nums1 未处理区间 [0, p1)
+    std::size_t p2 = second_size;                  // nums2 未处理区间 [0, p2)
+    std::size_t output = first_size + second_size; // 待填充区间 [0, output)
 
     // 从后往前比较并填充
-    while (p1 >= 0 && p2 >= 0) {
-        if (nums1[p1] > nums2[p2]) {
-            nums1[p] = nums1[p1];
+    while (p1 > 0 && p2 > 0) {
+        if (nums1[p1 - 1] > nums2[p2 - 1]) {
             --p1;
+            --output;
+            nums1[output] = nums1[p1];
         } else {
-            nums1[p] = nums2[p2];
             --p2;
+            --output;
+            nums1[output] = nums2[p2];
         }
-        --p;
     }
 
     // 处理 nums2 剩余元素
-    // 注意：如果 p1 >= 0，nums1 的剩余元素已在正确位置，无需处理
-    while (p2 >= 0) {
-        nums1[p] = nums2[p2];
-        --p;
+    // nums1 的剩余元素已在正确位置，无需处理。
+    while (p2 > 0) {
         --p2;
+        --output;
+        nums1[output] = nums2[p2];
     }
 }
 
@@ -61,36 +83,42 @@ void Solution::merge_with_extra_space(std::vector<int>& nums1, int m,
      * 空间复杂度：O(m)
      */
 
-    // 复制 nums1 的有效元素
-    std::vector<int> nums1_copy(nums1.begin(), nums1.begin() + m);
+    const auto [first_size, second_size] = validate_lengths(nums1, m, nums2, n);
 
-    int p1 = 0;  // nums1_copy 的指针
-    int p2 = 0;  // nums2 的指针
-    int p = 0;   // nums1 的指针
+    // 复制 nums1 的有效元素；显式循环不依赖 size_t 到 difference_type 的窄化。
+    std::vector<int> nums1_copy;
+    nums1_copy.reserve(first_size);
+    for (std::size_t i = 0; i < first_size; ++i) {
+        nums1_copy.push_back(nums1[i]);
+    }
+
+    std::size_t p1 = 0;      // nums1_copy 的指针
+    std::size_t p2 = 0;      // nums2 的指针
+    std::size_t output = 0;  // nums1 的指针
 
     // 从前往后合并
-    while (p1 < m && p2 < n) {
+    while (p1 < first_size && p2 < second_size) {
         if (nums1_copy[p1] <= nums2[p2]) {
-            nums1[p] = nums1_copy[p1];
+            nums1[output] = nums1_copy[p1];
             ++p1;
         } else {
-            nums1[p] = nums2[p2];
+            nums1[output] = nums2[p2];
             ++p2;
         }
-        ++p;
+        ++output;
     }
 
     // 处理剩余元素
-    while (p1 < m) {
-        nums1[p] = nums1_copy[p1];
+    while (p1 < first_size) {
+        nums1[output] = nums1_copy[p1];
         ++p1;
-        ++p;
+        ++output;
     }
 
-    while (p2 < n) {
-        nums1[p] = nums2[p2];
+    while (p2 < second_size) {
+        nums1[output] = nums2[p2];
         ++p2;
-        ++p;
+        ++output;
     }
 }
 

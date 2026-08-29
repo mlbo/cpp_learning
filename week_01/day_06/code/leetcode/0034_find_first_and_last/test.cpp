@@ -27,7 +27,7 @@ void printArray(const std::vector<int>& arr) {
 }
 
 // 打印测试结果
-void printResult(int testNum, const TestCase& tc, const std::vector<int>& result) {
+void printResult(std::size_t testNum, const TestCase& tc, const std::vector<int>& result) {
     std::cout << "测试 " << testNum << ": " << tc.description << "\n";
     std::cout << "  数组: ";
     printArray(tc.nums);
@@ -87,11 +87,11 @@ int main() {
         {{-5, -3, -3, -3, 0, 2, 2}, 2, {5, 6}, "负数数组 - 目标在末尾"},
     };
     
-    int passed = 0;
-    int total = static_cast<int>(testCases.size());
+    std::size_t passed = 0;
+    const std::size_t total = testCases.size();
     
     // 运行测试
-    for (int i = 0; i < total; ++i) {
+    for (std::size_t i = 0; i < total; ++i) {
         std::vector<int> result = solution.searchRange(testCases[i].nums, testCases[i].target);
         printResult(i + 1, testCases[i], result);
         if (result == testCases[i].expected) {

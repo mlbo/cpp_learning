@@ -13,7 +13,13 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstdint>
 #include <iomanip>
+#include <limits>
+#include <stdexcept>
+
+#include "../../../common/integer_contracts.h"
 
 // 计时辅助类
 class Timer {
@@ -37,12 +43,15 @@ public:
 
 // 访问数组第一个元素
 int get_first(const std::vector<int>& arr) {
-    return arr[0];  // 无论数组多大，只需一次操作
+    if (arr.empty()) {
+        throw std::out_of_range("get_first requires a non-empty vector");
+    }
+    return arr.front();  // 无论数组多大，只需一次操作
 }
 
 // 计算两数之和
 int add(int a, int b) {
-    return a + b;  // 固定的计算步骤
+    return week01::checked_result(static_cast<std::int64_t>(a) + b);
 }
 
 // ============================================
@@ -51,18 +60,19 @@ int add(int a, int b) {
 
 // 二分查找
 int binary_search(const std::vector<int>& arr, int target) {
-    int left = 0;
-    int right = static_cast<int>(arr.size()) - 1;
+    (void)week01::checked_index(arr.size());
+    std::size_t left = 0;
+    std::size_t right = arr.size();
     
-    while (left <= right) {
-        int mid = left + (right - left) / 2;  // 防止溢出
+    while (left < right) {
+        const std::size_t mid = left + (right - left) / 2;
         
         if (arr[mid] == target) {
-            return mid;
+            return week01::checked_index(mid);
         } else if (arr[mid] < target) {
             left = mid + 1;
         } else {
-            right = mid - 1;
+            right = mid;
         }
     }
     
@@ -75,9 +85,10 @@ int binary_search(const std::vector<int>& arr, int target) {
 
 // 线性查找
 int linear_search(const std::vector<int>& arr, int target) {
+    (void)week01::checked_index(arr.size());
     for (size_t i = 0; i < arr.size(); ++i) {
         if (arr[i] == target) {
-            return static_cast<int>(i);
+            return week01::checked_index(i);
         }
     }
     return -1;
@@ -87,6 +98,10 @@ int linear_search(const std::vector<int>& arr, int target) {
 long long sum(const std::vector<int>& arr) {
     long long total = 0;
     for (int num : arr) {
+        if ((num > 0 && total > std::numeric_limits<long long>::max() - num) ||
+            (num < 0 && total < std::numeric_limits<long long>::min() - num)) {
+            throw std::overflow_error("vector sum does not fit in long long");
+        }
         total += num;
     }
     return total;
@@ -99,6 +114,9 @@ long long sum(const std::vector<int>& arr) {
 // 冒泡排序
 void bubble_sort(std::vector<int>& arr) {
     size_t n = arr.size();
+    if (n < 2) {
+        return; // 避免 n - 1 在无符号 size_t 上下溢
+    }
     for (size_t i = 0; i < n - 1; ++i) {
         for (size_t j = 0; j < n - i - 1; ++j) {
             if (arr[j] > arr[j + 1]) {
@@ -112,8 +130,9 @@ void bubble_sort(std::vector<int>& arr) {
 std::pair<int, int> two_sum_brute_force(const std::vector<int>& arr, int target) {
     for (size_t i = 0; i < arr.size(); ++i) {
         for (size_t j = i + 1; j < arr.size(); ++j) {
-            if (arr[i] + arr[j] == target) {
-                return {static_cast<int>(i), static_cast<int>(j)};
+            const auto pair_sum = static_cast<std::int64_t>(arr[i]) + arr[j];
+            if (pair_sum == static_cast<std::int64_t>(target)) {
+                return {week01::checked_index(i), week01::checked_index(j)};
             }
         }
     }
@@ -185,12 +204,13 @@ void demonstrate_complexity() {
 
 // O(1) 空间 - 原地操作
 void reverse_inplace(std::vector<int>& arr) {
-    int left = 0;
-    int right = static_cast<int>(arr.size()) - 1;
+    std::size_t left = 0;
+    std::size_t right = arr.size();
     while (left < right) {
+        --right;
+        if (left >= right) break;
         std::swap(arr[left], arr[right]);
         ++left;
-        --right;
     }
 }
 
@@ -202,5 +222,9 @@ std::vector<int> create_copy(const std::vector<int>& arr) {
 
 // O(n²) 空间 - 二维矩阵
 std::vector<std::vector<int>> create_matrix(int n) {
-    return std::vector<std::vector<int>>(n, std::vector<int>(n, 0));
+    if (n < 0) {
+        throw std::invalid_argument("matrix dimension must be nonnegative");
+    }
+    const auto size = static_cast<std::size_t>(n);
+    return std::vector<std::vector<int>>(size, std::vector<int>(size, 0));
 }

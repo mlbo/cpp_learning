@@ -3,48 +3,71 @@ project(day21_learning LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/code)
+add_compile_options(-Wall -Wextra -Wpedantic)
+option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+if(ENABLE_SANITIZERS)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
 
-# 栈队列复习
-add_library(day21_stack_queue STATIC
+include(CTest)
+
+function(add_day21_library target)
+    add_library(${target} STATIC ${ARGN})
+    target_include_directories(${target} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/code)
+endfunction()
+
+add_day21_library(day21_stack_queue
     code/review/stack_queue_summary.cpp
 )
-
-# Lambda复习
-add_library(day21_lambda STATIC
+add_day21_library(day21_lambda
     code/review/lambda_summary.cpp
 )
-
-# EMC++复习
-add_library(day21_emcpp STATIC
+add_day21_library(day21_emcpp
     code/review/emcpp_review.cpp
 )
-
-# LeetCode 155
-add_library(day21_lc155 STATIC
+add_day21_library(day21_lc155
     code/leetcode/0155_min_stack/solution.cpp
 )
-
-# LeetCode 150
-add_library(day21_lc150 STATIC
+add_day21_library(day21_lc150
     code/leetcode/0150_eval_rpn/solution.cpp
 )
 
-# 主程序
-add_executable(day21_main
-    code/main.cpp
-    code/review/stack_queue_summary.cpp
-    code/review/lambda_summary.cpp
-    code/review/emcpp_review.cpp
-    code/leetcode/0155_min_stack/solution.cpp
-    code/leetcode/0150_eval_rpn/solution.cpp
+add_executable(day21_main code/main.cpp)
+target_link_libraries(day21_main PRIVATE
+    day21_stack_queue
+    day21_lambda
+    day21_emcpp
+    day21_lc155
+    day21_lc150
 )
 
-message(STATUS "Day 21 targets:")
-message(STATUS "  day21_main        - 运行所有复习")
-message(STATUS "  day21_stack_queue - 栈队列复习")
-message(STATUS "  day21_lambda      - Lambda复习")
-message(STATUS "  day21_emcpp       - EMC++复习")
-message(STATUS "  day21_lc155       - LeetCode 155")
-message(STATUS "  day21_lc150       - LeetCode 150")
+if(BUILD_TESTING)
+    add_executable(day21_test_lc155
+        code/leetcode/0155_min_stack/test.cpp
+    )
+    target_link_libraries(day21_test_lc155 PRIVATE day21_lc155)
+
+    add_executable(day21_test_lc150
+        code/leetcode/0150_eval_rpn/test.cpp
+    )
+    target_link_libraries(day21_test_lc150 PRIVATE day21_lc150)
+
+    add_executable(day21_public_api_consumer code/tests/public_api_consumer.cpp)
+    target_link_libraries(day21_public_api_consumer PRIVATE
+        day21_stack_queue
+        day21_lambda
+        day21_emcpp
+        day21_lc155
+        day21_lc150
+    )
+
+    add_test(NAME Day21MinStack COMMAND day21_test_lc155)
+    add_test(NAME Day21EvalRPN COMMAND day21_test_lc150)
+    add_test(NAME Day21PublicApiConsumer COMMAND day21_public_api_consumer)
+    add_test(NAME Day21SmokeRuns COMMAND day21_main)
+endif()
+
+message(STATUS "Day 21 targets consume reusable libraries through target_link_libraries")

@@ -73,22 +73,22 @@
 int removeDuplicates(vector<int>& nums) {
     if (nums.empty()) return 0;
     
-    int slow = 0;
-    for (int fast = 1; fast < nums.size(); ++fast) {
+    size_t slow = 0;
+    for (size_t fast = 1; fast < nums.size(); ++fast) {
         if (nums[fast] != nums[slow]) {
             ++slow;
             nums[slow] = nums[fast];
         }
     }
-    return slow + 1;
+    return week01::checked_index(slow + 1);
 }
 ```
 
 ### 递归实现
 
 ```cpp
-int removeDuplicatesHelper(vector<int>& nums, int slow, int fast) {
-    if (fast >= nums.size()) return slow + 1;
+size_t removeDuplicatesHelper(vector<int>& nums, size_t slow, size_t fast) {
+    if (fast == nums.size()) return slow;
     
     if (nums[fast] != nums[slow]) {
         ++slow;
@@ -100,9 +100,14 @@ int removeDuplicatesHelper(vector<int>& nums, int slow, int fast) {
 
 int removeDuplicatesRecursive(vector<int>& nums) {
     if (nums.empty()) return 0;
-    return removeDuplicatesHelper(nums, 0, 1);
+    if (nums.size() > 4096) {
+        throw length_error("recursive teaching variant: use the iterative version");
+    }
+    return week01::checked_index(removeDuplicatesHelper(nums, 0, 1) + 1);
 }
 ```
+
+迭代版的下标使用 `size_t`，只在题目规定的 `int` 返回边界转换。递归版只是用来观察调用栈：它需要 O(n) 栈空间，因此实现设置 4096 个元素的教学上限；更大输入必须使用迭代版，不能把可能的栈耗尽当成算法接口的正常失败方式。
 
 ## 关键点
 

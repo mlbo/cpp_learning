@@ -1,0 +1,84 @@
+html {
+  --pst-font-size-h1: 1.95rem;
+  --pst-font-size-h2: 1.5rem;
+  --pst-font-size-h3: 1.25rem;
+  --pst-font-size-h4: 1.1rem;
+  --pst-font-family-base: "Noto Sans CJK SC", "Source Han Sans SC",
+    "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  --pst-font-family-heading: var(--pst-font-family-base);
+  --pst-font-family-monospace: "JetBrains Mono", "Cascadia Code",
+    "SFMono-Regular", Consolas, monospace;
+}
+
+.navbar-brand img {
+  max-height: 2.4rem;
+  width: auto;
+}
+
+html[data-theme="dark"] .navbar-brand img {
+  background: #ffffff;
+  border-radius: 0.35rem;
+  padding: 0.2rem 0.35rem;
+}
+
+.bd-article-container p,
+.bd-article-container li {
+  line-height: 1.75;
+}
+
+.bd-article-container h1,
+.bd-article-container h2,
+.bd-article-container h3 {
+  line-height: 1.35;
+}
+
+.bd-article-container h2 {
+  border-bottom: 1px solid var(--pst-color-border);
+  padding-bottom: 0.3rem;
+}
+
+.bd-article-container pre {
+  border-radius: 0.5rem;
+}
+
+.bd-article-container code {
+  overflow-wrap: anywhere;
+}
+
+table.docutils {
+  width: 100%;
+}
+
+table.docutils th {
+  text-align: center !important;
+}
+
+pre.mermaid {
+  background: #ffffff;
+  border: 0;
+  color: #111827;
+  margin: 0.5rem auto 0.8rem;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.5rem;
+  text-align: center;
+}
+
+pre.mermaid > svg {
+  display: inline-block;
+  height: auto;
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  html {
+    --pst-font-size-h1: 1.7rem;
+    --pst-font-size-h2: 1.4rem;
+    --pst-font-size-h3: 1.2rem;
+  }
+
+  .bd-article-container table {
+    display: block;
+    overflow-x: auto;
+  }
+}

@@ -3,13 +3,17 @@
  * @brief LeetCode 189: 轮转数组 - 测试代码
  */
 
-#include "solution.cpp"
+#include "solution.h"
+#include <algorithm>
+#include <cstdint>
 #include <iostream>
 #include <vector>
 #include <chrono>
 #include <iomanip>
 
-using namespace leetcode;
+using leetcode::p0189::Solution;
+
+bool all_tests_passed = true;
 
 // 打印数组
 void print_array(const std::vector<int>& nums) {
@@ -43,6 +47,7 @@ void run_test(const TestCase& tc,
     method(nums, tc.k);
     
     bool passed = arrays_equal(nums, tc.expected);
+    all_tests_passed = all_tests_passed && passed;
     
     std::cout << "    [" << std::setw(12) << method_name << "] ";
     if (passed) {
@@ -59,7 +64,7 @@ void run_test(const TestCase& tc,
 
 // 可视化轮转过程
 void visualize_rotation(const std::vector<int>& original, int k) {
-    int n = static_cast<int>(original.size());
+    const auto n = static_cast<std::int64_t>(original.size());
     std::cout << "\n    原始数组: ";
     print_array(original);
     std::cout << ", k = " << k << "\n";
@@ -72,15 +77,18 @@ void visualize_rotation(const std::vector<int>& original, int k) {
     print_array(temp);
     std::cout << "\n";
     
-    k = k % n;
+    auto shift = static_cast<std::int64_t>(k) % n;
+    if (shift < 0) shift += n;
     
-    std::cout << "    2. 翻转前 " << k << " 个元素:\n       ";
-    std::reverse(temp.begin(), temp.begin() + k);
+    std::cout << "    2. 翻转前 " << shift << " 个元素:\n       ";
+    const auto middle = temp.begin() +
+                        static_cast<std::vector<int>::difference_type>(shift);
+    std::reverse(temp.begin(), middle);
     print_array(temp);
     std::cout << "\n";
     
     std::cout << "    3. 翻转剩余元素:\n       ";
-    std::reverse(temp.begin() + k, temp.end());
+    std::reverse(middle, temp.end());
     print_array(temp);
     std::cout << "\n";
 }
@@ -91,8 +99,8 @@ void performance_test() {
     
     // 创建大数组
     std::vector<int> large_array(1000000);
-    for (int i = 0; i < 1000000; ++i) {
-        large_array[i] = i;
+    for (std::size_t i = 0; i < large_array.size(); ++i) {
+        large_array[i] = static_cast<int>(i);
     }
     int k = 123456;
     
@@ -152,6 +160,7 @@ int main() {
         {{1, 2, 3}, 0, {1, 2, 3}, "k=0"},
         {{1, 2, 3, 4, 5}, 2, {4, 5, 1, 2, 3}, "奇数长度"},
         {{}, 1, {}, "空数组"},
+        {{1, 2, 3, 4}, -1, {2, 3, 4, 1}, "负 k 表示向左轮转"},
     };
     
     std::cout << "【测试用例】\n";
@@ -181,5 +190,5 @@ int main() {
     std::cout << "\n-------------------------------------------\n";
     std::cout << "✅ 所有测试完成!\n";
     
-    return 0;
+    return all_tests_passed ? 0 : 1;
 }

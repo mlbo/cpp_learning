@@ -71,8 +71,8 @@ Step 4: right=3, 'a' 在窗口中
         加入 'a': 窗口 = "bca", 长度 = 3
 
 Step 5: right=4, 'b' 在窗口中
-        收缩: 移除 'b','c', 窗口 = "a"
-        加入 'b': 窗口 = "ab", 长度 = 2
+        收缩: 只需移除最左侧 'b', 窗口 = "ca"
+        加入 'b': 窗口 = "cab", 长度 = 3
 
 ...继续处理
 
@@ -81,17 +81,21 @@ Step 5: right=4, 'b' 在窗口中
 
 ### 方法二：滑动窗口 + 数组优化
 
-使用固定大小的数组代替哈希集合：
+使用固定大小的数组代替哈希集合。这里按单字节值分类，因此数组有 256 项；先转成 `unsigned char`，避免实现把 `char` 解释为负数后用于下标：
 
 ```cpp
-bool inWindow[128] = {false};  // ASCII字符集
+array<bool, 256> in_window{};
+size_t left = 0;
+size_t max_len = 0;
 
-for (int right = 0; right < s.size(); ++right) {
-    while (inWindow[s[right]]) {
-        inWindow[s[left++]] = false;
+for (size_t right = 0; right < s.size(); ++right) {
+    const auto byte = static_cast<unsigned char>(s[right]);
+    while (in_window[byte]) {
+        in_window[static_cast<unsigned char>(s[left])] = false;
+        ++left;
     }
-    inWindow[s[right]] = true;
-    maxLen = max(maxLen, right - left + 1);
+    in_window[byte] = true;
+    max_len = max(max_len, right - left + 1);
 }
 ```
 
@@ -100,18 +104,21 @@ for (int right = 0; right < s.size(); ++right) {
 直接记录字符位置，避免逐个移动：
 
 ```cpp
-unordered_map<char, int> lastPos;  // 字符最后出现的位置+1
+unordered_map<char, size_t> last_pos;  // 字符最后出现的位置+1
+size_t left = 0;
+size_t max_len = 0;
 
-for (int right = 0; right < s.size(); ++right) {
-    char c = s[right];
+for (size_t right = 0; right < s.size(); ++right) {
+    const char c = s[right];
     
     // 如果字符出现过且在窗口内，直接跳转
-    if (lastPos.count(c) && lastPos[c] > left) {
-        left = lastPos[c];
+    const auto found = last_pos.find(c);
+    if (found != last_pos.end()) {
+        left = max(left, found->second);
     }
     
-    lastPos[c] = right + 1;  // 记录位置+1
-    maxLen = max(maxLen, right - left + 1);
+    last_pos[c] = right + 1;  // 记录位置+1
+    max_len = max(max_len, right - left + 1);
 }
 ```
 
@@ -120,28 +127,33 @@ for (int right = 0; right < s.size(); ++right) {
 ```cpp
 // 方法一：滑动窗口 + 哈希集合
 int lengthOfLongestSubstring(string s) {
+    (void)week01::checked_index(s.size());
     unordered_set<char> window;
-    int left = 0, maxLen = 0;
+    size_t left = 0;
+    size_t max_len = 0;
     
-    for (int right = 0; right < s.size(); ++right) {
+    for (size_t right = 0; right < s.size(); ++right) {
         while (window.count(s[right])) {
-            window.erase(s[left++]);
+            window.erase(s[left]);
+            ++left;
         }
         window.insert(s[right]);
-        maxLen = max(maxLen, right - left + 1);
+        max_len = max(max_len, right - left + 1);
     }
     
-    return maxLen;
+    return week01::checked_index(max_len);
 }
 ```
+
+公开接口返回 `int`，所以实现先检查字符串长度能否表示；超大输入会抛出 `length_error`，不会悄悄窄化。以上方法按字节工作，适用于 ASCII/题目给定字符集；若要求按 Unicode 字符统计，必须先按相应编码解码。
 
 ## 复杂度分析
 
 | 方法 | 时间复杂度 | 空间复杂度 |
 |------|-----------|-----------|
-| 滑动窗口+集合 | O(n) | O(min(m,n)) |
+| 滑动窗口+集合 | 平均 O(n)，最坏 O(n²)（哈希操作退化为线性） | O(min(m,n)) |
 | 滑动窗口+数组 | O(n) | O(m) |
-| 滑动窗口+映射 | O(n) | O(min(m,n)) |
+| 滑动窗口+映射 | 平均 O(n)，最坏 O(n²)（哈希操作退化为线性） | O(min(m,n)) |
 | 暴力法 | O(n³) | O(min(m,n)) |
 
 > m 为字符集大小，n 为字符串长度

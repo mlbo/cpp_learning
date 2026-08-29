@@ -29,11 +29,17 @@ mkdir -p "${BUILD_DIR}"
 # CMake配置
 echo -e "${YELLOW}[2/4] CMake 配置...${NC}"
 cd "${BUILD_DIR}"
-cmake ..
+cmake .. \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_TESTING=ON \
+    -DENABLE_SANITIZERS="${ENABLE_SANITIZERS:-OFF}" \
+    -DENABLE_ASAN="${ENABLE_ASAN:-OFF}" \
+    -DENABLE_UBSAN="${ENABLE_UBSAN:-OFF}"
 
 # 编译
-echo -e "${YELLOW}[3/4] 编译项目...${NC}"
-make -j$(nproc)
+echo -e "${YELLOW}[3/4] 编译并测试项目...${NC}"
+cmake --build . --parallel "$(nproc)"
+ctest --output-on-failure
 
 # 运行
 echo -e "${YELLOW}[4/4] 运行程序...${NC}"
@@ -41,21 +47,6 @@ echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  运行综合主程序${NC}"
 echo -e "${GREEN}========================================${NC}"
 ./day_28_main
-
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  运行哈希表复习示例${NC}"
-echo -e "${GREEN}========================================${NC}"
-./day28_hash_table_review
-
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  运行移动语义复习示例${NC}"
-echo -e "${GREEN}========================================${NC}"
-./day28_move_semantics_review
-
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  运行EMC++条款复习示例${NC}"
-echo -e "${GREEN}========================================${NC}"
-./day28_emcpp_review
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}  LeetCode 测试结果${NC}"

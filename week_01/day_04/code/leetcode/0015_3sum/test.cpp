@@ -8,6 +8,9 @@
 #include <vector>
 #include <set>
 #include <algorithm>
+#include <limits>
+
+namespace leetcode_0015 {
 
 void printResult(const std::vector<std::vector<int>>& result) {
     std::cout << "[";
@@ -39,7 +42,7 @@ bool compareResults(std::vector<std::vector<int>> a, std::vector<std::vector<int
     return a == b;
 }
 
-void runTest(const std::vector<int>& nums, 
+bool runTest(const std::vector<int>& nums,
              const std::vector<std::vector<int>>& expected, 
              const char* description) {
     Solution sol;
@@ -64,8 +67,10 @@ void runTest(const std::vector<int>& nums,
     
     if (compareResults(result, expected)) {
         std::cout << "  ✅ 通过\n\n";
+        return true;
     } else {
         std::cout << "  ❌ 失败\n\n";
+        return false;
     }
 }
 
@@ -136,7 +141,7 @@ static void explainAlgorithm() {
     std::cout << "  - 空间: O(1) (不考虑输出)\n\n";
 }
 
-void run_leetcode15_tests() {
+bool run_tests() {
     std::cout << "═══════════════════════════════════════════════════════════════\n";
     std::cout << "LeetCode 15: 三数之和\n";
     std::cout << "═══════════════════════════════════════════════════════════════\n\n";
@@ -149,39 +154,49 @@ void run_leetcode15_tests() {
     std::cout << "───────────────────────────────────────────────────────────────\n\n";
     
     // 测试用例1: 示例
-    runTest({-1, 0, 1, 2, -1, -4}, {{-1, -1, 2}, {-1, 0, 1}}, "示例用例");
+    bool passed = true;
+    passed &= runTest({-1, 0, 1, 2, -1, -4}, {{-1, -1, 2}, {-1, 0, 1}}, "示例用例");
     
     // 测试用例2: 空结果
-    runTest({0, 1, 1}, {}, "无解情况");
+    passed &= runTest({0, 1, 1}, {}, "无解情况");
     
     // 测试用例3: 全0
-    runTest({0, 0, 0, 0}, {{0, 0, 0}}, "全零情况");
+    passed &= runTest({0, 0, 0, 0}, {{0, 0, 0}}, "全零情况");
     
     // 测试用例4: 空数组
-    runTest({}, {}, "空数组");
+    passed &= runTest({}, {}, "空数组");
     
     // 测试用例5: 两个元素
-    runTest({1, 2}, {}, "元素不足");
+    passed &= runTest({1, 2}, {}, "元素不足");
     
     // 测试用例6: 多个解
-    runTest({-2, 0, 1, 1, 2}, {{-2, 0, 2}, {-2, 1, 1}}, "多个解");
+    passed &= runTest({-2, 0, 1, 1, 2}, {{-2, 0, 2}, {-2, 1, 1}}, "多个解");
     
     // 测试用例7: 大量重复
-    runTest({-1, -1, -1, 2, 2, 2}, {{-1, -1, 2}}, "大量重复元素");
+    passed &= runTest({-1, -1, -1, 2, 2, 2}, {{-1, -1, 2}}, "大量重复元素");
     
     // 测试用例8: 正数
-    runTest({1, 2, 3, 4, 5}, {}, "全正数");
+    passed &= runTest({1, 2, 3, 4, 5}, {}, "全正数");
     
     // 测试用例9: 负数
-    runTest({-5, -4, -3, -2, -1}, {}, "全负数");
+    passed &= runTest({-5, -4, -3, -2, -1}, {}, "全负数");
     
     // 测试用例10: 复杂情况
-    runTest({-1, 0, 1, 2, -1, -4, -2, -3, 3, 0, 4}, 
+    passed &= runTest({-1, 0, 1, 2, -1, -4, -2, -3, 3, 0, 4},
             {{-4, 0, 4}, {-4, 1, 3}, {-3, -1, 4}, {-3, 0, 3}, 
              {-3, 1, 2}, {-2, -1, 3}, {-2, 0, 2}, {-1, -1, 2}, {-1, 0, 1}}, 
             "复杂情况");
+
+    passed &= runTest({std::numeric_limits<int>::min(),
+                       std::numeric_limits<int>::max(), 1, 0, -1},
+                      {{std::numeric_limits<int>::min(), 1,
+                        std::numeric_limits<int>::max()}, {-1, 0, 1}},
+                      "整数边界仍按数学和判断");
     
     std::cout << "═══════════════════════════════════════════════════════════════\n";
     std::cout << "所有测试完成！\n";
     std::cout << "═══════════════════════════════════════════════════════════════\n\n";
+    return passed;
 }
+
+} // namespace leetcode_0015

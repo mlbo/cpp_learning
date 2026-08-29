@@ -172,6 +172,9 @@ std::shared_ptr<ListNode> swapPairs(
  */
 std::shared_ptr<ListNode> removeNthFromEnd(
     std::shared_ptr<ListNode> head, int n) {
+    if (n <= 0) {
+        return head;
+    }
     
     auto dummy = std::make_shared<ListNode>(0);
     dummy->next = head;
@@ -181,6 +184,10 @@ std::shared_ptr<ListNode> removeNthFromEnd(
     
     // 快指针先走n步
     for (int i = 0; i < n; ++i) {
+        if (!fast->next) {
+            // 教程接口约定：n超过长度时不修改输入链表。
+            return head;
+        }
         fast = fast->next;
     }
     

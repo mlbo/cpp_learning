@@ -5,9 +5,8 @@
 
 #include <iostream>
 #include "algorithm/bfs_template.h"
-
-void testLevelOrder();
-void testLevelOrderBottom();
+#include "leetcode/0102_level_order/solution.h"
+#include "leetcode/0107_level_order_bottom/solution.h"
 
 int main() {
     std::cout << "========================================" << std::endl;

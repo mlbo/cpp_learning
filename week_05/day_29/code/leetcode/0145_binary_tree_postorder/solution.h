@@ -7,8 +7,8 @@
  * 后序遍历：左 -> 右 -> 根
  */
 
-#ifndef SOLUTION_H
-#define SOLUTION_H
+#ifndef DAY29_LC0145_SOLUTION_H
+#define DAY29_LC0145_SOLUTION_H
 
 #include <vector>
 #include <stack>
@@ -20,8 +20,8 @@ struct TreeNode {
     TreeNode* right;
     TreeNode() : val(0), left(nullptr), right(nullptr) {}
     TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
-    TreeNode(int x, TreeNode* left, TreeNode* right) 
-        : val(x), left(left), right(right) {}
+    TreeNode(int x, TreeNode* leftNode, TreeNode* rightNode)
+        : val(x), left(leftNode), right(rightNode) {}
 };
 
 class Solution {
@@ -66,4 +66,6 @@ private:
     }
 };
 
-#endif // SOLUTION_H
+std::vector<int> postorderIterativeClassic(TreeNode* root);
+
+#endif  // DAY29_LC0145_SOLUTION_H

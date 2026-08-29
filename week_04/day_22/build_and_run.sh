@@ -21,7 +21,11 @@ mkdir -p "${BUILD_DIR}"
 
 echo -e "${YELLOW}[2/4] CMake 配置...${NC}"
 cd "${BUILD_DIR}"
-cmake ..
+cmake .. \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DENABLE_SANITIZERS="${ENABLE_SANITIZERS:-OFF}" \
+    -DENABLE_ASAN="${ENABLE_ASAN:-OFF}" \
+    -DENABLE_UBSAN="${ENABLE_UBSAN:-OFF}"
 
 echo -e "${YELLOW}[3/4] 编译项目...${NC}"
 make -j$(nproc)
@@ -29,6 +33,7 @@ make -j$(nproc)
 echo -e "${YELLOW}[4/4] 运行程序...${NC}"
 echo -e "${GREEN}----------------------------------------${NC}"
 ./day22_main
+ctest --output-on-failure
 
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  Day 22 学习完成！${NC}"

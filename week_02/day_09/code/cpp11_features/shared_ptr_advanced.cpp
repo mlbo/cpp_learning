@@ -10,6 +10,7 @@
  * 5. 线程安全性
  */
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -17,6 +18,8 @@
 #include <vector>
 #include <set>
 #include <functional>
+
+#include "../../../common/noexcept_output.h"
 
 // ============================================================
 // 1. 控制块结构演示
@@ -73,14 +76,13 @@ void demoControlBlock() {
 // 自定义资源类型
 struct FileHandle {
     FILE* fp;
-    FileHandle(const char* filename) {
-        fp = fopen(filename, "w");
-        std::cout << "  打开文件\n";
+    explicit FileHandle(const char* filename) : fp(fopen(filename, "w")) {
+        week2_support::write_noexcept([] { std::cout << "  打开文件\n"; });
     }
     ~FileHandle() {
         if (fp) {
             fclose(fp);
-            std::cout << "  关闭文件\n";
+            week2_support::write_noexcept([] { std::cout << "  关闭文件\n"; });
         }
     }
 };
@@ -91,10 +93,12 @@ void demoCustomDeleter() {
     // 方式1: 使用 lambda 作为删除器
     std::cout << "--- 方式1: Lambda 删除器 ---\n";
     {
-        auto fileDeleter = [](FILE* f) {
+        auto fileDeleter = [](FILE* f) noexcept {
             if (f) {
                 fclose(f);
-                std::cout << "  通过 lambda 关闭文件\n";
+                week2_support::write_noexcept([] {
+                    std::cout << "  通过 lambda 关闭文件\n";
+                });
             }
         };
         
@@ -106,9 +110,11 @@ void demoCustomDeleter() {
     // 方式2: 使用函数对象
     std::cout << "\n--- 方式2: 函数对象 ---\n";
     struct ArrayDeleter {
-        void operator()(int* p) const {
+        void operator()(int* p) const noexcept {
             delete[] p;
-            std::cout << "  通过自定义删除器释放数组\n";
+            week2_support::write_noexcept([] {
+                std::cout << "  通过自定义删除器释放数组\n";
+            });
         }
     };
     
@@ -127,9 +133,9 @@ void demoCustomDeleter() {
     // 删除器对控制块的影响
     std::cout << "\n--- 删除器的大小影响 ---\n";
     auto sp1 = std::make_shared<int>(42);
-    auto sp2 = std::shared_ptr<int>(new int(42), [](int* p) {
+    auto sp2 = std::shared_ptr<int>(new int(42), [](int* p) noexcept {
         delete p;
-        std::cout << "  自定义删除\n";
+        week2_support::write_noexcept([] { std::cout << "  自定义删除\n"; });
     });
     
     std::cout << "  shared_ptr 大小: " << sizeof(sp1) << " 字节\n";
@@ -147,7 +153,9 @@ struct Person {
         std::cout << "  Person 构造: " << name << "\n";
     }
     ~Person() {
-        std::cout << "  Person 析构: " << name << "\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  Person 析构: " << name << "\n";
+        });
     }
 };
 
@@ -179,7 +187,7 @@ void demoAliasingConstructor() {
 // 4. 线程安全性
 // ============================================================
 
-void demoThreadSafety() {
+bool demoThreadSafety() {
     std::cout << "\n【线程安全性】\n\n";
     
     auto sp = std::make_shared<int>(0);
@@ -188,12 +196,13 @@ void demoThreadSafety() {
     std::cout << "  引用计数操作是原子的，多线程安全\n\n";
     
     std::vector<std::thread> threads;
+    std::vector<int> acquired(5, 0);
     
     // 多个线程拷贝和销毁 shared_ptr
     for (int i = 0; i < 5; ++i) {
-        threads.emplace_back([sp]() {  // 拷贝捕获
+        threads.emplace_back([sp, &acquired, i]() {  // 拷贝捕获
             auto local = sp;
-            std::cout << "  线程中 use_count = " << local.use_count() << "\n";
+            acquired[static_cast<std::size_t>(i)] = local ? 1 : 0;
             // local 离开作用域，减少引用计数
         });
     }
@@ -202,7 +211,11 @@ void demoThreadSafety() {
         t.join();
     }
     
-    std::cout << "\n  所有线程结束后，use_count = " << sp.use_count() << "\n";
+    const bool ownership_ok =
+        std::all_of(acquired.begin(), acquired.end(), [](int value) { return value == 1; }) &&
+        sp.use_count() == 1;
+    std::cout << "\n  join后每个线程都成功取得局部所有权: "
+              << (ownership_ok ? "是" : "否") << "\n";
     
     std::cout << "\n--- 访问对象本身需要同步 ---\n";
     std::cout << "  虽然引用计数是线程安全的，\n";
@@ -224,7 +237,9 @@ void demoThreadSafety() {
         t.join();
     }
     
-    std::cout << "  使用 mutex 后，counter = " << *counter << "\n";
+    const bool counter_ok = *counter == 10;
+    std::cout << "  使用 mutex 并join后，counter = " << *counter << "\n";
+    return ownership_ok && counter_ok;
 }
 
 // ============================================================
@@ -253,7 +268,7 @@ void demoOwnerLess() {
 // 演示函数
 // ============================================================
 
-void demoSharedPtrAdvanced() {
+bool demoSharedPtrAdvanced() {
     std::cout << "╔══════════════════════════════════════════════════════════╗\n";
     std::cout << "║           shared_ptr 高级特性                             ║\n";
     std::cout << "╚══════════════════════════════════════════════════════════╝\n\n";
@@ -261,7 +276,7 @@ void demoSharedPtrAdvanced() {
     demoControlBlock();
     demoCustomDeleter();
     demoAliasingConstructor();
-    demoThreadSafety();
+    const bool thread_safety_ok = demoThreadSafety();
     
     std::cout << "\n要点总结：\n";
     std::cout << "1. make_shared 一次分配，效率更高\n";
@@ -269,4 +284,5 @@ void demoSharedPtrAdvanced() {
     std::cout << "3. 别名构造函数用于访问成员\n";
     std::cout << "4. 引用计数线程安全，但访问对象需同步\n";
     std::cout << "5. owner_less 用于关联容器键比较\n";
+    return thread_safety_ok;
 }

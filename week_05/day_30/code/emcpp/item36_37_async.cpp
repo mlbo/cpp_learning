@@ -1,44 +1,65 @@
-/**
- * EMC++ Item 36-37: async策略与future管理
- */
-
-#include <iostream>
-#include <future>
-#include <thread>
 #include <chrono>
+#include <future>
+#include <iostream>
+#include <stdexcept>
+#include <thread>
+#include <utility>
 
-int compute(int n) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    return n * n;
+namespace {
+int compute(int value) {
+    return value * value;
 }
 
-void item36_37Demo() {
-    std::cout << "=== Item 36-37 演示 ===" << std::endl;
-    
-    // Item 36: 指定launch::async
-    std::cout << "\nItem 36: 指定std::launch::async" << std::endl;
-    
-    // 默认策略可能延迟执行
-    auto f1 = std::async(compute, 10);
-    std::cout << "默认策略结果: " << f1.get() << std::endl;
-    
-    // 强制异步
-    auto f2 = std::async(std::launch::async, compute, 20);
-    std::cout << "async策略结果: " << f2.get() << std::endl;
-    
-    // Item 37: 不要忽视future
-    std::cout << "\nItem 37: 不要忽视future" << std::endl;
-    std::cout << "错误的写法: std::async(func); // future被丢弃" << std::endl;
-    std::cout << "正确的写法: auto f = std::async(func); f.get();" << std::endl;
-    
-    // 正确处理future
-    auto f3 = std::async(std::launch::async, compute, 30);
-    // 可以做其他事情...
-    std::cout << "异步计算中..." << std::endl;
-    std::cout << "结果: " << f3.get() << std::endl;
+template <typename Function, typename... Arguments>
+auto reallyAsync(Function&& function, Arguments&&... arguments) {
+    return std::async(std::launch::async,
+                      std::forward<Function>(function),
+                      std::forward<Arguments>(arguments)...);
 }
+
+class JoiningThread {
+public:
+    explicit JoiningThread(std::thread thread) : thread_(std::move(thread)) {}
+
+    ~JoiningThread() {
+        if (thread_.joinable()) {
+            thread_.join();
+        }
+    }
+
+    JoiningThread(const JoiningThread&) = delete;
+    JoiningThread& operator=(const JoiningThread&) = delete;
+
+private:
+    std::thread thread_;
+};
+
+bool joinsDuringStackUnwinding() {
+    int result = 0;
+    try {
+        JoiningThread worker(std::thread([&result] { result = 42; }));
+        throw std::runtime_error("demonstrate an early exit");
+    } catch (const std::runtime_error&) {
+        return result == 42;
+    }
+}
+}  // namespace
 
 int main() {
-    item36_37Demo();
-    return 0;
+    auto deferred = std::async(std::launch::deferred, compute, 3);
+    const bool deferredDetected =
+        deferred.wait_for(std::chrono::seconds(0)) == std::future_status::deferred;
+    const int deferredResult = deferred.get();
+
+    auto asynchronous = reallyAsync(compute, 4);
+    const bool isNotDeferred =
+        asynchronous.wait_for(std::chrono::seconds(0)) != std::future_status::deferred;
+    const int asynchronousResult = asynchronous.get();
+
+    const bool passed = deferredDetected && deferredResult == 9 && isNotDeferred &&
+                        asynchronousResult == 16 && joinsDuringStackUnwinding();
+    std::cout << "launch policy is tested by status, not elapsed time.\n";
+    std::cout << (passed ? "Item 36-37 checks passed\n"
+                         : "Item 36-37 checks failed\n");
+    return passed ? 0 : 1;
 }

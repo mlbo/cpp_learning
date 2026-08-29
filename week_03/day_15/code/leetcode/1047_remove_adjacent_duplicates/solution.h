@@ -7,11 +7,15 @@
 
 #include <string>
 
+namespace lc1047 {
+
 class Solution {
 public:
-    std::string removeDuplicates(std::string s);
+    std::string removeDuplicates(const std::string& s);
 };
 
-void testRemoveDuplicates();
+bool testRemoveDuplicates();
+
+}  // namespace lc1047
 
 #endif // LC1047_SOLUTION_H

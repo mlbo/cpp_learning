@@ -12,6 +12,9 @@
 #include <iostream>
 #include <iomanip>
 
+using day08_lists::DoublyListNode;
+using day08_lists::ListNode;
+
 // 辅助函数：打印分隔线
 void printSeparator(const std::string& title = "") {
     std::cout << "\n";
@@ -367,7 +370,7 @@ void demoMemoryLayout() {
     std::cout << "│   │ 1 │───>│ 2 │───>│ 3 │───>│ 4 │───>│ 5 │───>∅ │\n";
     std::cout << "│   └───┘    └───┘    └───┘    └───┘    └───┘      │\n";
     std::cout << "│   地址分散，只能顺序访问                           │\n";
-    std::cout << "│   随机访问 O(n)，插入删除 O(1)                     │\n";
+    std::cout << "│   随机访问 O(n)，已知前驱时改链 O(1)               │\n";
     std::cout << "└─────────────────────────────────────────────────────┘\n";
 }
 
@@ -396,4 +399,9 @@ void runListDemo() {
     std::cout << "  2. 虚拟头节点技巧简化边界处理\n";
     std::cout << "  3. 快慢指针用于中点查找和环检测\n";
     std::cout << "  4. unique_ptr可实现自动内存管理\n";
+}
+
+int main() {
+    runListDemo();
+    return 0;
 }

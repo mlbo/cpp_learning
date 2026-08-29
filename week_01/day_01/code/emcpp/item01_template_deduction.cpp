@@ -13,6 +13,7 @@
 #include <string>
 #include <typeinfo>
 #include <iomanip>
+#include <type_traits>
 
 using namespace std;
 
@@ -24,8 +25,7 @@ using namespace std;
 template<typename T>
 struct TypeDisplayer;
 
-// 辅助函数：打印类型信息
-template<typename T>
+// 辅助函数：展示人工推导结论；这里本身不参与模板类型推导。
 void showType(const string& expr, const string& result) {
     cout << "  " << left << setw(30) << expr << " -> " << result << endl;
 }
@@ -95,6 +95,7 @@ void caseOne_ReferenceOrPointer() {
     showType("funcConstRef(rx)", "T = int, param = const int&");
     
     cout << endl << "【注意】param已经是const T&，所以T不会被推导为const" << endl;
+    (void)rx; (void)px; (void)pcx;
     
     cout << endl;
 }
@@ -138,6 +139,7 @@ void caseTwo_UniversalReference() {
     cout << "  && + && -> &&" << endl;
     cout << endl;
     cout << "结论：左值参数导致T被推导为左值引用，右值参数导致T被推导为非引用" << endl;
+    (void)cx; (void)rx;
     
     cout << endl;
 }
@@ -186,6 +188,7 @@ void caseThree_ByValue() {
     cout << "• 底层const被保留（指向对象的const）" << endl;
     cout << "• 数组退化为指针" << endl;
     cout << "• 函数退化为函数指针" << endl;
+    (void)cx; (void)rx; (void)p; (void)name;
     
     cout << endl;
 }
@@ -199,19 +202,28 @@ template<typename T>
 void processRef(T& param) {
     cout << "  T的类型: " << typeid(T).name() << endl;
     cout << "  param的类型: " << typeid(param).name() << endl;
-    param = 100;  // 可以修改
+    if constexpr (std::is_assignable_v<T&, int>) {
+        param = 100;  // int 等可赋值对象会修改调用者
+    } else {
+        cout << "  当前 T 不能整体赋值为 int（例如数组类型）" << endl;
+    }
 }
 
 template<typename T>
 void processConstRef(const T& param) {
     cout << "  T的类型: " << typeid(T).name() << endl;
+    (void)param;
     // param = 100;  // 编译错误！不能修改const引用
 }
 
 template<typename T>
 void processByValue(T param) {
     cout << "  T的类型: " << typeid(T).name() << endl;
-    param = 100;  // 修改的是副本
+    if constexpr (std::is_assignable_v<T&, int>) {
+        param = 100;  // 若可赋值，修改的也只是局部副本
+    } else {
+        cout << "  当前值参数不能赋值为 int（数组退化后可能是指针）" << endl;
+    }
 }
 
 void practicalExamples() {

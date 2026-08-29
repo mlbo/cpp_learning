@@ -4,189 +4,97 @@
  */
 
 #include "solution.h"
+
 #include <iostream>
+#include <memory>
+#include <string>
 #include <vector>
 
-// 辅助函数：创建链表
-ListNode* createList(const std::vector<int>& vals) {
-    if (vals.empty()) return nullptr;
-    
-    ListNode* head = new ListNode(vals[0]);
-    ListNode* curr = head;
-    for (size_t i = 1; i < vals.size(); ++i) {
-        curr->next = new ListNode(vals[i]);
-        curr = curr->next;
-    }
-    return head;
-}
+namespace leetcode_24 {
+namespace {
 
-// 辅助函数：打印链表
-void printList(ListNode* head) {
-    std::cout << "[";
-    while (head != nullptr) {
-        std::cout << head->val;
-        if (head->next != nullptr) {
-            std::cout << ",";
+ListNode* createList(const std::vector<int>& values) {
+    if (values.empty()) {
+        return nullptr;
+    }
+
+    const auto delete_chain = [](ListNode* node) {
+        while (node) {
+            ListNode* next_node = node->next;
+            delete node;
+            node = next_node;
         }
-        head = head->next;
+    };
+    std::unique_ptr<ListNode, decltype(delete_chain)> owner(
+        new ListNode(values.front()), delete_chain);
+    ListNode* tail = owner.get();
+    for (std::size_t i = 1U; i < values.size(); ++i) {
+        auto node = std::make_unique<ListNode>(values[i]);
+        tail->next = node.release();
+        tail = tail->next;
     }
-    std::cout << "]";
+    return owner.release();
 }
 
-// 辅助函数：释放链表
-void deleteList(ListNode* head) {
-    while (head != nullptr) {
-        ListNode* temp = head;
-        head = head->next;
-        delete temp;
-    }
-}
-
-// 辅助函数：链表转vector
-std::vector<int> listToVector(ListNode* head) {
+std::vector<int> listToVector(const ListNode* head) {
     std::vector<int> result;
-    while (head != nullptr) {
+    while (head) {
         result.push_back(head->val);
         head = head->next;
     }
     return result;
 }
 
-// LeetCode 24 测试命名空间
-namespace leetcode_24 {
+void deleteList(ListNode* head) {
+    while (head) {
+        ListNode* old = head;
+        head = head->next;
+        delete old;
+    }
+}
 
-void run_tests() {
+struct TestCase {
+    std::vector<int> input;
+    std::vector<int> expected;
+    std::string description;
+};
+
+} // namespace
+
+bool run_tests() {
+    std::cout << "\n=== LeetCode 24: 两两交换链表中的节点 ===\n";
+    const std::vector<TestCase> test_cases = {
+        {{1, 2, 3, 4}, {2, 1, 4, 3}, "偶数个节点"},
+        {{1, 2, 3}, {2, 1, 3}, "奇数个节点，尾节点保持原位"},
+        {{}, {}, "空链表"},
+        {{1}, {1}, "单节点"},
+        {{1, 1, 2, 2, 3}, {1, 1, 2, 2, 3}, "重复值验证交换节点而非改值"},
+    };
+
     Solution solution;
-    
-    std::cout << "\n========================================\n";
-    std::cout << "  LeetCode 24: 两两交换链表中的节点\n";
-    std::cout << "========================================\n";
-    
-    // 测试用例1: 偶数个节点
-    std::cout << "\n--- 测试用例1: 偶数个节点 ---\n";
-    {
-        ListNode* head = createList({1, 2, 3, 4});
-        std::cout << "输入: ";
-        printList(head);
-        std::cout << "\n";
-        
-        ListNode* result = solution.swapPairs(head);
-        std::cout << "输出: ";
-        printList(result);
-        std::cout << "\n";
-        std::cout << "预期: [2,1,4,3]\n";
-        
-        auto vec = listToVector(result);
-        if (vec == std::vector<int>{2, 1, 4, 3}) {
-            std::cout << "结果: 正确\n";
-        } else {
-            std::cout << "结果: 错误\n";
+    int failures = 0;
+    for (const auto& test_case : test_cases) {
+        ListNode* iterative_input = createList(test_case.input);
+        ListNode* recursive_input = createList(test_case.input);
+        ListNode* iterative = solution.swapPairs_iterative(iterative_input);
+        ListNode* recursive = solution.swapPairs_recursive(recursive_input);
+
+        const bool iterative_ok = listToVector(iterative) == test_case.expected;
+        const bool recursive_ok = listToVector(recursive) == test_case.expected;
+        std::cout << "  " << test_case.description << ": 迭代="
+                  << (iterative_ok ? "通过" : "失败") << ", 递归="
+                  << (recursive_ok ? "通过" : "失败") << '\n';
+        if (!iterative_ok || !recursive_ok) {
+            ++failures;
         }
-        
-        deleteList(result);
+
+        deleteList(iterative);
+        deleteList(recursive);
     }
-    
-    // 测试用例2: 奇数个节点
-    std::cout << "\n--- 测试用例2: 奇数个节点 ---\n";
-    {
-        ListNode* head = createList({1, 2, 3});
-        std::cout << "输入: ";
-        printList(head);
-        std::cout << "\n";
-        
-        ListNode* result = solution.swapPairs(head);
-        std::cout << "输出: ";
-        printList(result);
-        std::cout << "\n";
-        std::cout << "预期: [2,1,3]\n";
-        
-        auto vec = listToVector(result);
-        if (vec == std::vector<int>{2, 1, 3}) {
-            std::cout << "结果: 正确\n";
-        } else {
-            std::cout << "结果: 错误\n";
-        }
-        
-        deleteList(result);
-    }
-    
-    // 测试用例3: 空链表
-    std::cout << "\n--- 测试用例3: 空链表 ---\n";
-    {
-        ListNode* head = nullptr;
-        std::cout << "输入: nullptr\n";
-        
-        ListNode* result = solution.swapPairs(head);
-        std::cout << "输出: " << (result == nullptr ? "nullptr" : "非空") << "\n";
-        std::cout << "预期: nullptr\n";
-        
-        if (result == nullptr) {
-            std::cout << "结果: 正确\n";
-        } else {
-            std::cout << "结果: 错误\n";
-        }
-    }
-    
-    // 测试用例4: 单个节点
-    std::cout << "\n--- 测试用例4: 单个节点 ---\n";
-    {
-        ListNode* head = createList({1});
-        std::cout << "输入: ";
-        printList(head);
-        std::cout << "\n";
-        
-        ListNode* result = solution.swapPairs(head);
-        std::cout << "输出: ";
-        printList(result);
-        std::cout << "\n";
-        std::cout << "预期: [1]\n";
-        
-        auto vec = listToVector(result);
-        if (vec == std::vector<int>{1}) {
-            std::cout << "结果: 正确\n";
-        } else {
-            std::cout << "结果: 错误\n";
-        }
-        
-        deleteList(result);
-    }
-    
-    // 比较两种方法
-    std::cout << "\n--- 方法比较 ---\n";
-    {
-        ListNode* head1 = createList({1, 2, 3, 4, 5});
-        ListNode* head2 = createList({1, 2, 3, 4, 5});
-        
-        std::cout << "原始链表: ";
-        printList(head1);
-        std::cout << "\n";
-        
-        ListNode* result1 = solution.swapPairs_recursive(head1);
-        std::cout << "递归法结果: ";
-        printList(result1);
-        std::cout << "\n";
-        
-        ListNode* result2 = solution.swapPairs_iterative(head2);
-        std::cout << "迭代法结果: ";
-        printList(result2);
-        std::cout << "\n";
-        
-        deleteList(result1);
-        deleteList(result2);
-    }
-    
-    // 复杂度分析
-    std::cout << "\n--- 复杂度分析 ---\n";
-    std::cout << "递归法:\n";
-    std::cout << "  时间: O(n) - 每个节点处理一次\n";
-    std::cout << "  空间: O(n) - 递归栈深度\n";
-    std::cout << "迭代法:\n";
-    std::cout << "  时间: O(n) - 遍历链表一次\n";
-    std::cout << "  空间: O(1) - 只使用常量额外空间\n";
-    
-    std::cout << "\n========================================\n";
-    std::cout << "  LeetCode 24 测试完成\n";
-    std::cout << "========================================\n";
+
+    std::cout << "  改链不变量：先保存未处理后继；已处理前缀保持正确；"
+                 "奇数尾节点仍可达且保持原序。\n";
+    return failures == 0;
 }
 
 } // namespace leetcode_24

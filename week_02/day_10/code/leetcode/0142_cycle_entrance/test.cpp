@@ -5,7 +5,12 @@
 
 #include "solution.h"
 #include <iostream>
+#include <memory>
+#include <unordered_set>
 #include <vector>
+
+using leetcode_0142::ListNode;
+using leetcode_0142::Solution;
 
 namespace test_142 {
 
@@ -13,23 +18,28 @@ namespace test_142 {
 static ListNode* createCycleList(const std::vector<int>& values, int pos) {
     if (values.empty()) return nullptr;
     
-    // 创建所有节点
-    std::vector<ListNode*> nodes;
+    // 临时所有者先接住全部节点；任一分配失败时，已创建节点会自动释放。
+    std::vector<std::unique_ptr<ListNode>> owners;
+    owners.reserve(values.size());
     for (int val : values) {
-        nodes.push_back(new ListNode(val));
+        owners.push_back(std::make_unique<ListNode>(val));
     }
     
     // 连接节点
-    for (size_t i = 0; i < nodes.size() - 1; ++i) {
-        nodes[i]->next = nodes[i + 1];
+    for (std::size_t i = 0; i + 1 < owners.size(); ++i) {
+        owners[i]->next = owners[i + 1].get();
     }
     
     // 如果 pos >= 0，形成环
-    if (pos >= 0 && pos < static_cast<int>(nodes.size())) {
-        nodes.back()->next = nodes[pos];
+    if (pos >= 0 && pos < static_cast<int>(owners.size())) {
+        owners.back()->next = owners[static_cast<std::size_t>(pos)].get();
     }
-    
-    return nodes[0];
+
+    ListNode* head = owners.front().get();
+    for (auto& owner : owners) {
+        (void)owner.release();
+    }
+    return head;
 }
 
 // 获取节点索引（用于验证）
@@ -44,43 +54,18 @@ static int getNodeIndex(ListNode *head, ListNode *target) {
     return (curr == target) ? index : -1;
 }
 
-// 释放链表（无环）
-static void freeList_142(ListNode *head) {
-    while (head != nullptr) {
-        ListNode *temp = head;
-        head = head->next;
-        delete temp;
-    }
-}
-
-// 释放有环链表
+// 释放链表：用访问集合同时兼容有环和无环输入。
 static void freeCycleList(ListNode *head, int cyclePos) {
-    if (head == nullptr) return;
-    
-    // 先打断环
-    if (cyclePos >= 0) {
-        ListNode *curr = head;
-        int count = 0;
-        ListNode *cycleNode = nullptr;
-        
-        while (curr->next != nullptr) {
-            if (count == cyclePos) {
-                cycleNode = curr;
-            }
-            curr = curr->next;
-            ++count;
-            if (count > 100) break;  // 防止无限循环
-        }
-        
-        if (cycleNode != nullptr && curr->next == cycleNode) {
-            curr->next = nullptr;  // 打断环
-        }
+    (void)cyclePos;
+    std::unordered_set<ListNode*> visited;
+    while (head != nullptr && visited.insert(head).second) {
+        ListNode *next = head->next;
+        delete head;
+        head = next;
     }
-    
-    freeList_142(head);
 }
 
-static void runTest(const std::string& name, 
+static bool runTest(const std::string& name,
              const std::vector<int>& values, 
              int pos, 
              int expected) {
@@ -103,7 +88,8 @@ static void runTest(const std::string& name,
     std::cout << "    期望入口索引: " << expected << "\n";
     std::cout << "    实际入口索引: " << actual << "\n";
     
-    if (actual == expected) {
+    const bool passed = actual == expected;
+    if (passed) {
         std::cout << "    ✅ 通过\n";
     } else {
         std::cout << "    ❌ 失败\n";
@@ -111,11 +97,12 @@ static void runTest(const std::string& name,
     
     freeCycleList(head, pos);
     std::cout << "\n";
+    return passed;
 }
 
 } // namespace test_142
 
-void test_leetcode_142() {
+int main() {
     using namespace test_142;
     
     std::cout << "\n【LeetCode 142: 环形链表 II】\n";
@@ -131,25 +118,26 @@ void test_leetcode_142() {
     std::cout << "\n-------------------- 测试用例 --------------------\n";
     
     // 测试用例1：标准有环链表
-    runTest("标准有环链表", {3, 2, 0, -4}, 1, 1);
+    bool allPassed = true;
+    allPassed = test_142::runTest("标准有环链表", {3, 2, 0, -4}, 1, 1) && allPassed;
     
     // 测试用例2：环在头部
-    runTest("环在头部", {1, 2}, 0, 0);
+    allPassed = test_142::runTest("环在头部", {1, 2}, 0, 0) && allPassed;
     
     // 测试用例3：无环
-    runTest("无环链表", {1, 2, 3, 4}, -1, -1);
+    allPassed = test_142::runTest("无环链表", {1, 2, 3, 4}, -1, -1) && allPassed;
     
     // 测试用例4：单节点无环
-    runTest("单节点无环", {1}, -1, -1);
+    allPassed = test_142::runTest("单节点无环", {1}, -1, -1) && allPassed;
     
     // 测试用例5：单节点自环
-    runTest("单节点自环", {1}, 0, 0);
+    allPassed = test_142::runTest("单节点自环", {1}, 0, 0) && allPassed;
     
     // 测试用例6：空链表
-    runTest("空链表", {}, -1, -1);
+    allPassed = test_142::runTest("空链表", {}, -1, -1) && allPassed;
     
     // 测试用例7：大环
-    runTest("大环", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, 5, 5);
+    allPassed = test_142::runTest("大环", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, 5, 5) && allPassed;
     
     std::cout << "-------------------- 测试完成 --------------------\n";
     
@@ -158,4 +146,8 @@ void test_leetcode_142() {
     std::cout << "  快慢指针: O(1) 空间\n";
     std::cout << "  哈希表:   O(n) 空间\n";
     std::cout << "  两者时间复杂度都是 O(n)\n";
+
+    std::cout << (allPassed ? "\nLeetCode 142 全部测试通过\n"
+                            : "\nLeetCode 142 存在失败用例\n");
+    return allPassed ? 0 : 1;
 }

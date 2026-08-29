@@ -1,83 +1,76 @@
-/**
- * Day 34: 并发编程综合 - 主程序
- */
-
-#include <iostream>
-#include <thread>
-#include <mutex>
 #include <condition_variable>
-#include <atomic>
-#include <future>
-#include <vector>
+#include <iostream>
+#include <mutex>
+#include <optional>
+#include <queue>
+#include <thread>
 
-void processThreadDemo();
-void concurrencyDemo();
-void emcppReviewDemo();
+#include "joining_thread_group.h"
+
+class IntChannel {
+public:
+    bool push(int value) {
+        {
+            std::lock_guard<std::mutex> lock{mutex_};
+            if (closed_) {
+                return false;
+            }
+            values_.push(value);
+        }
+        ready_.notify_one();
+        return true;
+    }
+
+    std::optional<int> pop() {
+        std::unique_lock<std::mutex> lock{mutex_};
+        ready_.wait(lock, [this] { return closed_ || !values_.empty(); });
+        if (values_.empty()) {
+            return std::nullopt;
+        }
+        const int value = values_.front();
+        values_.pop();
+        return value;
+    }
+
+    void close() {
+        {
+            std::lock_guard<std::mutex> lock{mutex_};
+            closed_ = true;
+        }
+        ready_.notify_all();
+    }
+
+private:
+    std::mutex mutex_;
+    std::condition_variable ready_;
+    std::queue<int> values_;
+    bool closed_{false};
+};
 
 int main() {
-    std::cout << "=== Day 34: 并发编程综合 ===" << std::endl;
-    
-    // 1. 进程线程模型
-    std::cout << "\n--- 1. 进程线程模型 ---" << std::endl;
-    processThreadDemo();
-    
-    // 2. 并发综合演示
-    std::cout << "\n--- 2. 并发综合演示 ---" << std::endl;
-    concurrencyDemo();
-    
-    // 3. EMC++ Item 35-40复习
-    std::cout << "\n--- 3. EMC++ Item 35-40 复习 ---" << std::endl;
-    emcppReviewDemo();
-    
-    std::cout << "\n=== Day 34 学习完成 ===" << std::endl;
-    return 0;
-}
+    IntChannel channel;
+    int sum = 0;
 
-void processThreadDemo() {
-    std::cout << "进程: 操作系统资源分配的基本单位" << std::endl;
-    std::cout << "线程: CPU调度的基本单位" << std::endl;
-    std::cout << "硬件并发数: " << std::thread::hardware_concurrency() << std::endl;
-    
-    // 线程安全
-    std::cout << "\n线程安全要点:" << std::endl;
-    std::cout << "  - 使用mutex保护共享资源" << std::endl;
-    std::cout << "  - 使用atomic进行轻量同步" << std::endl;
-    std::cout << "  - 避免死锁（按顺序加锁）" << std::endl;
-}
-
-void concurrencyDemo() {
-    std::mutex mtx;
-    std::condition_variable cv;
-    std::atomic<int> counter{0};
-    bool ready = false;
-    
-    // 生产者-消费者示例
-    std::thread producer([&]() {
-        for (int i = 0; i < 5; ++i) {
-            counter++;
+    week5::JoiningThreadGroup threads;
+    threads.start([&channel, &sum] {
+        while (const std::optional<int> value = channel.pop()) {
+            sum += *value;
         }
-        {
-            std::lock_guard<std::mutex> lock(mtx);
-            ready = true;
+    });
+    threads.start([&channel] {
+        for (int value = 1; value <= 5; ++value) {
+            if (!channel.push(value)) {
+                return;
+            }
         }
-        cv.notify_one();
+        channel.close();
     });
-    
-    std::thread consumer([&]() {
-        std::unique_lock<std::mutex> lock(mtx);
-        cv.wait(lock, [&]{ return ready; });
-        std::cout << "消费者收到通知，counter = " << counter.load() << std::endl;
-    });
-    
-    producer.join();
-    consumer.join();
-}
 
-void emcppReviewDemo() {
-    std::cout << "Item 35: 优先使用async而非thread" << std::endl;
-    std::cout << "Item 36: 需要异步时指定launch::async" << std::endl;
-    std::cout << "Item 37: 确保thread在所有路径上不可join" << std::endl;
-    std::cout << "Item 38: 关注future析构行为" << std::endl;
-    std::cout << "Item 39: void future用于一次性事件" << std::endl;
-    std::cout << "Item 40: atomic用于并发，volatile用于特殊内存" << std::endl;
+    threads.join_all();
+
+    const bool drained_before_stop = sum == 15;
+    const bool rejects_after_stop = !channel.push(99);
+    std::cout << "停止协议：close 后排空已有数据，拒绝新数据\n";
+    std::cout << "消费总和: " << sum << '\n';
+    return drained_before_stop && rejects_after_stop ? 0 : 1;
 }

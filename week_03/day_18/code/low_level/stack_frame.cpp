@@ -1,16 +1,18 @@
 /**
  * @file stack_frame.cpp
- * @brief 栈帧分析 - 深入理解栈帧的内存布局
+ * @brief 调用上下文观察 - 查看本次构建中的参数与局部对象地址
  * 
  * 本文件演示：
- * 1. 栈帧的内存布局
+ * 1. 一次具体构建中的地址现象
  * 2. 参数传递机制
  * 3. 局部变量的存储
  * 4. 返回地址的作用
  * 
- * 注意：本文件使用一些底层技术来展示栈帧结构
- * 这些代码仅供学习理解，不建议在生产代码中使用
+ * 注意：这些地址只反映当前 ABI、编译器和优化配置，不能推导出
+ * C++ 标准规定的固定栈帧布局，也不建议在生产代码中依赖。
  */
+
+#include "stack_frame.h"
 
 #include <iostream>
 #include <iomanip>
@@ -40,17 +42,24 @@ void print_memory(void* ptr, size_t size, const char* label) {
     std::cout << std::dec << "\n";
 }
 
+std::intptr_t address_difference(const void* from, const void* to) {
+    const auto fromAddress = reinterpret_cast<std::uintptr_t>(from);
+    const auto toAddress = reinterpret_cast<std::uintptr_t>(to);
+    if (toAddress >= fromAddress) {
+        return static_cast<std::intptr_t>(toAddress - fromAddress);
+    }
+    return -static_cast<std::intptr_t>(fromAddress - toAddress);
+}
+
 /**
- * @brief 分析函数栈帧的示例
+ * @brief 观察一次函数调用中参数对象与局部对象的地址
  * @param a 第一个参数
  * @param b 第二个参数
  * @param c 第三个参数
  * @return 参数之和
  * 
- * 这个函数展示了：
- * 1. 参数在栈帧中的位置
- * 2. 局部变量在栈帧中的位置
- * 3. 栈帧的边界
+ * 这个函数只展示本次构建可观察到的地址关系；参数可能先通过寄存器
+ * 传递后再因取地址而落入内存，局部对象也可能被编译器重排。
  */
 int analyzeStackFrame(int a, int b, int c) {
     std::cout << "\n";
@@ -64,7 +73,7 @@ int analyzeStackFrame(int a, int b, int c) {
     int local3 = 300;
     
     // 打印参数地址
-    std::cout << "  【参数在栈帧中的位置】\n";
+    std::cout << "  【本次构建中的参数对象地址】\n";
     std::cout << "  ┌─────────────────────────────────────────────┐\n";
     std::cout << "  │ 参数 a = " << std::setw(5) << a 
               << "  地址: " << (void*)&a << " │\n";
@@ -75,7 +84,7 @@ int analyzeStackFrame(int a, int b, int c) {
     std::cout << "  └─────────────────────────────────────────────┘\n\n";
     
     // 打印局部变量地址
-    std::cout << "  【局部变量在栈帧中的位置】\n";
+    std::cout << "  【本次构建中的局部对象地址】\n";
     std::cout << "  ┌─────────────────────────────────────────────┐\n";
     std::cout << "  │ local1 = " << std::setw(5) << local1 
               << "  地址: " << (void*)&local1 << " │\n";
@@ -85,36 +94,30 @@ int analyzeStackFrame(int a, int b, int c) {
               << "  地址: " << (void*)&local3 << " │\n";
     std::cout << "  └─────────────────────────────────────────────┘\n\n";
     
-    // 分析栈帧布局
-    std::cout << "  【栈帧布局分析】\n";
-    std::cout << "  高地址\n";
+    // 展示概念状态，而不是宣称固定内存布局。
+    std::cout << "  【调用上下文概念图（不是固定内存布局）】\n";
+    std::cout << "  概念顺序（不代表实际地址高低）\n";
     std::cout << "  │\n";
     std::cout << "  │   ┌─────────────────┐\n";
-    std::cout << "  │   │ 参数 a          │ ← 调用者压入\n";
+    std::cout << "  │   │ 参数相关状态    │ ← 可能来自寄存器或内存\n";
     std::cout << "  │   ├─────────────────┤\n";
-    std::cout << "  │   │ 参数 b          │\n";
+    std::cout << "  │   │ 返回所需状态    │ ← 具体形式由ABI决定\n";
     std::cout << "  │   ├─────────────────┤\n";
-    std::cout << "  │   │ 参数 c          │\n";
+    std::cout << "  │   │ 调用者保存状态  │ ← 可能没有独立帧指针\n";
     std::cout << "  │   ├─────────────────┤\n";
-    std::cout << "  │   │ 返回地址        │ ← call 指令自动压入\n";
+    std::cout << "  │   │ 局部对象/临时值 │ ← 也可能只存在寄存器中\n";
     std::cout << "  │   ├─────────────────┤\n";
-    std::cout << "  │   │ 旧的 EBP/RBP    │ ← 函数入口保存\n";
-    std::cout << "  │   ├─────────────────┤\n";
-    std::cout << "  │   │ local1          │ ← 函数内分配\n";
-    std::cout << "  │   ├─────────────────┤\n";
-    std::cout << "  │   │ local2          │\n";
-    std::cout << "  │   ├─────────────────┤\n";
-    std::cout << "  │   │ local3          │\n";
+    std::cout << "  │   │ 对齐/填充       │ ← 若实现需要\n";
     std::cout << "  │   └─────────────────┘\n";
     std::cout << "  │\n";
-    std::cout << "  ↓ 低地址 (栈生长方向)\n\n";
+    std::cout << "  ↓ 仅用于列出可能状态；实际顺序与栈生长方向由实现决定\n\n";
     
     // 计算局部变量之间的地址差
     std::cout << "  【地址差分析】\n";
-    long diff_a_b = (char*)&b - (char*)&a;
-    long diff_b_c = (char*)&c - (char*)&b;
-    long diff_local1_local2 = (char*)&local2 - (char*)&local1;
-    long diff_local2_local3 = (char*)&local3 - (char*)&local2;
+    const std::intptr_t diff_a_b = address_difference(&a, &b);
+    const std::intptr_t diff_b_c = address_difference(&b, &c);
+    const std::intptr_t diff_local1_local2 = address_difference(&local1, &local2);
+    const std::intptr_t diff_local2_local3 = address_difference(&local2, &local3);
     
     std::cout << "  参数 a → b 地址差: " << diff_a_b << " 字节\n";
     std::cout << "  参数 b → c 地址差: " << diff_b_c << " 字节\n";
@@ -192,8 +195,8 @@ void recursiveStackGrowth(int depth, int maxDepth) {
         recursiveStackGrowth(depth + 1, maxDepth);
     }
     
-    // 注意：这里可以看到每个递归调用的局部变量地址都不同
-    // 因为每次调用都创建了新的栈帧
+    // 本次构建通常能看到各层仍存活局部对象的地址不同；这说明各层需要
+    // 独立状态，不代表 C++ 保证每层都有固定格式的物理栈帧。
 }
 
 // ============================================================================
@@ -251,18 +254,18 @@ void run_stack_frame_demo() {
     
     recursiveStackGrowth(1, 5);
     
-    std::cout << "\n  注意：地址值递减，说明栈向下生长\n";
+    std::cout << "\n  注意：只记录本次构建的地址变化；栈生长方向和布局由平台、ABI与优化决定\n";
     
     // 总结
     std::cout << "\n\n";
     std::cout << "══════════════════════════════════════════════════════════════\n";
     std::cout << "  💡 栈帧关键知识点：\n";
     std::cout << "══════════════════════════════════════════════════════════════\n";
-    std::cout << "  1. 栈帧包含：函数参数、返回地址、保存的寄存器、局部变量\n";
-    std::cout << "  2. 参数从右向左入栈（C/C++ 调用约定）\n";
-    std::cout << "  3. 栈向低地址方向生长\n";
+    std::cout << "  1. 未完成调用通常需要保存返回与局部状态，具体位置由实现决定\n";
+    std::cout << "  2. 参数按平台ABI传递，现代ABI常优先使用寄存器，并非都压栈\n";
+    std::cout << "  3. 栈生长方向、帧指针和局部变量布局都不是C++语言保证\n";
     std::cout << "  4. 值传递创建副本，引用/指针传递操作原数据\n";
-    std::cout << "  5. 每次递归调用都创建新的栈帧\n";
+    std::cout << "  5. 常见未优化递归会为每层保留独立状态，但C++不保证固定物理栈帧\n";
     std::cout << "  6. 局部变量在函数返回后自动销毁\n";
     std::cout << "══════════════════════════════════════════════════════════════\n";
 }

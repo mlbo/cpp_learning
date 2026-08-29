@@ -10,7 +10,9 @@
 
 #include "data_structure/list_node.h"
 
-namespace leetcode {
+namespace leetcode_0206 {
+
+using day08_lists::ListNode;
 
 /**
  * @brief 反转单链表（迭代法）
@@ -36,6 +38,6 @@ ListNode* reverseList(ListNode* head);
  */
 ListNode* reverseListRecursive(ListNode* head);
 
-} // namespace leetcode
+} // namespace leetcode_0206
 
 #endif // LEETCODE_0206_SOLUTION_H

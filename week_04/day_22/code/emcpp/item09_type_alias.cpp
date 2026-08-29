@@ -13,6 +13,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <type_traits>
 
 // ==================== 传统typedef定义 ====================
 
@@ -59,6 +60,15 @@ using Ptr = std::shared_ptr<T>;
 template<typename T>
 using UPtr = std::unique_ptr<T>;
 
+// typedef 不能直接声明模板别名；旧式替代通常要包一层类模板并取嵌套 type。
+template<typename T>
+struct LegacyVecMeta {
+    typedef std::vector<T> type;
+};
+
+template<typename T>
+using RemoveConstReferenceT = std::remove_const_t<std::remove_reference_t<T>>;
+
 // 固定大小数组别名
 template<typename T, size_t N>
 using Arr = T[N];
@@ -92,7 +102,7 @@ void typedefVsUsingDemo() {
 void templateAliasDemo() {
     std::cout << "\n--- 模板别名（using独有优势）---" << std::endl;
     
-    // typedef 无法实现模板别名
+    // typedef 不能直接声明模板别名；旧式方案需要类模板包一层嵌套 type。
     // template<typename T>
     // typedef std::vector<T> Vec;  // 编译错误！
     
@@ -128,7 +138,16 @@ void templateAliasDemo() {
     Ptr<int> sharedPtr = std::make_shared<int>(42);
     std::cout << "\nPtr<int> sharedPtr: " << *sharedPtr << std::endl;
     
-    std::cout << "\n结论：模板别名是using最大的优势，typedef无法实现！" << std::endl;
+    std::cout << "\n结论：alias template 可直接产生目标类型；"
+                 "旧式 typedef 方案需要类模板与嵌套 type。" << std::endl;
+
+    typename LegacyVecMeta<int>::type legacyNumbers = {6, 7};
+    RemoveConstReferenceT<const int&> plainValue = 8;
+    static_assert(std::is_same_v<decltype(plainValue), int>);
+    std::cout << "旧式类模板需要 typename ...::type，元素数="
+              << legacyNumbers.size() << std::endl;
+    std::cout << "alias template 直接得到目标类型，去限定结果="
+              << plainValue << std::endl;
 }
 
 void functionPointerAliasDemo() {
@@ -201,7 +220,7 @@ void typeAliasDemo() {
     std::cout << "\n========== 总结 ==========" << std::endl;
     std::cout << "优先使用using的原因：" << std::endl;
     std::cout << "  1. 语法更直观：别名在左，类型在右" << std::endl;
-    std::cout << "  2. 支持模板别名：typedef无法实现" << std::endl;
-    std::cout << "  3. 函数指针更清晰：名字更突出" << std::endl;
-    std::cout << "  4. 可读性更好：统一使用\"=\"形式" << std::endl;
+    std::cout << "  2. 支持模板别名：直接得到目标类型，不必借助类模板的嵌套type" << std::endl;
+    std::cout << "  3. 与标准库_t别名一致：减少typename和::type噪声" << std::endl;
+    std::cout << "  4. 函数指针更清晰：名字更突出" << std::endl;
 }

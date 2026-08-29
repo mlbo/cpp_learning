@@ -5,12 +5,12 @@
  * 涵盖内容：
  * - Item 9: 优先使用别名声明而非typedef
  * - Item 23: 理解std::move和std::forward
- * - Item 24: 区分通用引用和右值引用
- * - Item 25: 对右值引用使用std::move，对通用引用使用std::forward
- * - Item 26: 避免在通用引用上重载
- * - Item 27: 熟悉通用引用重载的替代方案
+ * - Item 24: 区分转发引用和右值引用
+ * - Item 25: 对右值引用使用std::move，对转发引用使用std::forward
+ * - Item 26: 避免在转发引用上重载
+ * - Item 27: 熟悉转发引用重载的替代方案
  * - Item 28: 理解引用折叠
- * - Item 29: 认识移动操作的代价
+ * - Item 29: 假定移动不存在、不便宜、未被使用
  * - Item 30: 熟悉完美转发失败的情况
  */
 
@@ -21,6 +21,8 @@
 #include <utility>
 #include <functional>
 #include <type_traits>
+#include <array>
+#include <initializer_list>
 
 namespace emcpp_review {
 
@@ -32,11 +34,20 @@ namespace emcpp_review {
 template <typename T>
 using MyVector = std::vector<T>;
 
+template <typename T>
+struct LegacyVectorMeta {
+    typedef std::vector<T> type;
+};
+
+template <typename T>
+using RemoveConstReferenceT = std::remove_const_t<std::remove_reference_t<T>>;
+
 void demonstrateItem09() {
     std::cout << "=== Item 9: 别名声明 vs typedef ===\n\n";
-    
+
     // 传统typedef
     typedef std::unique_ptr<std::vector<int>> IntVectorPtr_typedef;
+    IntVectorPtr_typedef legacyPtr;
     
     // C++11别名声明（推荐）
     using IntVectorPtr = std::unique_ptr<std::vector<int>>;
@@ -46,8 +57,8 @@ void demonstrateItem09() {
     ptr1->push_back(1);
     std::cout << "别名声明创建的vector大小: " << ptr1->size() << "\n";
     
-    // 别名声明的优势：支持模板化
-    // typedef无法做到这一点
+    // 别名声明的优势：alias template 可直接产生目标类型；
+    // 旧式 typedef 方案需要类模板和嵌套 type。
     MyVector<int> vec = {1, 2, 3};
     std::cout << "模板别名创建的vector: ";
     for (int x : vec) std::cout << x << " ";
@@ -55,12 +66,21 @@ void demonstrateItem09() {
     
     // 函数指针别名
     using Callback = void(*)(int);
+    Callback callback = nullptr;
+    (void)legacyPtr;
+    (void)callback;
     // typedef void(*Callback_typedef)(int);  // 等价但更难读
     
     std::cout << "\n别名声明的优势:\n";
     std::cout << "  1. 语法更清晰直观\n";
-    std::cout << "  2. 支持模板别名\n";
-    std::cout << "  3. 可以直接在类中声明\n";
+    std::cout << "  2. alias template 可直接产生目标类型；typedef 只能借助类模板的嵌套 type\n";
+    std::cout << "  3. 与 C++14 的 _t 风格相同，可少写 typename 和 ::type\n";
+
+    typename LegacyVectorMeta<int>::type legacyVector{4, 5};
+    RemoveConstReferenceT<const int&> plain = 6;
+    static_assert(std::is_same_v<decltype(plain), int>);
+    std::cout << "  旧式元函数结果大小: " << legacyVector.size()
+              << "，别名模板去限定结果: " << plain << "\n";
 }
 
 // ========================================
@@ -73,13 +93,13 @@ void demonstrateItem23() {
     std::cout << "std::move的本质:\n";
     std::cout << "  - 只是一个类型转换（static_cast<T&&>）\n";
     std::cout << "  - 不生成任何代码\n";
-    std::cout << "  - 告诉编译器该对象可以被移动\n\n";
+    std::cout << "  - 产生 xvalue，允许后续重载选择移动操作，但不保证一定移动\n\n";
     
     std::string s1 = "Hello";
     std::string s2 = std::move(s1);
     
     std::cout << "std::move后:\n";
-    std::cout << "  s1: \"" << s1 << "\" (可能为空)\n";
+    std::cout << "  s1: \"" << s1 << "\" (仍有效，但具体状态未指定)\n";
     std::cout << "  s2: \"" << s2 << "\"\n\n";
     
     std::cout << "std::forward的本质:\n";
@@ -87,36 +107,24 @@ void demonstrateItem23() {
     std::cout << "  - 保持参数的原始值类别\n";
     std::cout << "  - 主要用于完美转发\n";
     
-    // 完美转发示例
-    auto process = [](auto&& x) {
-        using T = decltype(x);
-        if constexpr (std::is_lvalue_reference_v<T>) {
-            std::cout << "  处理左值: " << x << "\n";
-        } else {
-            std::cout << "  处理右值: " << x << "\n";
-        }
-    };
-    
-    std::string str = "World";
-    process(str);           // 左值
-    process(std::string("Temp"));  // 右值
+    std::cout << "  - 命名的右值引用参数表达式仍是左值，转发时不能直接传 x\n";
 }
 
 // ========================================
-// Item 24: 区分通用引用和右值引用
+// Item 24: 区分转发引用和右值引用
 // ========================================
 
 void demonstrateItem24() {
-    std::cout << "\n=== Item 24: 通用引用 vs 右值引用 ===\n\n";
+    std::cout << "\n=== Item 24: 转发引用 vs 右值引用 ===\n\n";
     
     // 右值引用示例
     auto rvalueRef = [](std::string&& s) {
         std::cout << "  右值引用: " << s << "\n";
     };
     
-    // 通用引用示例
-    auto universalRef = [](auto&& s) {
-        std::cout << "  通用引用: " << s << "\n";
+    // 转发引用示例
+    auto forwardingRef = [](auto&& s) {
+        std::cout << "  转发引用: " << s << "\n";
     };
     
     std::string str = "Hello";
@@ -125,13 +133,13 @@ void demonstrateItem24() {
     rvalueRef(std::string("Temp"));
     // rvalueRef(str);  // 编译错误！
     
-    std::cout << "\n通用引用可以绑定左值和右值:\n";
-    universalRef(str);                      // 绑定左值
-    universalRef(std::string("Temp"));      // 绑定右值
+    std::cout << "\n转发引用可以绑定左值和右值:\n";
+    forwardingRef(str);                      // 绑定左值
+    forwardingRef(std::string("Temp"));      // 绑定右值
     
     std::cout << "\n识别方法:\n";
-    std::cout << "  1. T&& 在模板参数推导中 → 通用引用\n";
-    std::cout << "  2. auto&& → 通用引用\n";
+    std::cout << "  1. 被推导且未加 cv 的模板参数 T 之 T&& 形参 → 转发引用\n";
+    std::cout << "  2. auto&& 从普通表达式推导时是转发引用，直接大括号列表是例外\n";
     std::cout << "  3. 类型已知的 X&& → 右值引用\n";
 }
 
@@ -150,15 +158,35 @@ public:
         std::cout << "  [右值引用] setName: " << name_ << "\n";
     }
     
-    // 对通用引用参数使用std::forward
+    // 对转发引用参数使用std::forward
     template<typename T>
     void setNameUniversal(T&& name) {
         name_ = std::forward<T>(name);
-        std::cout << "  [通用引用] setName: " << name_ << "\n";
+        std::cout << "  [转发引用] setName: " << name_ << "\n";
     }
     
     const std::string& name() const { return name_; }
 };
+
+enum class ForwardingRoute {
+    Lvalue,
+    Rvalue
+};
+
+ForwardingRoute receiveName(const std::string&) {
+    std::cout << "  目标重载收到左值\n";
+    return ForwardingRoute::Lvalue;
+}
+
+ForwardingRoute receiveName(std::string&&) {
+    std::cout << "  目标重载收到右值\n";
+    return ForwardingRoute::Rvalue;
+}
+
+template<typename T>
+ForwardingRoute forwardName(T&& name) {
+    return receiveName(std::forward<T>(name));
+}
 
 void demonstrateItem25() {
     std::cout << "\n=== Item 25: 正确使用std::move和std::forward ===\n\n";
@@ -168,22 +196,24 @@ void demonstrateItem25() {
     std::cout << "右值引用参数使用std::move:\n";
     w.setName(std::string("RightValue"));
     
-    std::cout << "\n通用引用参数使用std::forward:\n";
+    std::cout << "\n转发引用参数使用std::forward:\n";
     std::string name = "LeftValue";
     w.setNameUniversal(name);
     w.setNameUniversal(std::string("RightValue2"));
+    forwardName(name);
+    forwardName(std::string("Temporary"));
     
     std::cout << "\n规则总结:\n";
     std::cout << "  - 右值引用参数 → std::move\n";
-    std::cout << "  - 通用引用参数 → std::forward\n";
+    std::cout << "  - 转发引用参数 → std::forward\n";
     std::cout << "  - 返回值优化场景 → 都不用\n";
 }
 
 // ========================================
-// Item 26-27: 避免在通用引用上重载
+// Item 26-27: 避免在转发引用上重载
 // ========================================
 
-// 错误示例：通用引用与重载的组合问题
+// 错误示例：转发引用与重载的组合问题
 class BadStringSetter {
 private:
     std::string name_;
@@ -195,50 +225,61 @@ public:
         std::cout << "  [const&] setName: " << name_ << "\n";
     }
     
-    // 重载2：通用引用（会匹配几乎所有类型！）
+    // 重载2：转发引用（会匹配很多不同类型）
     template<typename T>
     void setName(T&& name) {
         name_ = std::forward<T>(name);
-        std::cout << "  [通用引用] setName: " << name_ << "\n";
+        std::cout << "  [转发引用] setName: " << name_ << "\n";
     }
 };
 
 // 正确方案：使用标签分发或限制模板
+enum class SetterRoute {
+    Name,
+    Index
+};
+
 class GoodStringSetter {
 private:
     std::string name_;
     
 public:
-    // 使用SFINAE限制通用引用
+    // 只有能构造业务名称、且不是类自身的类型，才允许模板参与候选集。
     template<typename T,
-             typename = std::enable_if_t<!std::is_same_v<std::decay_t<T>, GoodStringSetter>>>
-    void setName(T&& name) {
+             std::enable_if_t<
+                 std::is_constructible_v<std::string, T&&> &&
+                 !std::is_same_v<std::decay_t<T>, GoodStringSetter>, int> = 0>
+    SetterRoute setName(T&& name) {
         name_ = std::forward<T>(name);
-        std::cout << "  [受限通用引用] setName: " << name_ << "\n";
+        std::cout << "  [受限转发引用] setName: " << name_ << "\n";
+        return SetterRoute::Name;
     }
     
-    void setName(int index) {
+    SetterRoute setName(int index) {
         name_ = "Index_" + std::to_string(index);
         std::cout << "  [int重载] setName: " << name_ << "\n";
+        return SetterRoute::Index;
     }
 };
 
 void demonstrateItem26_27() {
-    std::cout << "\n=== Item 26-27: 通用引用与重载 ===\n\n";
+    std::cout << "\n=== Item 26-27: 转发引用与重载 ===\n\n";
     
-    std::cout << "问题：通用引用是贪婪的匹配\n";
-    std::cout << "  它会匹配几乎任何类型，包括重载候选\n\n";
+    std::cout << "Item 26 问题：转发引用常给出无需 const 转换的精确匹配\n";
+    std::cout << "  非 const string 左值和字符串字面量都可能绕过预期的 const string& 重载\n\n";
     
     BadStringSetter bad;
     std::cout << "BadStringSetter:\n";
-    bad.setName(std::string("Hello"));  // 调用哪个？
-    bad.setName("World");               // 调用哪个？
+    std::string nonConstName = "Hello";
+    bad.setName(nonConstName);           // 模板可绑定为 string&，比 const string& 少一次限定转换
+    bad.setName("World");                // 模板可直接绑定数组类型
     
     std::cout << "\n解决方案:\n";
     std::cout << "  1. 放弃重载（使用不同函数名）\n";
-    std::cout << "  2. 使用const T&（放弃移动语义）\n";
-    std::cout << "  3. 标签分发（Tag Dispatch）\n";
-    std::cout << "  4. 限制模板参数（SFINAE）\n";
+    std::cout << "  2. 使用 const T&，接口简单但不专门利用右值\n";
+    std::cout << "  3. 按值接收再移动，适合本来就要保存一份副本的参数\n";
+    std::cout << "  4. 标签分发，把分类判断与实际处理分开\n";
+    std::cout << "  5. SFINAE/约束模板，只让合法类型进入候选集\n";
     
     std::cout << "\nGoodStringSetter示例:\n";
     GoodStringSetter good;
@@ -246,6 +287,9 @@ void demonstrateItem26_27() {
     good.setName(s);
     good.setName(std::string("Move"));
     good.setName(42);
+    short shortIndex = 7;
+    good.setName(shortIndex);  // 名称模板不可行，short 提升到 int 重载
+    std::cout << "  short 与 int 都走索引语义，字符串类型才走名称模板\n";
 }
 
 // ========================================
@@ -255,7 +299,7 @@ void demonstrateItem26_27() {
 // 辅助模板函数：类型推导演示
 // 必须在namespace级别定义
 template <typename T>
-const char* deduceType(T&& param) {
+const char* deduceType(T&&) {
     if constexpr (std::is_lvalue_reference_v<T>) {
         return "左值引用";
     } else {
@@ -284,16 +328,38 @@ void demonstrateItem28() {
 }
 
 // ========================================
-// Item 29: 移动操作的代价
+// Item 29: 假定移动不存在、不便宜、未被使用
 // ========================================
 
+class CopyOnly {
+public:
+    CopyOnly() = default;
+    CopyOnly(const CopyOnly&) {
+        std::cout << "  CopyOnly 从右值初始化时仍调用复制构造\n";
+    }
+};
+
+class MoveAudit {
+public:
+    inline static int copies = 0;
+    inline static int moves = 0;
+
+    MoveAudit() = default;
+    MoveAudit(const MoveAudit&) { ++copies; }
+    MoveAudit(MoveAudit&&) { ++moves; } // 故意不标 noexcept
+};
+
 void demonstrateItem29() {
-    std::cout << "\n=== Item 29: 移动操作的代价 ===\n\n";
+    std::cout << "\n=== Item 29: 假定移动不存在、不便宜、未被使用 ===\n\n";
     
-    std::cout << "移动不是免费的:\n";
-    std::cout << "  1. 需要更新源对象和目标对象的指针\n";
-    std::cout << "  2. 对于小型对象，移动可能不比拷贝快\n";
-    std::cout << "  3. 标准库容器的移动需要考虑元素数量\n\n";
+    std::cout << "先写出三种反例，再决定是否把性能归功于移动:\n";
+    std::cout << "  1. 移动不存在：类型没有移动操作时，右值仍可能绑定 const& 并复制\n";
+    std::cout << "  2. 移动不便宜：std::array 必须逐元素处理，短字符串还可能使用 SSO\n";
+    std::cout << "  3. 移动未被使用：const 对象不能交给通常接收 T&& 的移动构造；容器迁移还会考虑 noexcept\n\n";
+
+    CopyOnly source;
+    CopyOnly copiedFromRvalue(std::move(source));
+    (void)copiedFromRvalue;
     
     // 小型数组：移动不比拷贝快
     std::array<int, 5> arr1 = {1, 2, 3, 4, 5};
@@ -303,57 +369,153 @@ void demonstrateItem29() {
     std::cout << "  小型array的移动 = 元素级拷贝\n";
     std::cout << "  arr1仍包含: ";
     for (int x : arr1) std::cout << x << " ";
+    std::cout << "；目标首元素: " << arr2.front();
     std::cout << "\n\n";
+
+    const std::string constText = "const source";
+    std::string copiedText = std::move(constText);
+    std::cout << "const string 经 std::move 后目标内容: " << copiedText
+              << "（通常选择复制构造）\n";
+
+    MoveAudit::copies = 0;
+    MoveAudit::moves = 0;
+    std::vector<MoveAudit> audits;
+    audits.reserve(1);
+    audits.emplace_back();
+    audits.emplace_back();
+    std::cout << "vector 扩容迁移旧元素: copies=" << MoveAudit::copies
+              << ", moves=" << MoveAudit::moves
+              << "（可复制且移动可能抛异常时，容器可选择复制）\n\n";
     
     std::cout << "最佳实践:\n";
-    std::cout << "  1. 大型对象优先移动\n";
-    std::cout << "  2. 不要过度优化\n";
-    std::cout << "  3. 让编译器处理返回值优化\n";
+    std::cout << "  1. 在泛型代码中先按移动可能等同复制来保证复杂度判断可靠\n";
+    std::cout << "  2. 对具体类型与具体实现测量，不把 SSO 阈值写成标准保证\n";
+    std::cout << "  3. 保持异常安全并让编译器处理返回值优化\n";
 }
 
 // ========================================
 // Item 30: 完美转发失败的情况
 // ========================================
 
+void consumeVector(const std::vector<int>& values) {
+    std::cout << "   目标函数收到 vector，元素数=" << values.size() << "\n";
+}
+
+void consumePointer(int* pointer) {
+    std::cout << "   目标函数收到 " << (pointer == nullptr ? "nullptr" : "非空指针") << "\n";
+}
+
+enum class CallbackRoute {
+    None,
+    Overload,
+    FunctionTemplate
+};
+
+CallbackRoute lastCallbackRoute = CallbackRoute::None;
+
+void overloaded(int) {
+    lastCallbackRoute = CallbackRoute::Overload;
+}
+void overloaded(double) {}
+
+template<typename T>
+void functionTemplate(T) {
+    lastCallbackRoute = CallbackRoute::FunctionTemplate;
+}
+
+void consumeCallback(void (*callback)(int)) {
+    callback(0);
+    std::cout << "   目标函数收到已消歧的函数指针\n";
+}
+
+template<typename Function, typename... Args>
+decltype(auto) fwdCall(Function&& function, Args&&... args) {
+    return std::invoke(std::forward<Function>(function),
+                       std::forward<Args>(args)...);
+}
+
+struct StaticLimit {
+    static const int value = 42; // 这里只在类内声明，没有类外定义
+};
+
+void consumeNumber(int value) {
+    std::cout << "   目标函数收到整数 " << value << "\n";
+}
+
+struct ReviewBitField {
+    unsigned mode : 3;
+};
+
 void demonstrateItem30() {
     std::cout << "\n=== Item 30: 完美转发失败的情况 ===\n\n";
-    
-    // 完美转发失败的情况示例
-    auto fwd = [](auto&&... args) {
-        // 模拟完美转发
-    };
     
     std::cout << "完美转发失败的情况:\n\n";
     
     // 1. 花括号初始化列表
     std::cout << "1. 花括号初始化列表:\n";
-    // fwd({1, 2, 3});  // 编译错误！无法推导
+    // fwdCall(consumeVector, {1, 2, 3}); // 错误：大括号列表通常没有普通表达式类型
     std::vector<int> v{1, 2, 3};  // 需要先创建对象
-    std::cout << "   解决：先创建对象再转发\n\n";
+    fwdCall(consumeVector, v);
+    std::cout << "   auto x = {1,2,3} 推导 initializer_list 是 auto 的特殊规则，不是普通模板推导规则\n\n";
     
     // 2. 0和NULL作为空指针
     std::cout << "2. 0/NULL作为空指针:\n";
-    void (*func)(int*) = nullptr;
-    // fwd(func, 0);    // 可能导致int而非int*
-    // fwd(func, NULL); // 同样的问题
-    fwd(func, nullptr); // 正确
-    std::cout << "   解决：使用nullptr\n\n";
+    // fwdCall(consumePointer, 0); // 0 被推导成 int，转发后不再是空指针常量
+    fwdCall(consumePointer, nullptr);
+    std::cout << "   nullptr 的类型是 std::nullptr_t；它不是指针类型，但可安全转换到指针类型\n\n";
     
     // 3. 仅声明的静态常量整型成员
-    struct Widget2 {
-        enum { value = 42 };
-    };
-    // const int Widget2::value;  // 需要定义
     std::cout << "3. 静态常量成员:\n";
-    std::cout << "   仅声明的静态常量成员无法取地址\n";
-    std::cout << "   解决：提供定义或使用constexpr\n\n";
-    
-    // 4. 重载函数和模板函数
-    std::cout << "4. 重载函数名:\n";
-    auto f1 = [](int) {};
-    auto f2 = [](double) {};
-    // fwd(重载函数名);  // 无法确定调用哪个
-    std::cout << "   解决：显式指定类型或使用函数指针\n";
+    // fwdCall(consumeNumber, StaticLimit::value); // 绑定引用会 ODR-use，因缺少类外定义而链接失败
+    fwdCall(consumeNumber, static_cast<int>(StaticLimit::value));
+    std::cout << "   解决：提供类外定义，或先产生不需要绑定该成员地址的值\n\n";
+
+    // 4. 重载函数和函数模板名
+    std::cout << "4. 重载函数名与函数模板名:\n";
+    // fwdCall(consumeCallback, overloaded); // 错误：模板无法知道选择哪个重载
+    using IntCallback = void (*)(int);
+    fwdCall(consumeCallback, static_cast<IntCallback>(overloaded));
+    // fwdCall(consumeCallback, functionTemplate); // 错误：模板无法选择函数模板实例
+    fwdCall(consumeCallback, static_cast<IntCallback>(functionTemplate<int>));
+    std::cout << "   解决：用目标函数指针类型消歧，并显式选择所需函数模板实例\n\n";
+
+    // 5. 位域
+    std::cout << "5. 位域:\n";
+    ReviewBitField bits{5};
+    // fwdCall(consumeNumber, bits.mode); // 错误：位域不能绑定到转发引用
+    const int copiedMode = static_cast<int>(bits.mode);
+    fwdCall(consumeNumber, copiedMode);
+    std::cout << "   位域没有可独立取址的对象身份；先复制到普通对象再转发\n";
+}
+
+bool verifySemanticContracts() {
+    static_assert(std::is_same_v<MyVector<int>, std::vector<int>>);
+    static_assert(std::is_same_v<RemoveConstReferenceT<const int&>, int>);
+
+    std::string name = "left";
+    const bool forwardingWorks =
+        forwardName(name) == ForwardingRoute::Lvalue &&
+        forwardName(std::string("right")) == ForwardingRoute::Rvalue;
+
+    GoodStringSetter setter;
+    short shortIndex = 7;
+    const bool constrainedRoutesWork =
+        setter.setName("cache") == SetterRoute::Name &&
+        setter.setName(42) == SetterRoute::Index &&
+        setter.setName(shortIndex) == SetterRoute::Index;
+
+    ReviewBitField bits{5};
+    const int copiedMode = static_cast<int>(bits.mode);
+    fwdCall(consumeNumber, copiedMode);
+    using IntCallback = void (*)(int);
+    fwdCall(consumeCallback, static_cast<IntCallback>(overloaded));
+    const bool overloadResolved = lastCallbackRoute == CallbackRoute::Overload;
+    fwdCall(consumeCallback, static_cast<IntCallback>(functionTemplate<int>));
+    const bool functionTemplateResolved =
+        lastCallbackRoute == CallbackRoute::FunctionTemplate;
+
+    return forwardingWorks && constrainedRoutesWork && copiedMode == 5 &&
+           overloadResolved && functionTemplateResolved;
 }
 
 // ========================================
@@ -378,3 +540,7 @@ void demonstrate() {
 }
 
 } // namespace emcpp_review
+
+bool verifyEMCPPReviewContract() {
+    return emcpp_review::verifySemanticContracts();
+}

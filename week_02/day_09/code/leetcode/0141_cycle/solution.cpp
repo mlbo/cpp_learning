@@ -10,6 +10,10 @@
 
 #include "solution.h"
 #include <iostream>
+#include <memory>
+#include <unordered_set>
+
+namespace leetcode_0141 {
 
 // ============================================================
 // 解法：快慢指针（Floyd 判圈算法）
@@ -41,29 +45,30 @@ bool Solution::hasCycle(ListNode* head) {
 
 ListNode* Solution::createList(const std::vector<int>& vals) {
     if (vals.empty()) return nullptr;
-    
-    ListNode* head = new ListNode(vals[0]);
-    ListNode* cur = head;
-    for (size_t i = 1; i < vals.size(); ++i) {
-        cur->next = new ListNode(vals[i]);
+
+    const auto delete_chain = [this](ListNode* node) { deleteList(node); };
+    std::unique_ptr<ListNode, decltype(delete_chain)> owner(
+        new ListNode(vals[0]), delete_chain);
+    ListNode* cur = owner.get();
+    for (std::size_t i = 1; i < vals.size(); ++i) {
+        auto node = std::make_unique<ListNode>(vals[i]);
+        cur->next = node.release();
         cur = cur->next;
     }
-    return head;
+    return owner.release();
 }
 
 ListNode* Solution::createListWithCycle(const std::vector<int>& vals, int pos) {
-    if (vals.empty()) return nullptr;
-    
-    ListNode* head = new ListNode(vals[0]);
+    ListNode* head = createList(vals);
+    if (!head) return nullptr;
+
     ListNode* cur = head;
-    
-    for (size_t i = 1; i < vals.size(); ++i) {
-        cur->next = new ListNode(vals[i]);
+    while (cur->next) {
         cur = cur->next;
     }
     
     // 创建环：pos 是环入口的索引（从0开始）
-    if (pos >= 0 && pos < static_cast<int>(vals.size())) {
+    if (pos >= 0 && static_cast<std::size_t>(pos) < vals.size()) {
         ListNode* cycleEntry = head;
         for (int i = 0; i < pos; ++i) {
             cycleEntry = cycleEntry->next;
@@ -75,12 +80,11 @@ ListNode* Solution::createListWithCycle(const std::vector<int>& vals, int pos) {
 }
 
 void Solution::deleteList(ListNode* head) {
-    // 注意：对于有环链表，这个函数会导致无限循环
-    // 这里假设链表无环
-    while (head) {
-        ListNode* tmp = head;
-        head = head->next;
-        delete tmp;
+    std::unordered_set<ListNode*> visited;
+    while (head && visited.insert(head).second) {
+        ListNode* next_node = head->next;
+        delete head;
+        head = next_node;
     }
 }
 
@@ -101,7 +105,7 @@ void testLinkedListCycle() {
     ListNode* list2 = sol.createListWithCycle({3, 2, 0, -4}, 1);
     std::cout << "  链表: 3 -> 2 -> 0 -> -4 -> 2(环入口)\n";
     std::cout << "  是否有环: " << (sol.hasCycle(list2) ? "是" : "否") << "\n";
-    // 注意：list2 有环，不能用 deleteList 清理
+    sol.deleteList(list2);
     
     std::cout << "\n【测试用例3：单节点无环】\n";
     ListNode* list3 = sol.createList({1});
@@ -117,9 +121,12 @@ void testLinkedListCycle() {
     ListNode* list5 = sol.createListWithCycle({1}, 0);
     std::cout << "  链表: 1 -> 1(自环)\n";
     std::cout << "  是否有环: " << (sol.hasCycle(list5) ? "是" : "否") << "\n";
+    sol.deleteList(list5);
     
     std::cout << "\n算法分析：\n";
     std::cout << "  • 时间复杂度：O(n)，最坏情况遍历所有节点\n";
     std::cout << "  • 空间复杂度：O(1)，只使用两个指针\n";
     std::cout << "  • 原理：如果有环，快指针最终会追上慢指针\n";
 }
+
+} // namespace leetcode_0141

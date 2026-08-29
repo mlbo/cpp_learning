@@ -14,13 +14,16 @@
 
 #include <vector>
 
+// 每道题拥有自己的模块边界；这样多个solution.h可以安全组合包含。
+namespace leetcode_0021 {
+
 // 链表节点定义
 struct ListNode {
     int val;
     ListNode* next;
     ListNode() : val(0), next(nullptr) {}
     ListNode(int x) : val(x), next(nullptr) {}
-    ListNode(int x, ListNode* next) : val(x), next(next) {}
+    ListNode(int x, ListNode* next_node) : val(x), next(next_node) {}
 };
 
 class Solution {
@@ -32,6 +35,10 @@ public:
      * 
      * 时间复杂度：O(n + m)，n和m分别是两个链表的长度
      * 空间复杂度：O(1)，只使用常量额外空间
+     *
+     * @note 原地重连两个输入链表的既有节点，不分配结果节点。返回后，调用者
+     *       只能把返回值视为整条链的唯一释放入口，不能再分别释放list1/list2。
+     * @pre 两条输入链均无环、升序且节点集合互不重叠。
      */
     ListNode* mergeTwoListsIterative(ListNode* list1, ListNode* list2);
     
@@ -42,6 +49,7 @@ public:
      * 
      * 时间复杂度：O(n + m)
      * 空间复杂度：O(n + m)，递归调用栈
+     * @note 与迭代版相同，会修改输入节点的next关系。
      */
     ListNode* mergeTwoListsRecursive(ListNode* list1, ListNode* list2);
     
@@ -60,4 +68,6 @@ public:
 };
 
 // 测试函数
-void testMergeLists();
+bool testMergeLists();
+
+} // namespace leetcode_0021

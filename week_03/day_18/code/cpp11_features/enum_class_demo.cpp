@@ -56,7 +56,9 @@ void enumClassDemo() {
     std::cout << "  问题3：类型不安全" << std::endl;
     OldColor c = RED;
     OldSize s = SMALL;
-    if (c == s) {  // 不同类型可以比较！
+    // 传统枚举都能隐式转成整数；直接跨枚举比较会得到编译器诊断，
+    // 但转成整数后仍可能把两个无关领域的相同编码误当成相等。
+    if (static_cast<int>(c) == static_cast<int>(s)) {
         std::cout << "    OldColor::RED == OldSize::SMALL（语义错误！）" << std::endl;
     }
     
@@ -67,7 +69,8 @@ void enumClassDemo() {
     std::cout << "  优势1：作用域限定" << std::endl;
     Color c2 = Color::RED;  // 必须使用 Color::
     // int y = RED;  // 错误！RED不在全局作用域
-    std::cout << "    Color::RED - 必须用类名限定" << std::endl;
+    std::cout << "    Color::RED - 必须用类名限定，编码为 "
+              << static_cast<int>(c2) << std::endl;
     
     // 优势2：不隐式转换
     std::cout << "  优势2：不隐式转换" << std::endl;
@@ -77,13 +80,15 @@ void enumClassDemo() {
     // 显式转换
     int value = static_cast<int>(Color::RED);
     std::cout << "    static_cast<int>(Color::RED) = " << value << std::endl;
+    std::cout << "    显式转换是有意的摩擦：只在序列化、索引或旧接口边界转换" << std::endl;
     
     // 优势3：类型安全
     std::cout << "  优势3：类型安全" << std::endl;
     Color c3 = Color::GREEN;
     Size s3 = Size::SMALL;
     // if (c3 == s3) { }  // 错误！不同类型不能比较
-    std::cout << "    Color::GREEN == Size::SMALL 编译错误！" << std::endl;
+    std::cout << "    Color::GREEN(" << static_cast<int>(c3) << ") 与 Size::SMALL("
+              << static_cast<int>(s3) << ") 即使编码可见，也不能直接比较" << std::endl;
     
     // ========== 3. switch用法 ==========
     std::cout << "\n--- 3. switch用法 ---" << std::endl;

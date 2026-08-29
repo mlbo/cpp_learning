@@ -5,7 +5,7 @@
  * 本周复习内容：
  * 1. 哈希表数据结构
  * 2. 右值引用与移动语义
- * 3. 通用引用与完美转发
+ * 3. 转发引用与完美转发
  * 4. EMC++ Item 9, 23-30
  * 5. LRU/LFU缓存设计
  */
@@ -21,6 +21,8 @@ namespace hash_table_review {
 
 namespace move_semantics_review {
     void demonstrate();
+    bool verify_forwarding_contract();
+    bool verify_special_member_stream_contract();
 }
 
 namespace emcpp_review {
@@ -58,6 +60,16 @@ int main() {
     // ========================================
     printSeparator("第二部分：移动语义复习");
     move_semantics_review::demonstrate();
+    if (!move_semantics_review::verify_forwarding_contract()) {
+        std::cerr << "移动语义转发契约验证失败\n";
+        return 1;
+    }
+    if (!move_semantics_review::verify_special_member_stream_contract()) {
+        std::cerr << "资源特殊成员的流异常隔离契约验证失败\n";
+        return 1;
+    }
+    std::cout << "[契约] 左值/右值已到达对应目标重载\n";
+    std::cout << "[契约] 构造、复制与移动不依赖观察流\n";
 
     // ========================================
     // 第三部分：EMC++条款复习
@@ -82,18 +94,19 @@ int main() {
     std::cout << "   - 装载因子影响性能，需要动态扩容\n\n";
     
     std::cout << "2. 移动语义\n";
-    std::cout << "   - 左值 vs 右值：有名字/无名字，可取地址/不可取地址\n";
-    std::cout << "   - std::move：将左值转换为右值引用\n";
-    std::cout << "   - 移动构造/移动赋值：资源所有权转移\n";
-    std::cout << "   - Rule of Five：析构、拷贝、移动五大函数\n\n";
+    std::cout << "   - 值类别是表达式属性：左值有身份，右值包含纯右值与将亡值\n";
+    std::cout << "   - std::move：产生 xvalue，但不执行或保证资源转移\n";
+    std::cout << "   - 移动构造/移动赋值：可按类型契约复用或转移资源\n";
+    std::cout << "   - Rule of Zero优先；直接管理资源时再系统检查Rule of Five\n\n";
     
-    std::cout << "3. 通用引用与完美转发\n";
-    std::cout << "   - T&& 在类型推导上下文中是通用引用\n";
+    std::cout << "3. 转发引用与完美转发\n";
+    std::cout << "   - 调用点推导、未加 cv 的模板参数 T 之精确 T&& 形参才是转发引用\n";
+    std::cout << "   - auto&& 从普通表达式推导时有对应行为，直接大括号列表是例外\n";
     std::cout << "   - 引用折叠规则决定最终类型\n";
-    std::cout << "   - std::forward 实现完美转发\n\n";
+    std::cout << "   - 转发引用配合 std::forward，把原值类别送到真实目标重载\n\n";
     
     std::cout << "4. 缓存设计 (LRU/LFU)\n";
-    std::cout << "   - LRU：哈希表 + 双向链表，O(1)操作\n";
+    std::cout << "   - LRU：哈希表 + 双向链表，哈希表假设下平均 O(1) 操作\n";
     std::cout << "   - LFU：多层频率结构，复杂但高效\n";
     std::cout << "   - 面试高频题，需要熟练掌握\n\n";
 

@@ -27,20 +27,20 @@
 
 ```
 初始化:
-  p1 = m - 1    // nums1 有效元素的末尾
-  p2 = n - 1    // nums2 的末尾
-  p  = m + n - 1 // 合并后的末尾位置
+  先验证 m、n 非负且不超过两个缓冲区
+  p1 = m        // nums1 未处理区间 [0, p1)
+  p2 = n        // nums2 未处理区间 [0, p2)
+  output = m+n  // 待填区间 [0, output)
 
-循环 (p1 >= 0 && p2 >= 0):
-  如果 nums1[p1] > nums2[p2]:
-    nums1[p] = nums1[p1], p1--
+循环 (p1 > 0 && p2 > 0):
+  如果 nums1[p1-1] > nums2[p2-1]:
+    p1--, output--, nums1[output] = nums1[p1]
   否则:
-    nums1[p] = nums2[p2], p2--
-  p--
+    p2--, output--, nums1[output] = nums2[p2]
 
 处理剩余:
-  如果 p2 >= 0:
-    复制 nums2 剩余元素到 nums1 前面
+  当 p2 > 0:
+    先缩短 p2/output，再复制 nums2 剩余元素到 nums1 前面
 ```
 
 #### 为什么逆向？
@@ -62,26 +62,36 @@
 ## 代码实现
 
 ```cpp
-void merge(vector<int>& nums1, int m, vector<int>& nums2, int n) {
-    int p1 = m - 1;          // nums1 有效元素末尾
-    int p2 = n - 1;          // nums2 末尾
-    int p = m + n - 1;       // 合并后末尾
+void merge(vector<int>& nums1, int m, const vector<int>& nums2, int n) {
+    const auto [first_size, second_size] =
+        validate_lengths(nums1, m, nums2, n);
+    size_t p1 = first_size;                   // 未处理区间 [0, p1)
+    size_t p2 = second_size;                  // 未处理区间 [0, p2)
+    size_t output = first_size + second_size; // 待填充区间 [0, output)
 
     // 从后往前比较填充
-    while (p1 >= 0 && p2 >= 0) {
-        if (nums1[p1] > nums2[p2]) {
-            nums1[p--] = nums1[p1--];
+    while (p1 > 0 && p2 > 0) {
+        if (nums1[p1 - 1] > nums2[p2 - 1]) {
+            --p1;
+            --output;
+            nums1[output] = nums1[p1];
         } else {
-            nums1[p--] = nums2[p2--];
+            --p2;
+            --output;
+            nums1[output] = nums2[p2];
         }
     }
 
     // 处理 nums2 剩余元素
-    while (p2 >= 0) {
-        nums1[p--] = nums2[p2--];
+    while (p2 > 0) {
+        --p2;
+        --output;
+        nums1[output] = nums2[p2];
     }
 }
 ```
+
+`validate_lengths` 先拒绝负长度，并验证 `m`、`n` 没有超出两个输入缓冲区。内部用“剩余元素数量”而不是 `-1` 哨兵表示空区间，因此空输入不依赖有符号下标，也不会先计算可能溢出的 `m + n - 1`。
 
 ---
 

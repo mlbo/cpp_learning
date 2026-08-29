@@ -11,6 +11,10 @@
 #ifndef LEETCODE_148_SOLUTION_H
 #define LEETCODE_148_SOLUTION_H
 
+#include <cstddef>
+
+namespace leetcode_0148 {
+
 // 链表节点定义
 struct ListNode {
     int val;
@@ -32,6 +36,8 @@ public:
      * 
      * 时间复杂度：O(n log n)
      * 空间复杂度：O(log n) - 递归栈
+     * @note 原地重连输入节点并返回新的释放入口，不分配结果节点。
+     * @pre 输入必须是无环单链表。
      */
     ListNode* sortList(ListNode* head);
     
@@ -65,7 +71,9 @@ private:
      * @param step 分割步长
      * @return 分割后的下一个节点（或nullptr）
      */
-    ListNode* split(ListNode* head, int step);
+    ListNode* split(ListNode* head, std::size_t step);
 };
+
+} // namespace leetcode_0148
 
 #endif // LEETCODE_148_SOLUTION_H

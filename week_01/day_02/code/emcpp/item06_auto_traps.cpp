@@ -3,7 +3,7 @@
  * @brief EMC++ 条款6：auto推导陷阱
  * 
  * 主要陷阱：
- * 1. 隐式类型转换 - 大括号初始化推导为std::initializer_list
+ * 1. 列表初始化 - 带等号的 auto 花括号初始化推导为 std::initializer_list
  * 2. 代理类问题 - vector<bool>::operator[]返回代理对象
  * 3. 类型不匹配 - 隐式类型转换可能导致bug
  */
@@ -22,8 +22,8 @@ namespace emcpp {
 /**
  * @brief 演示auto与大括号初始化的陷阱
  * 
- * auto x{42}; 推导为 std::initializer_list<int>
- * 而不是 int！
+ * auto x = {42}; 推导为 std::initializer_list<int>，
+ * auto x{42}; 则推导为 int（单元素直接列表初始化）。
  */
 void demonstrate_brace_init_trap() {
     std::cout << "陷阱1 - 大括号初始化:" << std::endl;
@@ -32,8 +32,7 @@ void demonstrate_brace_init_trap() {
     auto x1 = 42;           // int
     std::cout << "auto x1 = 42 -> " << typeid(x1).name() << std::endl;
     
-    // 使用大括号初始化（C++11/C++14）
-    // 注意：C++17后单元素大括号初始化会推导为元素类型
+    // 带等号的列表初始化会推导 std::initializer_list
     auto x2 = {42};         // std::initializer_list<int>
     std::cout << "auto x2 = {42} -> " << typeid(x2).name() << std::endl;
     
@@ -48,6 +47,7 @@ void demonstrate_brace_init_trap() {
     // 验证类型
     static_assert(std::is_same_v<decltype(x1), int>);
     static_assert(std::is_same_v<decltype(x2), std::initializer_list<int>>);
+    (void)x4; (void)x5;
     
     std::cout << "\n最佳实践: 使用 auto x = 42; 而非 auto x = {42};" << std::endl;
 }
@@ -57,8 +57,8 @@ void demonstrate_brace_init_trap() {
 /**
  * @brief 演示vector<bool>的代理类陷阱
  * 
- * vector<bool>不是真正的vector，它的operator[]返回代理对象
- * 这个代理对象在表达式结束后可能失效
+ * vector<bool> 是标准库对 bool 的空间优化特化，operator[] 返回代理对象。
+ * 代理不会在当前完整表达式结束时自动失效，但它依赖 vector 的底层存储。
  */
 void demonstrate_proxy_class_trap() {
     std::cout << "\n陷阱2 - vector<bool>代理类问题:" << std::endl;
@@ -67,9 +67,9 @@ void demonstrate_proxy_class_trap() {
     
     // 问题代码：auto推导为代理类型
     // auto x = vec[0];  // x 是 std::vector<bool>::reference 代理对象
-    // 在某些情况下可能导致未定义行为
+    // 容器发生重新分配、被清空或销毁后再使用它，才可能导致未定义行为
     
-    std::cout << "  直接使用auto可能产生悬垂引用" << std::endl;
+    std::cout << "  直接使用auto会保存依赖底层存储的代理对象" << std::endl;
     std::cout << "  正确做法: bool val = vec[0];" << std::endl;
     
     // 正确做法1：显式转换为bool
@@ -80,7 +80,7 @@ void demonstrate_proxy_class_trap() {
     
     // 错误示例（仅演示，不要在生产代码中使用）：
     // auto bad = vec[0];
-    // 这里bad是代理对象，如果vec被修改，bad可能失效
+    // 这里 bad 是代理对象；如果 vec 的底层存储失效，bad 也可能失效
     
     std::cout << "  val1 = " << val1 << ", val2 = " << val2 << std::endl;
 }
@@ -113,14 +113,16 @@ void demonstrate_type_mismatch_trap() {
     // 问题代码：使用无符号数
     // auto size = vec.size();  // size_t (无符号)
     // int index = -1;
-    // if (index < size) { ... }  // 永远为true！因为size是无符号数
+    // if (index < size) { ... }  // 结果可能违背直觉：index 会先转换为无符号数
     
     std::cout << "  vec.size() 返回 size_t (无符号)" << std::endl;
     std::cout << "  与有符号数比较可能导致意外结果" << std::endl;
     
-    // 正确做法
-    auto size = static_cast<int>(vec.size());
-    std::cout << "  推荐: auto size = static_cast<int>(vec.size());" << std::endl;
+    // 先保持接口的真实类型；若业务确实需要有符号索引，应先检查范围再转换
+    auto size = vec.size();
+    (void)size;
+    std::cout << "  保持真实类型: auto size = vec.size();" << std::endl;
+    std::cout << "  若允许负数索引，统一使用有符号类型并在转换前检查范围" << std::endl;
     
     // 另一个例子：数值范围
     // auto smallVal = someInt32Function();
@@ -154,6 +156,7 @@ void demonstrate_array_decay_trap() {
     auto arrCopy = stdArr;   // std::array<int, 5> - 不会退化
     
     std::cout << "推荐使用 std::array 避免数组退化" << std::endl;
+    (void)arrCopy;
 }
 
 // ==================== 陷阱5：顶层const忽略 ====================
@@ -179,6 +182,7 @@ void demonstrate_const_trap() {
     
     std::cout << "auto a = const int -> " << typeid(a).name() << " (const被忽略)" << std::endl;
     std::cout << "const auto b = const int -> const int (显式保留)" << std::endl;
+    (void)b; (void)c; (void)d;
     
     std::cout << "\n建议: 如果需要const，显式写出 const auto" << std::endl;
 }

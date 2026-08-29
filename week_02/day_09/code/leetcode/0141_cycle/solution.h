@@ -11,13 +11,15 @@
 
 #include <vector>
 
+namespace leetcode_0141 {
+
 // 链表节点定义
 struct ListNode {
     int val;
     ListNode* next;
     ListNode() : val(0), next(nullptr) {}
     ListNode(int x) : val(x), next(nullptr) {}
-    ListNode(int x, ListNode* next) : val(x), next(next) {}
+    ListNode(int x, ListNode* next_node) : val(x), next(next_node) {}
 };
 
 class Solution {
@@ -43,8 +45,11 @@ public:
     // 辅助函数
     ListNode* createList(const std::vector<int>& vals);
     ListNode* createListWithCycle(const std::vector<int>& vals, int pos);
+    /** @brief 释放无环或有环链表，每个可达节点恰好释放一次。 */
     void deleteList(ListNode* head);
 };
 
 // 测试函数
 void testLinkedListCycle();
+
+} // namespace leetcode_0141

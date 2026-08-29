@@ -39,7 +39,7 @@ void demo_basic_overload() {
     process(0);  // 调用 int 版本
     
     std::cout << "调用 process(nullptr):\n";
-    process(nullptr);  // 调用 void* 版本
+    process(nullptr);  // 精确匹配 std::nullptr_t 版本
     
     std::cout << "调用 process(\"hello\"):\n";
     process("hello");  // 调用 const char* 版本
@@ -131,6 +131,7 @@ void demo_smart_pointer_overload() {
 template<typename T>
 void handle(T arg) {
     std::cout << "  模板版本: 类型=" << typeid(T).name() << "\n";
+    (void)arg;
 }
 
 // nullptr_t的特化
@@ -143,6 +144,7 @@ void handle<std::nullptr_t>(std::nullptr_t) {
 template<typename T>
 void handle(T* arg) {
     std::cout << "  指针版本: 类型=" << typeid(T).name() << "*\n";
+    (void)arg;
 }
 
 void demo_template_overload() {

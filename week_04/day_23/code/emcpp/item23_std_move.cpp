@@ -71,9 +71,10 @@ typename std::remove_reference<T>::type&& move(T&& t) noexcept {
     std::cout << "std::move(x) 的类型: int&&" << std::endl;
     std::cout << "r1 = " << r1 << std::endl;
     
-    // std::move 也可以用于右值
-    int&& r2 = std::move(100);  // 100 是右值，std::move(100) 仍是 int&&
-    std::cout << "\nstd::move(100) 的类型: int&&" << std::endl;
+    // 右值引用可直接绑定临时量，并延长这个临时量的生命周期。
+    // 不写 int&& r2 = std::move(100)：函数返回的引用不会替调用者延长临时量生命周期。
+    int&& r2 = 100;
+    std::cout << "\nint&& r2 = 100;（右值不需要再 std::move）" << std::endl;
     std::cout << "r2 = " << r2 << std::endl;
     
     // -------------------------------------------------------
@@ -92,7 +93,7 @@ typename std::remove_reference<T>::type&& move(T&& t) noexcept {
     std::string str3 = std::move(str1);
     std::cout << "移动后: str1 = \"" << str1 << "\", str3 = \"" << str3 << "\"" << std::endl;
     
-    std::cout << "\n注意：移动后 str1 处于\"有效但未定义\"状态" << std::endl;
+    std::cout << "\n注意：移动后 str1 有效但状态未指定；本次为空不构成可移植保证" << std::endl;
 }
 
 // ============================================================
@@ -106,7 +107,8 @@ void process(const std::string& s) {
 
 // 处理右值的函数
 void process(std::string&& s) {
-    std::cout << "  [右值版本] 处理: \"" << s << "\" (可移动)" << std::endl;
+    std::cout << "  [右值版本] 处理: \"" << s
+              << "\" (已进入右值重载，是否移动由实现决定)" << std::endl;
 }
 
 // 演示 std::forward 的包装器
@@ -122,7 +124,7 @@ void forwardWrapper(T&& arg) {
 template<typename T>
 void badForward(T&& arg) {
     std::cout << "\n调用 badForward (不使用 forward):" << std::endl;
-    // arg 在函数内部永远是左值（因为它有名字）
+    // 命名参数变量的表达式 arg 是左值，因此会丢失调用点的值类别信息。
     process(arg);  // 总是调用左值版本！
 }
 
@@ -134,7 +136,7 @@ void demonstrateStdForward() {
     std::cout << R"(
 std::forward 的本质：
 --------------------
-std::forward 是有条件的类型转换，只在特定条件下转换为右值引用。
+std::forward 是有条件的类型转换：T 记录左值来源时结果仍为左值，否则结果为 xvalue。
 
 源码实现（简化版）：
 template<typename T>
@@ -147,7 +149,7 @@ constexpr T&& forward(typename std::remove_reference<T>::type& t) noexcept {
 - 如果 T 是非引用类型（如 int），static_cast<int&&> 保持为 int&&
 
 关键区别：
-- std::move: 无条件转换为右值引用
+- std::move: 无条件产生 xvalue，但不执行或保证资源移动
 - std::forward: 有条件转换，保持原有值类别
 )" << std::endl;
     
@@ -212,7 +214,7 @@ void demonstrateComparison() {
 错误1：在通用引用上使用 std::move
 template<typename T>
 void bad(T&& arg) {
-    process(std::move(arg));  // 错误：总是移动，可能意外修改左值
+    process(std::move(arg));  // 错误：左值也被交给右值路径；目标决定是否真的移动
 }
 
 错误2：在右值引用上使用 std::forward（可以工作但不推荐）
@@ -238,8 +240,18 @@ void process(std::string&& s) {
     
     std::cout << "\n右值引用版本:" << std::endl;
     std::string desc = "A widget";
-    std::cout << "  传入 std::move(desc) -> 调用移动构造" << std::endl;
-    std::cout << "  原字符串变为空（已被移动）" << std::endl;
+    std::string storedDesc = std::move(desc);
+    std::cout << "  已真实执行 storedDesc = std::move(desc)" << std::endl;
+    std::cout << "  目标字符串: \"" << storedDesc << "\"" << std::endl;
+    std::cout << "  源字符串当前观察值: \"" << desc
+              << "\"（仍有效但状态未指定，不能宣称必为空）" << std::endl;
+}
+
+bool verify_item23_move_observation_contract() {
+    std::string source = "A widget";
+    std::string destination = std::move(source);
+    source = "reusable";
+    return destination == "A widget" && source == "reusable";
 }
 
 // ============================================================
@@ -271,7 +283,7 @@ void printBestPracticesItem23() {
    - 更准确的名字应该是 std::rvalue_cast 或 std::move_cast
 
 5. 移动后的对象状态：
-   - 移动后的对象处于"有效但未定义"状态
+   - 标准库对象移动后通常有效但状态未指定
    - 可以安全析构或重新赋值
    - 不应依赖其值
 )" << std::endl;

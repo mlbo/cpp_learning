@@ -10,6 +10,8 @@
  * 注释中的编译错误仅供说明，实际代码已处理避免编译失败
  */
 
+#include "enum_vs_enum_class.h"
+
 #include <iostream>
 #include <iomanip>
 #include <string>
@@ -88,7 +90,6 @@ namespace LegacyEnum {
 
 namespace ModernEnum {
     enum class Status { OK, Error, Pending };
-    enum class Color { Red, Green, Blue };
     
     // 类型安全的函数
     void processStatus(Status s) {
@@ -149,13 +150,17 @@ void demonstrateTypeMixing() {
     
     std::cout << "  传统 enum 的危险行为:\n";
     
-    // 可以比较不同类型的枚举
-    std::cout << "    Color::Red == Status::OK ? " << (c == s ? "true" : "false") << "\n";
-    std::cout << "    (两者底层值都是0，所以相等)\n";
+    // 非作用域枚举会隐式转换为整数，因此容易被混进同一个比较表达式。
+    const bool sameUnderlyingValue =
+        static_cast<int>(c) == static_cast<int>(s);
+    std::cout << "    转成整数后 Color::Red == Status::OK ? "
+              << (sameUnderlyingValue ? "true" : "false") << "\n";
+    std::cout << "    (两者底层值都是0；这种比较没有业务语义)\n";
     
-    // 可以把一种枚举赋给另一种
+    // 不同 enum 不能直接赋值；显式强制转换会主动绕过类型检查。
     Color c2 = static_cast<Color>(Error);
-    std::cout << "    Color c = Status::Error; // 可以赋值！\n";
+    std::cout << "    Color c = static_cast<Color>(Status::Error);\n";
+    std::cout << "    // 必须显式转换；这不是安全的直接赋值\n";
     std::cout << "    c 的值: " << c2 << "\n";
     
     // 错误的函数调用
@@ -164,9 +169,6 @@ void demonstrateTypeMixing() {
     
     // enum class：类型安全
     std::cout << "\n  enum class 的类型安全:\n";
-    ModernEnum::Color mc = ModernEnum::Color::Red;
-    ModernEnum::Status ms = ModernEnum::Status::OK;
-    
     std::cout << "    // if (mc == ms)  // 编译错误！类型不匹配\n";
     std::cout << "    // ModernEnum::processStatus(mc);  // 编译错误！\n";
     std::cout << "    类型不匹配时编译器会报错，防止逻辑错误\n";
@@ -181,14 +183,14 @@ void demonstrateUnderlyingType() {
     std::cout << "  ─────────────────────────────────────────────\n\n";
     
     std::cout << "  传统 enum:\n";
-    std::cout << "    - 底层类型由编译器决定\n";
-    std::cout << "    - 可能是 int, unsigned int, 或其他\n";
-    std::cout << "    - 不同平台可能不同\n";
-    std::cout << "    - sizeof 可能不同\n\n";
+    std::cout << "    - 未指定时，底层类型由实现根据枚举值选择\n";
+    std::cout << "    - C++11 起也可以写 enum Small : uint8_t { A, B }\n";
+    std::cout << "    - 只有显式指定固定底层类型时，接口布局才可审查\n\n";
     
     std::cout << "  enum class:\n";
     std::cout << "    - 可以明确指定底层类型\n";
-    std::cout << "    - 保证跨平台一致性\n";
+    std::cout << "    - 固定底层表示便于审查，但不等于完整跨平台序列化协议\n";
+    std::cout << "    - 文件/网络格式还要约定字节序、版本和非法枚举值处理\n";
     std::cout << "    - 示例:\n";
     std::cout << "      enum class SmallEnum : uint8_t { A, B };\n";
     std::cout << "      enum class BigEnum : uint64_t { X = 0xFFFFFFFFFFFFFFFF };\n";
@@ -265,9 +267,9 @@ void run_enum_vs_enum_class_demo() {
     std::cout << "  │ 命名污染            │      会        │      不会      │\n";
     std::cout << "  │ 隐式转整数          │      允许      │      禁止      │\n";
     std::cout << "  │ 类型安全            │      否        │      是        │\n";
-    std::cout << "  │ 指定底层类型        │      不支持    │      支持      │\n";
+    std::cout << "  │ 指定底层类型(C++11) │      支持      │      支持      │\n";
     std::cout << "  │ 前向声明            │      受限      │      支持      │\n";
-    std::cout << "  │ 不同类型可比较      │      可以      │      禁止      │\n";
+    std::cout << "  │ 不同类型混用        │ 易经整数转换混用│ 默认禁止      │\n";
     std::cout << "  └─────────────────────┴────────────────┴────────────────┘\n";
     
     std::cout << "\n\n";

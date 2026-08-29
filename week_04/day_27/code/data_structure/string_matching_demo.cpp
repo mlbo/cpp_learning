@@ -10,6 +10,14 @@
 
 using namespace std;
 
+namespace {
+
+long long byteValue(char character) {
+    return static_cast<long long>(static_cast<unsigned char>(character));
+}
+
+} // namespace
+
 // 打印标题
 void printTitle(const string& title) {
     cout << "\n========== " << title << " ==========" << endl;
@@ -27,21 +35,23 @@ void printLine() {
  * 时间复杂度：O(n*m)，其中n是文本长度，m是模式长度
  * 空间复杂度：O(1)
  */
-int bruteForceMatch(const string& text, const string& pattern) {
-    int n = text.size();
-    int m = pattern.size();
-    
-    for (int i = 0; i <= n - m; i++) {
-        int j = 0;
+string::size_type bruteForceMatch(const string& text, const string& pattern) {
+    const string::size_type n = text.size();
+    const string::size_type m = pattern.size();
+    if (m == 0) return 0;
+    if (m > n) return string::npos;
+
+    for (string::size_type i = 0; i + m <= n; ++i) {
+        string::size_type j = 0;
         while (j < m && text[i + j] == pattern[j]) {
-            j++;
+            ++j;
         }
         if (j == m) {
             return i;  // 找到匹配，返回起始位置
         }
     }
     
-    return -1;  // 未找到
+    return string::npos;  // 未找到；与 std::string::find 的约定一致
 }
 
 /**
@@ -66,20 +76,20 @@ void demonstrateBruteForce() {
     cout << "模式串: \"" << pattern << "\"" << endl;
     cout << "\n匹配过程演示:" << endl;
     
-    int n = text.size();
-    int m = pattern.size();
-    int comparisons = 0;
+    const string::size_type n = text.size();
+    const string::size_type m = pattern.size();
+    size_t comparisons = 0;
     
-    for (int i = 0; i <= n - m; i++) {
+    for (string::size_type i = 0; i + m <= n; ++i) {
         cout << "\n位置 " << i << ": ";
         cout << text.substr(0, i) << "[";
         
-        int j = 0;
+        string::size_type j = 0;
         bool match = true;
         string matchStr = "";
         
         while (j < m) {
-            comparisons++;
+            ++comparisons;
             cout << text[i + j];
             matchStr += text[i + j];
             
@@ -88,7 +98,7 @@ void demonstrateBruteForce() {
                 match = false;
                 break;
             }
-            j++;
+            ++j;
         }
         
         if (match) {
@@ -109,12 +119,12 @@ void demonstrateBruteForce() {
  * 计算next数组（部分匹配表）
  * next[i]表示pattern[0...i]的最长相等前后缀长度
  */
-vector<int> computeNext(const string& pattern) {
-    int m = pattern.size();
-    vector<int> next(m, 0);
+vector<string::size_type> computeNext(const string& pattern) {
+    const string::size_type m = pattern.size();
+    vector<string::size_type> next(m, 0);
     
-    int j = 0;  // 当前最长相等前后缀长度
-    for (int i = 1; i < m; i++) {
+    string::size_type j = 0;  // 当前最长相等前后缀长度
+    for (string::size_type i = 1; i < m; ++i) {
         // 不匹配时回退
         while (j > 0 && pattern[i] != pattern[j]) {
             j = next[j - 1];
@@ -122,7 +132,7 @@ vector<int> computeNext(const string& pattern) {
         
         // 匹配时扩展
         if (pattern[i] == pattern[j]) {
-            j++;
+            ++j;
         }
         
         next[i] = j;
@@ -136,18 +146,18 @@ vector<int> computeNext(const string& pattern) {
  * 时间复杂度：O(n+m)
  * 空间复杂度：O(m)
  */
-int kmpMatch(const string& text, const string& pattern) {
-    int n = text.size();
-    int m = pattern.size();
+string::size_type kmpMatch(const string& text, const string& pattern) {
+    const string::size_type n = text.size();
+    const string::size_type m = pattern.size();
     
     if (m == 0) return 0;
-    if (n < m) return -1;
+    if (n < m) return string::npos;
     
     // 计算next数组
-    vector<int> next = computeNext(pattern);
+    const vector<string::size_type> next = computeNext(pattern);
     
-    int j = 0;  // 模式串指针
-    for (int i = 0; i < n; i++) {
+    string::size_type j = 0;  // 模式串指针
+    for (string::size_type i = 0; i < n; ++i) {
         // 失配时根据next数组跳转
         while (j > 0 && text[i] != pattern[j]) {
             j = next[j - 1];
@@ -155,16 +165,16 @@ int kmpMatch(const string& text, const string& pattern) {
         
         // 匹配时前进
         if (text[i] == pattern[j]) {
-            j++;
+            ++j;
         }
         
         // 完全匹配
         if (j == m) {
-            return i - m + 1;
+            return i + 1U - m;
         }
     }
     
-    return -1;
+    return string::npos;
 }
 
 /**
@@ -191,11 +201,11 @@ void demonstrateKMP() {
     cout << "模式串: \"" << pattern << "\"" << endl;
     
     // 计算并展示next数组
-    vector<int> next = computeNext(pattern);
+    const vector<string::size_type> next = computeNext(pattern);
     
     cout << "\n构建next数组（部分匹配表）:" << endl;
     cout << "索引: ";
-    for (int i = 0; i < (int)pattern.size(); i++) {
+    for (string::size_type i = 0; i < pattern.size(); ++i) {
         cout << i << " ";
     }
     cout << "\n字符: ";
@@ -203,13 +213,13 @@ void demonstrateKMP() {
         cout << c << " ";
     }
     cout << "\nnext: ";
-    for (int v : next) {
-        cout << v << " ";
+    for (string::size_type value : next) {
+        cout << value << " ";
     }
     cout << endl;
     
     cout << "\nnext数组含义解释:" << endl;
-    for (int i = 0; i < (int)pattern.size(); i++) {
+    for (string::size_type i = 0; i < pattern.size(); ++i) {
         cout << "  next[" << i << "] = " << next[i];
         cout << " (\"" << pattern.substr(0, i + 1) << "\"的最长相等前后缀长度)" << endl;
     }
@@ -220,34 +230,34 @@ void demonstrateKMP() {
     cout << "模式串: \"" << pattern << "\"" << endl;
     
     cout << "\nKMP匹配过程:" << endl;
-    int n = text.size();
-    int m = pattern.size();
-    int j = 0;
-    int comparisons = 0;
+    const string::size_type n = text.size();
+    const string::size_type m = pattern.size();
+    string::size_type j = 0;
+    size_t comparisons = 0;
     
-    for (int i = 0; i < n; i++) {
+    for (string::size_type i = 0; i < n; ++i) {
         cout << "i=" << i << " ('" << text[i] << "'), j=" << j;
         
         while (j > 0 && text[i] != pattern[j]) {
-            int oldJ = j;
+            const string::size_type oldJ = j;
             j = next[j - 1];
             cout << " -> 失配，j从" << oldJ << "跳到" << j;
-            comparisons++;
+            ++comparisons;
         }
         
         if (text[i] == pattern[j]) {
-            j++;
-            comparisons++;
+            ++j;
+            ++comparisons;
             cout << " -> 匹配，j=" << j;
         } else {
-            comparisons++;
+            ++comparisons;
             cout << " -> 失配";
         }
         
         cout << endl;
         
         if (j == m) {
-            cout << "\n找到匹配！起始位置: " << i - m + 1 << endl;
+            cout << "\n找到匹配！起始位置: " << i + 1U - m << endl;
             cout << "总比较次数: " << comparisons << endl;
             return;
         }
@@ -260,19 +270,19 @@ void demonstrateKMP() {
  * Rabin-Karp算法
  * 使用滚动哈希进行字符串匹配
  */
-int rabinKarpMatch(const string& text, const string& pattern) {
-    int n = text.size();
-    int m = pattern.size();
+string::size_type rabinKarpMatch(const string& text, const string& pattern) {
+    const string::size_type n = text.size();
+    const string::size_type m = pattern.size();
     
     if (m == 0) return 0;
-    if (n < m) return -1;
+    if (n < m) return string::npos;
     
-    const int BASE = 256;       // 字符集基数
-    const int MOD = 1000000007; // 大质数取模
+    constexpr long long BASE = 256;       // 字符集基数
+    constexpr long long MOD = 1'000'000'007; // 大质数取模
     
     // 计算BASE^(m-1) % MOD
     long long h = 1;
-    for (int i = 0; i < m - 1; i++) {
+    for (string::size_type i = 1; i < m; ++i) {
         h = (h * BASE) % MOD;
     }
     
@@ -280,17 +290,17 @@ int rabinKarpMatch(const string& text, const string& pattern) {
     long long patternHash = 0;
     long long textHash = 0;
     
-    for (int i = 0; i < m; i++) {
-        patternHash = (patternHash * BASE + pattern[i]) % MOD;
-        textHash = (textHash * BASE + text[i]) % MOD;
+    for (string::size_type i = 0; i < m; ++i) {
+        patternHash = (patternHash * BASE + byteValue(pattern[i])) % MOD;
+        textHash = (textHash * BASE + byteValue(text[i])) % MOD;
     }
     
     // 滑动窗口
-    for (int i = 0; i <= n - m; i++) {
+    for (string::size_type i = 0; i + m <= n; ++i) {
         // 哈希值相等，进行精确比较
         if (patternHash == textHash) {
             bool match = true;
-            for (int j = 0; j < m; j++) {
+            for (string::size_type j = 0; j < m; ++j) {
                 if (text[i + j] != pattern[j]) {
                     match = false;
                     break;
@@ -300,13 +310,14 @@ int rabinKarpMatch(const string& text, const string& pattern) {
         }
         
         // 计算下一个窗口的哈希值（滚动哈希）
-        if (i < n - m) {
-            textHash = ((textHash - text[i] * h) * BASE + text[i + m]) % MOD;
+        if (i + m < n) {
+            textHash = ((textHash - byteValue(text[i]) * h) * BASE
+                      + byteValue(text[i + m])) % MOD;
             if (textHash < 0) textHash += MOD;
         }
     }
     
-    return -1;
+    return string::npos;
 }
 
 /**
@@ -334,22 +345,22 @@ void demonstrateRabinKarp() {
     cout << "文本串: \"" << text << "\"" << endl;
     cout << "模式串: \"" << pattern << "\"" << endl;
     
-    int n = text.size();
-    int m = pattern.size();
+    const string::size_type n = text.size();
+    const string::size_type m = pattern.size();
     
-    const int BASE = 256;
-    const int MOD = 1000000007;
+    constexpr long long BASE = 256;
+    constexpr long long MOD = 1'000'000'007;
     
     // 计算模式串哈希
     long long patternHash = 0;
     for (char c : pattern) {
-        patternHash = (patternHash * BASE + c) % MOD;
+        patternHash = (patternHash * BASE + byteValue(c)) % MOD;
     }
     cout << "\n模式串哈希值: " << patternHash << endl;
     
     // 计算h = BASE^(m-1)
     long long h = 1;
-    for (int i = 0; i < m - 1; i++) {
+    for (string::size_type i = 1; i < m; ++i) {
         h = (h * BASE) % MOD;
     }
     
@@ -358,11 +369,11 @@ void demonstrateRabinKarp() {
     long long textHash = 0;
     
     // 初始窗口哈希
-    for (int i = 0; i < m; i++) {
-        textHash = (textHash * BASE + text[i]) % MOD;
+    for (string::size_type i = 0; i < m; ++i) {
+        textHash = (textHash * BASE + byteValue(text[i])) % MOD;
     }
     
-    for (int i = 0; i <= n - m; i++) {
+    for (string::size_type i = 0; i + m <= n; ++i) {
         string window = text.substr(i, m);
         cout << "窗口[" << i << "]: \"" << window << "\"";
         cout << " -> 哈希值: " << textHash;
@@ -371,7 +382,7 @@ void demonstrateRabinKarp() {
             cout << " (匹配！)";
             // 精确比较
             bool match = true;
-            for (int j = 0; j < m; j++) {
+            for (string::size_type j = 0; j < m; ++j) {
                 if (text[i + j] != pattern[j]) {
                     match = false;
                     break;
@@ -389,8 +400,9 @@ void demonstrateRabinKarp() {
         cout << endl;
         
         // 滚动更新哈希
-        if (i < n - m) {
-            textHash = ((textHash - text[i] * h) * BASE + text[i + m]) % MOD;
+        if (i + m < n) {
+            textHash = ((textHash - byteValue(text[i]) * h) * BASE
+                      + byteValue(text[i + m])) % MOD;
             if (textHash < 0) textHash += MOD;
         }
     }
@@ -421,7 +433,7 @@ void compareAlgorithms() {
 1. 简单场景、短字符串：暴力匹配足够
 2. 单模式多次匹配：KMP效率高
 3. 多模式匹配：Rabin-Karp或AC自动机
-4. 工程实践：大多数语言库使用Boyer-Moore或其变种
+4. 工程实践：标准库不承诺内部查找算法；先用库接口，再按测量证据选择专用算法
 )" << endl;
 }
 
@@ -437,7 +449,7 @@ void demonstrateApplications() {
     cout << "   文本: \"" << text << "\"" << endl;
     cout << "   模式: \"" << pattern << "\"" << endl;
     
-    vector<int> positions;
+    vector<string::size_type> positions;
     size_t pos = 0;
     while ((pos = text.find(pattern, pos)) != string::npos) {
         positions.push_back(pos);
@@ -459,11 +471,11 @@ void demonstrateApplications() {
          << (isSubstring ? "是" : "否") << endl;
     
     cout << "\n3. 统计模式串出现次数：" << endl;
-    int count = 0;
+    size_t count = 0;
     pos = 0;
     while ((pos = text.find(pattern, pos)) != string::npos) {
-        count++;
-        pos++;
+        ++count;
+        ++pos;
     }
     cout << "   \"" << pattern << "\" 在 \"" << text << "\" 中出现 " 
          << count << " 次" << endl;

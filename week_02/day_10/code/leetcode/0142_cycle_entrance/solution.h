@@ -12,6 +12,8 @@
 #ifndef LEETCODE_0142_SOLUTION_H
 #define LEETCODE_0142_SOLUTION_H
 
+namespace leetcode_0142 {
+
 // 链表节点定义
 struct ListNode {
     int val;
@@ -51,5 +53,9 @@ public:
      */
     ListNode *detectCycleHash(ListNode *head);
 };
+
+bool test_leetcode_142();
+
+} // namespace leetcode_0142
 
 #endif // LEETCODE_0142_SOLUTION_H

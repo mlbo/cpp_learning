@@ -8,7 +8,10 @@
 #include <queue>
 #include <deque>
 #include <list>
+#include <stdexcept>
 #include <string>
+
+namespace {
 
 // 使用链表实现一个简单的队列
 template<typename T>
@@ -36,8 +39,7 @@ public:
     // 查看队首
     T front() {
         if (data.empty()) {
-            std::cout << "  队列为空！" << std::endl;
-            return T();
+            throw std::out_of_range("front() 不能用于空队列");
         }
         return data.front();
     }
@@ -45,24 +47,23 @@ public:
     // 查看队尾
     T back() {
         if (data.empty()) {
-            std::cout << "  队列为空！" << std::endl;
-            return T();
+            throw std::out_of_range("back() 不能用于空队列");
         }
         return data.back();
     }
     
     // 判空
-    bool empty() {
+    bool empty() const {
         return data.empty();
     }
     
     // 大小
-    size_t size() {
+    std::size_t size() const {
         return data.size();
     }
     
     // 打印队列内容（从队首到队尾）
-    void print() {
+    void print() const {
         std::cout << "  队列内容（首->尾）: [";
         bool first = true;
         for (const T& item : data) {
@@ -73,6 +74,8 @@ public:
         std::cout << "]" << std::endl;
     }
 };
+
+}  // namespace
 
 // 演示STL queue
 void demoSTLQueue() {

@@ -88,53 +88,53 @@
 ## 代码实现
 
 ```cpp
-string minWindow(string s, string t) {
-    // 边界条件
+std::string minWindow(std::string s, std::string t) {
     if (s.empty() || t.empty() || s.size() < t.size()) {
         return "";
     }
-    
-    // 统计t中各字符需求
-    vector<int> need(128, 0);
-    for (char c : t) need[c]++;
-    
-    // 计算需要满足的字符种类数
-    int needCount = 0;
-    for (int i = 0; i < 128; i++) {
-        if (need[i] > 0) needCount++;
+
+    // 真实模块按字节工作；char 可能有符号，必须先转 unsigned char。
+    std::array<int, 256> need{};
+    std::array<int, 256> window{};
+    for (char character : t) {
+        ++need[static_cast<unsigned char>(character)];
     }
-    
-    // 滑动窗口
-    vector<int> window(128, 0);
-    int left = 0, right = 0;
-    int valid = 0;
-    int minLen = INT_MAX, minStart = 0;
-    
+
+    std::size_t needCount = 0;
+    for (int count : need) {
+        if (count > 0) ++needCount;
+    }
+
+    std::size_t left = 0;
+    std::size_t right = 0;
+    std::size_t valid = 0;
+    std::size_t minLen = std::string::npos;
+    std::size_t minStart = 0;
+
     while (right < s.size()) {
-        // 扩展窗口
-        char c = s[right++];
+        const unsigned char c = static_cast<unsigned char>(s[right]);
+        ++right;
         if (need[c] > 0) {
-            window[c]++;
-            if (window[c] == need[c]) valid++;
+            ++window[c];
+            if (window[c] == need[c]) ++valid;
         }
-        
-        // 收缩窗口
+
         while (valid == needCount) {
-            // 更新结果
             if (right - left < minLen) {
                 minLen = right - left;
                 minStart = left;
             }
-            
-            char d = s[left++];
+
+            const unsigned char d = static_cast<unsigned char>(s[left]);
+            ++left;
             if (need[d] > 0) {
-                if (window[d] == need[d]) valid--;
-                window[d]--;
+                if (window[d] == need[d]) --valid;
+                --window[d];
             }
         }
     }
-    
-    return minLen == INT_MAX ? "" : s.substr(minStart, minLen);
+
+    return minLen == std::string::npos ? "" : s.substr(minStart, minLen);
 }
 ```
 
@@ -148,7 +148,8 @@ string minWindow(string s, string t) {
 1. **字符计数**：使用数组而非哈希表，效率更高
 2. **valid变量**：避免每次都比较整个计数数组
 3. **先扩展后收缩**：保证窗口内信息完整
-4. **边界条件**：注意处理空串、无解等情况
+4. **边界条件**：空 `t` 返回空串，演示函数也必须在进入收缩循环前走同一条早退路径
+5. **字节契约**：256 项数组支持任意字节值；若题目按 Unicode 字符计数，需要先解码 UTF-8
 
 ## 相关题目
 

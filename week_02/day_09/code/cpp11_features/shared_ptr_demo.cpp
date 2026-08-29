@@ -14,6 +14,8 @@
 #include <vector>
 #include <string>
 
+#include "../../../common/noexcept_output.h"
+
 // 资源类，用于跟踪生命周期
 class Resource {
 public:
@@ -22,7 +24,9 @@ public:
     }
     
     ~Resource() {
-        std::cout << "  [析构] Resource: " << name_ << "\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "  [析构] Resource: " << name_ << "\n";
+        });
     }
     
     void use() const {
@@ -169,7 +173,8 @@ void demoOperations() {
     // 唯一性检查
     std::cout << "\n--- 唯一性检查 ---\n";
     std::cout << "  sp.unique() = " << sp.unique() << " (C++17已弃用)\n";
-    std::cout << "  替代方案: sp.use_count() == 1 -> " << (sp.use_count() == 1) << "\n";
+    std::cout << "  观察值: sp.use_count() == 1 -> " << (sp.use_count() == 1) << "\n";
+    std::cout << "  注意：use_count() 只适合观察，不能作为并发正确性判断。\n";
 }
 
 // ============================================================

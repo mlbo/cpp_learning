@@ -9,16 +9,19 @@
  * 4. 综合应用练习
  */
 
+#include "review/exercises.h"
+
+#include <cstdio>
+#include <cstring>
 #include <iostream>
 #include <memory>
-#include <string>
-#include <vector>
-#include <list>
-#include <algorithm>
-#include <cassert>
-#include <chrono>
 #include <mutex>
+#include <stdexcept>
+#include <string>
 #include <thread>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 namespace exercises {
 
@@ -112,7 +115,16 @@ class MySharedPtr {
 public:
     MySharedPtr() : ptr_(nullptr), count_(nullptr) {}
 
-    explicit MySharedPtr(T* ptr) : ptr_(ptr), count_(ptr ? new int(1) : nullptr) {}
+    explicit MySharedPtr(T* ptr) : ptr_(nullptr), count_(nullptr) {
+        // 先用临时独占所有者接住调用者交来的资源。若控制块分配失败，
+        // guard 会删除 ptr；只有两部分都准备好后才提交对象状态。
+        std::unique_ptr<T> guard(ptr);
+        if (ptr) {
+            auto count = std::make_unique<int>(1);
+            ptr_ = guard.release();
+            count_ = count.release();
+        }
+    }
 
     ~MySharedPtr() {
         if (count_) {
@@ -219,10 +231,13 @@ public:
     MyString() : data_(nullptr), size_(0) {}
 
     // 从C字符串构造
-    MyString(const char* str) {
-        size_ = strlen(str);
+    MyString(const char* str) : data_(nullptr), size_(0) {
+        if (!str) {
+            return;
+        }
+        size_ = std::strlen(str);
         data_ = new char[size_ + 1];
-        strcpy(data_, str);
+        std::strcpy(data_, str);
     }
 
     // 析构
@@ -231,21 +246,14 @@ public:
     }
 
     // 拷贝构造
-    MyString(const MyString& other) : size_(other.size_) {
-        data_ = new char[size_ + 1];
-        strcpy(data_, other.data_);
-        std::cout << "MyString copy constructor\n";
-    }
+    MyString(const MyString& other) : MyString(other.c_str()) {}
 
-    // 拷贝赋值
+    // 拷贝赋值：先完成临时副本的分配，再交换资源，提供强异常保证。
     MyString& operator=(const MyString& other) {
         if (this != &other) {
-            delete[] data_;
-            size_ = other.size_;
-            data_ = new char[size_ + 1];
-            strcpy(data_, other.data_);
+            MyString temp(other);
+            swap(temp);
         }
-        std::cout << "MyString copy assignment\n";
         return *this;
     }
 
@@ -254,7 +262,6 @@ public:
         : data_(other.data_), size_(other.size_) {
         other.data_ = nullptr;
         other.size_ = 0;
-        std::cout << "MyString move constructor\n";
     }
 
     // 移动赋值
@@ -266,7 +273,6 @@ public:
             other.data_ = nullptr;
             other.size_ = 0;
         }
-        std::cout << "MyString move assignment\n";
         return *this;
     }
 
@@ -274,10 +280,19 @@ public:
     const char* c_str() const { return data_ ? data_ : ""; }
     size_t size() const { return size_; }
 
+    void swap(MyString& other) noexcept {
+        using std::swap;
+        swap(data_, other.data_);
+        swap(size_, other.size_);
+    }
+
 private:
     char* data_;
     size_t size_;
 };
+
+static_assert(std::is_nothrow_move_constructible_v<MyString>);
+static_assert(std::is_nothrow_move_assignable_v<MyString>);
 
 void exercise3_move_string() {
     std::cout << "\n=== 练习3: 移动语义String类 ===\n";
@@ -358,7 +373,9 @@ void exercise4_threadsafe_counter() {
     std::cout << "Expected value: " << num_threads * increments_per_thread << "\n";
     std::cout << "Actual value: " << counter.get() << "\n";
 
-    assert(counter.get() == num_threads * increments_per_thread);
+    if (counter.get() != num_threads * increments_per_thread) {
+        throw std::runtime_error("线程安全计数器结果不正确");
+    }
     std::cout << "练习4完成!\n";
 }
 
@@ -371,36 +388,52 @@ void exercise4_threadsafe_counter() {
  */
 template<typename T>
 class ObjectPool {
-public:
-    std::shared_ptr<T> acquire() {
-        std::lock_guard<std::mutex> lock(mutex_);
+private:
+    struct State {
+        std::mutex mutex;
+        std::vector<std::unique_ptr<T>> available;
+    };
 
-        if (available_.empty()) {
-            // 创建新对象
-            auto obj = std::make_shared<T>();
-            auto deleter = [this](T* ptr) {
-                this->release(ptr);
-            };
-            return std::shared_ptr<T>(obj.get(), deleter);
+public:
+    ObjectPool() : state_(std::make_shared<State>()) {}
+
+    std::shared_ptr<T> acquire() {
+        std::unique_ptr<T> object;
+        {
+            std::lock_guard<std::mutex> lock(state_->mutex);
+            if (state_->available.empty()) {
+                object = std::make_unique<T>();
+            } else {
+                object = std::move(state_->available.back());
+                state_->available.pop_back();
+            }
         }
 
-        // 从池中取
-        auto obj = available_.front();
-        available_.pop_front();
-        auto deleter = [this](T* ptr) {
-            this->release(ptr);
+        T* raw = object.release();
+        auto state = state_;
+        auto return_to_pool = [state](T* ptr) noexcept {
+            if (!ptr) {
+                return;
+            }
+
+            // shared_ptr析构会调用删除器，因此删除器绝不能让异常逃逸。
+            // 加锁和vector扩容都可能抛异常：先reserve，确保随后的emplace_back
+            // 不再分配；任何失败都直接delete，至少保证对象不会泄漏或terminate。
+            try {
+                std::lock_guard<std::mutex> lock(state->mutex);
+                state->available.reserve(state->available.size() + 1);
+                state->available.emplace_back(ptr);
+                ptr = nullptr;  // 所有权已交给池
+            } catch (...) {
+                delete ptr;
+            }
         };
-        return std::shared_ptr<T>(obj.get(), deleter);
+        return std::shared_ptr<T>(raw, std::move(return_to_pool));
     }
 
 private:
-    void release(T* ptr) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        available_.push_back(std::shared_ptr<T>(ptr));
-    }
-
-    std::mutex mutex_;
-    std::list<std::shared_ptr<T>> available_;
+    // 归还器捕获共享状态而不是this，因此借出的对象可以安全地晚于ObjectPool析构。
+    std::shared_ptr<State> state_;
 };
 
 void exercise5_object_pool() {
@@ -503,15 +536,27 @@ void deleteList(ListNode* head) {
     }
 }
 
+ListNode* createList(const std::vector<int>& values) {
+    if (values.empty()) {
+        return nullptr;
+    }
+
+    std::unique_ptr<ListNode, void (*)(ListNode*)> owner(
+        new ListNode(values[0]), &deleteList);
+    ListNode* tail = owner.get();
+    for (std::size_t i = 1; i < values.size(); ++i) {
+        auto node = std::make_unique<ListNode>(values[i]);
+        tail->next = node.release();
+        tail = tail->next;
+    }
+    return owner.release();
+}
+
 void exercise6_list_operations() {
     std::cout << "\n=== 练习6: 链表操作 ===\n";
 
     // 创建链表 1->2->3->4->5
-    ListNode* head = new ListNode(1);
-    head->next = new ListNode(2);
-    head->next->next = new ListNode(3);
-    head->next->next->next = new ListNode(4);
-    head->next->next->next->next = new ListNode(5);
+    ListNode* head = createList({1, 2, 3, 4, 5});
 
     std::cout << "Original list: ";
     printList(head);
@@ -526,10 +571,7 @@ void exercise6_list_operations() {
     std::cout << "Middle node: " << mid->val << "\n";
 
     // 创建另一个有序链表并合并
-    ListNode* l2 = new ListNode(0);
-    l2->next = new ListNode(2);
-    l2->next->next = new ListNode(4);
-    l2->next->next->next = new ListNode(6);
+    ListNode* l2 = createList({0, 2, 4, 6});
 
     std::cout << "Second list: ";
     printList(l2);

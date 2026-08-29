@@ -14,6 +14,8 @@
 #include <typeinfo>
 #include <utility>
 
+#include "safe_index_access.h"
+
 using namespace std;
 
 // =============================================================================
@@ -54,6 +56,7 @@ void basicUsage() {
     cout << "y1 = 100;  // OK" << endl;
     cout << "// y2 = 100;  // 编译错误！" << endl;
     cout << "y3 = 100;  // OK，修改x为 " << x << endl;
+    (void)y1; (void)y2; (void)y4;
     
     cout << endl;
 }
@@ -83,6 +86,7 @@ void doubleParentheses() {
     cout << endl << "【原因】" << endl;
     cout << "(x)是一个表达式，而x是左值表达式" << endl;
     cout << "对于左值表达式，decltype返回T&" << endl;
+    (void)y;
     
     cout << endl;
 }
@@ -123,6 +127,7 @@ void expressionsAndDecltype() {
     cout << "decltype(x = 10) -> int&（赋值表达式返回左值引用）" << endl;
     cout << "decltype(++x) -> int&（前置++返回左值引用）" << endl;
     cout << "decltype(x++) -> int（后置++返回右值）" << endl;
+    (void)r1; (void)r2; (void)r3; (void)x; (void)y;
     
     cout << endl;
 }
@@ -131,21 +136,21 @@ void expressionsAndDecltype() {
 // C++14：decltype(auto)
 // =============================================================================
 
-vector<int> data = {1, 2, 3, 4, 5};
+vector<int> values = {1, 2, 3, 4, 5};
 
 // auto会丢失引用
-auto getWithAuto(int index) {
-    return data[index];  // 返回int拷贝
+auto getWithAuto(std::size_t index) {
+    return values.at(index);  // 返回int拷贝
 }
 
 // decltype(auto)保留引用
-decltype(auto) getWithDecltypeAuto(int index) {
-    return data[index];  // 返回int&
+decltype(auto) getWithDecltypeAuto(std::size_t index) {
+    return values.at(index);  // 返回int&
 }
 
 //decltype(auto) getRefOrValue(bool returnRef) {
 //    if (returnRef) {
-//        return data[0];  // 返回int&
+//        return values[0];  // 返回int&
 //    }
 //    return 0;  // 错误！不能同时返回int&和int
 //}
@@ -155,24 +160,24 @@ void decltypeAuto() {
     cout << "decltype(auto)用decltype规则推导auto" << endl << endl;
     
     // auto vs decltype(auto)
-    cout << "vector<int> data = {1, 2, 3, 4, 5};" << endl << endl;
+    cout << "vector<int> values = {1, 2, 3, 4, 5};" << endl << endl;
     
     cout << "auto getWithAuto(int index) {" << endl;
-    cout << "    return data[index];  // 返回int拷贝" << endl;
+    cout << "    return values[index];  // 返回int拷贝" << endl;
     cout << "}" << endl << endl;
     
     cout << "decltype(auto) getWithDecltypeAuto(int index) {" << endl;
-    cout << "    return data[index];  // 返回int&" << endl;
+    cout << "    return values[index];  // 返回int&" << endl;
     cout << "}" << endl << endl;
     
     // 测试
-    getWithDecltypeAuto(0) = 100;  // 修改data[0]
+    getWithDecltypeAuto(0) = 100;  // 修改values[0]
     // getWithAuto(1) = 200;  // 编译错误！返回的是拷贝
     
     cout << "测试：" << endl;
-    cout << "getWithDecltypeAuto(0) = 100;  // OK，修改data[0]" << endl;
+    cout << "getWithDecltypeAuto(0) = 100;  // OK，修改values[0]" << endl;
     cout << "// getWithAuto(1) = 200;  // 编译错误！" << endl;
-    cout << "data[0] = " << data[0] << endl;
+    cout << "values[0] = " << values[0] << endl;
     
     // 变量声明
     cout << endl << "变量声明：" << endl;
@@ -185,43 +190,36 @@ void decltypeAuto() {
     cout << "const int& crx = x;" << endl;
     cout << "auto a1 = crx;            // int" << endl;
     cout << "decltype(auto) a2 = crx;  // const int&" << endl;
+    (void)a1; (void)a2;
     
     cout << endl;
 }
 
 // =============================================================================
-// 实战示例：完美转发返回类型
+// 实战示例：精确保留元素引用并约束容器生命周期
 // =============================================================================
 
-// 完美转发示例
-template<typename Container, typename Index>
-decltype(auto) getAndForward(Container&& c, Index i) {
-    return std::forward<Container>(c)[i];
-}
-
 void practicalExample() {
-    cout << "=== 实战示例：完美转发返回类型 ===" << endl << endl;
+    cout << "=== 实战示例：精确保留元素引用 ===" << endl << endl;
     
     vector<int> vec = {10, 20, 30, 40, 50};
     
     cout << "vector<int> vec = {10, 20, 30, 40, 50};" << endl << endl;
     
     cout << "template<typename Container, typename Index>" << endl;
-    cout << "decltype(auto) getAndForward(Container&& c, Index i) {" << endl;
-    cout << "    return std::forward<Container>(c)[i];" << endl;
+    cout << "decltype(auto) get_element(Container& c, Index i) {" << endl;
+    cout << "    return c[i];" << endl;
     cout << "}" << endl << endl;
     
     // 左值容器 -> 返回引用
     cout << "左值容器调用：" << endl;
-    getAndForward(vec, 0) = 100;  // 修改vec[0]
-    cout << "getAndForward(vec, 0) = 100;" << endl;
+    get_element(vec, 0) = 100;  // 修改vec[0]
+    cout << "get_element(vec, 0) = 100;" << endl;
     cout << "vec[0] = " << vec[0] << endl;
     
-    // 右值容器 -> 返回右值引用（移动语义）
-    cout << endl << "右值容器调用：" << endl;
-    auto val = getAndForward(vector<int>{1, 2, 3}, 1);
-    cout << "auto val = getAndForward(vector<int>{1,2,3}, 1);" << endl;
-    cout << "val = " << val << endl;
+    cout << endl << "临时容器调用：" << endl;
+    cout << "// get_element(vector<int>{1,2,3}, 1);  // 编译期拒绝" << endl;
+    cout << "vector::operator[] 返回元素左值引用；临时 vector 销毁后该引用会悬空。" << endl;
     
     cout << endl;
 }
@@ -254,6 +252,7 @@ void compareAutoAndDecltype() {
     cout << "• auto：忽略引用和顶层const" << endl;
     cout << "• decltype：保留引用和const" << endl;
     cout << "• decltype((x))：总是返回引用" << endl;
+    (void)crx;
     
     cout << endl;
 }

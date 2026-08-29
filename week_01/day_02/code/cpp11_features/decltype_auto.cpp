@@ -57,21 +57,19 @@ void demonstrateBasicDifference() {
     std::cout << "  - auto 总是使用模板参数推导规则\n";
     std::cout << "  - decltype(auto) 使用 decltype 语义\n";
     std::cout << "  - (x) 是左值表达式，decltype((x)) → int&\n";
+    (void)a; (void)a2; (void)da2;
 }
 
 /**
- * @brief 演示 decltype(auto) 在函数返回类型中的应用
+ * @brief 返回静态对象的引用；所有 return 必须推导出同一种类型
  */
-decltype(auto) getValueByAuto(bool returnRef) {
+decltype(auto) getValueByReference() {
     static int value = 100;
-    if (returnRef) {
-        return (value);   // 返回 int&（因为 (value) 是左值表达式）
-    }
-    return value;         // 返回 int（value 是标识符）
+    return (value);  // 返回 int&（因为 (value) 是左值表达式）
 }
 
 // 对比：使用 auto 的版本
-auto getValueByPlainAuto(bool returnRef) {
+auto getValueByPlainAuto() {
     static int value = 100;
     return value;  // 总是返回 int
 }
@@ -79,31 +77,33 @@ auto getValueByPlainAuto(bool returnRef) {
 void demonstrateFunctionReturn() {
     PRINT_TITLE("2. 函数返回类型应用");
     
-    std::cout << "问题场景：需要根据条件返回引用或值\n\n";
+    std::cout << "返回类型必须对所有 return 语句保持一致\n\n";
     
     std::cout << "使用 decltype(auto):\n";
     std::cout << R"(
-  decltype(auto) getValueByAuto(bool returnRef) {
+  decltype(auto) invalid(bool returnRef) {
       static int value = 100;
       if (returnRef) {
           return (value);   // 返回 int&
       }
-      return value;         // 返回 int
+      return value;         // 返回 int：与上一分支不一致，编译失败
   }
 )";
     
-    // 调用演示
-    auto v1 = getValueByAuto(false);
-    auto& v2 = getValueByAuto(true);
+    std::cout << "不能用运行时条件改变一个函数的静态返回类型，"
+                 "应拆成语义明确的接口。\n";
+
+    auto v1 = getValueByPlainAuto();
+    auto& v2 = getValueByReference();
     
     std::cout << "\n调用:\n";
-    std::cout << "  auto v1 = getValueByAuto(false);  // v1 是 int\n";
-    std::cout << "  auto& v2 = getValueByAuto(true);  // v2 是 int&\n";
+    std::cout << "  auto v1 = getValueByPlainAuto();  // v1 是 int\n";
+    std::cout << "  auto& v2 = getValueByReference(); // v2 是 int&\n";
     std::cout << "  v1 = " << v1 << ", v2 = " << v2 << "\n";
     
-    // 实际应用：转发函数
+    // 实际应用：精确保留元素引用
     PRINT_SEPARATOR();
-    std::cout << "\n实际应用：完美转发包装器\n";
+    std::cout << "\n实际应用：仅接收左值容器的元素访问包装器\n";
     
     std::cout << R"(
   template<typename Container>
@@ -111,6 +111,7 @@ void demonstrateFunctionReturn() {
       return c[index];  // 精确返回元素类型（可能是引用）
   }
 )";
+    std::cout << "  Container& 不接收临时容器，避免元素引用在容器销毁后悬空。\n";
     
     // 使用示例
     std::vector<int> vec = {1, 2, 3, 4, 5};
@@ -137,10 +138,7 @@ int dangerousReturn() {
     return x;  // 返回 int
 }
 
-decltype(auto) dangerousReturnRef() {
-    int x = 42;
-    return (x);  // 危险！返回局部变量的引用！
-}
+// dangerousReturnRef 只保留在下方字符串代码中，不把悬空引用实现成可链接函数。
 
 void demonstrateDangers() {
     PRINT_TITLE("3. 危险用法警示");
@@ -207,6 +205,7 @@ void demonstrateContainerAccess() {
     auto a = getWithAuto(vec, 0);
     a = 100;
     std::cout << "  赋值 a = 100 后，vec[0] = " << vec[0] << " (未改变)\n\n";
+    (void)a;
     
     std::cout << "使用 decltype(auto):\n";
     std::cout << "  auto getWithDecltypeAuto = [...]() -> decltype(auto) {\n";

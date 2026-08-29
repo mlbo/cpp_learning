@@ -3,8 +3,8 @@
  * @brief 标准二分查找实现
  * 
  * 标准二分查找模板：
- * - 搜索区间：闭区间 [left, right]
- * - 循环条件：left <= right
+ * - 搜索区间：左闭右开区间 [left, right)
+ * - 循环条件：left < right
  * - 找到目标时：直接返回索引
  * 
  * 时间复杂度：O(log n)
@@ -15,6 +15,8 @@
 #define BINARY_SEARCH_BASIC_HPP
 
 #include <vector>
+
+#include "../../../common/integer_contracts.h"
 
 /**
  * @brief 标准二分查找
@@ -36,29 +38,29 @@ int binarySearch(const std::vector<int>& nums, int target) {
         return -1;
     }
     
-    // 初始化搜索区间：闭区间 [left, right]
-    int left = 0;
-    int right = static_cast<int>(nums.size()) - 1;
+    (void)week01::checked_index(nums.size());
+    // 搜索区间采用左闭右开 [left, right)，空数组和末尾边界无需 -1 哨兵。
+    std::size_t left = 0;
+    std::size_t right = nums.size();
     
-    // 循环条件：left <= right
-    // 当 left > right 时，搜索区间为空，循环结束
-    while (left <= right) {
+    // 循环条件：left < right
+    // 当 left == right 时，半开搜索区间为空，循环结束
+    while (left < right) {
         // 计算中间位置
         // 使用 left + (right - left) / 2 而不是 (left + right) / 2
         // 原因：防止 left + right 溢出
-        int mid = left + (right - left) / 2;
+        const std::size_t mid = left + (right - left) / 2;
         
         if (nums[mid] == target) {
             // 找到目标值，直接返回
-            return mid;
+            return week01::checked_index(mid);
         } else if (nums[mid] < target) {
             // 目标值在右半部分
             // mid 已经检查过，所以从 mid + 1 开始
             left = mid + 1;
         } else {
-            // 目标值在左半部分
-            // mid 已经检查过，所以到 mid - 1 结束
-            right = mid - 1;
+            // 目标值在左半部分；mid 已经检查过，新区间为 [left, mid)
+            right = mid;
         }
     }
     
@@ -79,12 +81,12 @@ int binarySearchWithTrace(const std::vector<int>& nums, int target) {
         return -1;
     }
     
-    int left = 0;
-    int right = static_cast<int>(nums.size()) - 1;
-    int step = 0;
+    (void)week01::checked_index(nums.size());
+    std::size_t left = 0;
+    std::size_t right = nums.size();
     
-    while (left <= right) {
-        int mid = left + (right - left) / 2;
+    while (left < right) {
+        const std::size_t mid = left + (right - left) / 2;
         
         // 输出每一步的状态
         // std::cout << "Step " << ++step 
@@ -94,11 +96,11 @@ int binarySearchWithTrace(const std::vector<int>& nums, int target) {
         //           << ", nums[mid]=" << nums[mid] << "\n";
         
         if (nums[mid] == target) {
-            return mid;
+            return week01::checked_index(mid);
         } else if (nums[mid] < target) {
             left = mid + 1;
         } else {
-            right = mid - 1;
+            right = mid;
         }
     }
     

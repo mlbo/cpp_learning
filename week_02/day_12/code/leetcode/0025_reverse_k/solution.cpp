@@ -16,7 +16,10 @@
  */
 
 #include <iostream>
+#include <memory>
 #include <vector>
+
+namespace leetcode_25 {
 
 // ============================================
 // 链表节点定义
@@ -27,7 +30,7 @@ struct ListNode {
     ListNode* next;
     ListNode() : val(0), next(nullptr) {}
     ListNode(int x) : val(x), next(nullptr) {}
-    ListNode(int x, ListNode* next) : val(x), next(next) {}
+    ListNode(int x, ListNode* next_node) : val(x), next(next_node) {}
 };
 
 // ============================================
@@ -71,7 +74,7 @@ ListNode* Solution::reverse(ListNode* start, ListNode* end) {
 // ============================================
 
 ListNode* Solution::reverseKGroup_iterative(ListNode* head, int k) {
-    if (head == nullptr || k == 1) {
+    if (head == nullptr || k <= 1) {
         return head;
     }
     
@@ -124,6 +127,10 @@ ListNode* Solution::reverseKGroup_iterative(ListNode* head, int k) {
 // ============================================
 
 ListNode* Solution::reverseKGroup_recursive(ListNode* head, int k) {
+    if (head == nullptr || k <= 1) {
+        return head;
+    }
+
     // 检查剩余节点是否足够k个
     ListNode* curr = head;
     for (int i = 0; i < k; ++i) {
@@ -146,21 +153,28 @@ ListNode* Solution::reverseKGroup_recursive(ListNode* head, int k) {
 // 测试辅助函数（命名空间内）
 // ============================================
 
-namespace leetcode_25 {
-
 // 创建链表
 ListNode* createList(const std::vector<int>& values) {
     if (values.empty()) return nullptr;
-    
-    ListNode* head = new ListNode(values[0]);
-    ListNode* curr = head;
-    
-    for (size_t i = 1; i < values.size(); ++i) {
-        curr->next = new ListNode(values[i]);
+
+    const auto delete_chain = [](ListNode* node) {
+        while (node) {
+            ListNode* next_node = node->next;
+            delete node;
+            node = next_node;
+        }
+    };
+    std::unique_ptr<ListNode, decltype(delete_chain)> owner(
+        new ListNode(values[0]), delete_chain);
+    ListNode* curr = owner.get();
+
+    for (std::size_t i = 1; i < values.size(); ++i) {
+        auto node = std::make_unique<ListNode>(values[i]);
+        curr->next = node.release();
         curr = curr->next;
     }
-    
-    return head;
+
+    return owner.release();
 }
 
 // 打印链表
@@ -183,72 +197,62 @@ void deleteList(ListNode* head) {
     }
 }
 
+std::vector<int> listToVector(const ListNode* head) {
+    std::vector<int> result;
+    while (head) {
+        result.push_back(head->val);
+        head = head->next;
+    }
+    return result;
+}
+
 // ============================================
 // 测试用例
 // ============================================
 
-void run_tests() {
+bool run_tests() {
     std::cout << "\n========================================\n";
     std::cout << "  LeetCode 25: K个一组翻转链表\n";
     std::cout << "========================================\n";
     
+    struct TestCase {
+        std::vector<int> input;
+        int k;
+        std::vector<int> expected;
+        const char* description;
+    };
+
+    const std::vector<TestCase> test_cases = {
+        {{1, 2, 3, 4, 5}, 2, {2, 1, 4, 3, 5}, "k=2且有一个剩余节点"},
+        {{1, 2, 3, 4, 5}, 3, {3, 2, 1, 4, 5}, "k=3且不足一组的后缀保持原序"},
+        {{1, 2}, 2, {2, 1}, "恰好一组"},
+        {{1, 2, 3}, 1, {1, 2, 3}, "k=1"},
+        {{1, 2}, 3, {1, 2}, "k大于长度时不改链"},
+        {{1, 2}, 0, {1, 2}, "k为0时按非法输入原样返回"},
+        {{1, 2}, -2, {1, 2}, "k为负数时按非法输入原样返回"},
+        {{}, 2, {}, "空链表"},
+    };
+
     Solution sol;
-    
-    // 测试用例1
-    std::cout << "\n--- 测试用例 1 ---\n";
-    ListNode* list1 = createList({1, 2, 3, 4, 5});
-    std::cout << "输入: ";
-    printList(list1);
-    std::cout << ", k = 2\n";
-    
-    ListNode* result1 = sol.reverseKGroup_iterative(list1, 2);
-    std::cout << "迭代法输出: ";
-    printList(result1);
-    std::cout << "\n";
-    std::cout << "预期: [2,1,4,3,5]\n";
-    deleteList(result1);
-    
-    // 测试用例2
-    std::cout << "\n--- 测试用例 2 ---\n";
-    ListNode* list2 = createList({1, 2, 3, 4, 5});
-    std::cout << "输入: ";
-    printList(list2);
-    std::cout << ", k = 3\n";
-    
-    ListNode* result2 = sol.reverseKGroup_recursive(list2, 3);
-    std::cout << "递归法输出: ";
-    printList(result2);
-    std::cout << "\n";
-    std::cout << "预期: [3,2,1,4,5]\n";
-    deleteList(result2);
-    
-    // 测试用例3: 边界情况
-    std::cout << "\n--- 测试用例 3 (边界) ---\n";
-    ListNode* list3 = createList({1, 2});
-    std::cout << "输入: ";
-    printList(list3);
-    std::cout << ", k = 2\n";
-    
-    ListNode* result3 = sol.reverseKGroup_iterative(list3, 2);
-    std::cout << "输出: ";
-    printList(result3);
-    std::cout << "\n";
-    std::cout << "预期: [2,1]\n";
-    deleteList(result3);
-    
-    // 测试用例4: k=1 不翻转
-    std::cout << "\n--- 测试用例 4 (k=1) ---\n";
-    ListNode* list4 = createList({1, 2, 3});
-    std::cout << "输入: ";
-    printList(list4);
-    std::cout << ", k = 1\n";
-    
-    ListNode* result4 = sol.reverseKGroup_iterative(list4, 1);
-    std::cout << "输出: ";
-    printList(result4);
-    std::cout << "\n";
-    std::cout << "预期: [1,2,3] (k=1不翻转)\n";
-    deleteList(result4);
+    int failures = 0;
+    for (const auto& test_case : test_cases) {
+        ListNode* iterative_input = createList(test_case.input);
+        ListNode* recursive_input = createList(test_case.input);
+        ListNode* iterative = sol.reverseKGroup_iterative(iterative_input, test_case.k);
+        ListNode* recursive = sol.reverseKGroup_recursive(recursive_input, test_case.k);
+
+        const bool iterative_ok = listToVector(iterative) == test_case.expected;
+        const bool recursive_ok = listToVector(recursive) == test_case.expected;
+        std::cout << "  " << test_case.description << ": 迭代="
+                  << (iterative_ok ? "通过" : "失败") << ", 递归="
+                  << (recursive_ok ? "通过" : "失败") << "\n";
+        if (!iterative_ok || !recursive_ok) {
+            ++failures;
+        }
+
+        deleteList(iterative);
+        deleteList(recursive);
+    }
     
     // 算法复杂度分析
     std::cout << "\n--- 复杂度分析 ---\n";
@@ -258,10 +262,13 @@ void run_tests() {
     std::cout << "递归法:\n";
     std::cout << "  时间: O(n) - 每个节点处理一次\n";
     std::cout << "  空间: O(n/k) - 递归栈深度\n";
+    std::cout << "改链不变量: 先保存组后继；已处理前缀正确；未处理后缀始终可达；"
+                 "不足k个保持原序。\n";
     
     std::cout << "\n========================================\n";
     std::cout << "  LeetCode 25 测试完成\n";
     std::cout << "========================================\n";
+    return failures == 0;
 }
 
 } // namespace leetcode_25

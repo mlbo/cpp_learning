@@ -13,7 +13,6 @@
 #include <vector>
 #include <map>
 #include <chrono>
-#include <cassert>
 
 namespace cpp11_features {
 
@@ -120,6 +119,11 @@ void demonstrateMoveSemantics() {
     target = std::move(moved);
     std::cout << "移动赋值后:" << std::endl;
     target.printInfo();
+
+    // moved-from对象仍必须可析构、可重新赋值。copy-and-swap不解引用空pImpl_。
+    source = target;
+    std::cout << "移动源重新拷贝赋值后:" << std::endl;
+    source.printInfo();
 }
 
 void demonstrateSwap() {

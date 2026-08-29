@@ -10,7 +10,9 @@
 
 #include "data_structure/list_node.h"
 
-namespace leetcode {
+namespace leetcode_0203 {
+
+using day08_lists::ListNode;
 
 /**
  * @brief 移除链表中所有等于给定值的节点
@@ -29,6 +31,6 @@ namespace leetcode {
  */
 ListNode* removeElements(ListNode* head, int val);
 
-} // namespace leetcode
+} // namespace leetcode_0203
 
 #endif // LEETCODE_0203_SOLUTION_H

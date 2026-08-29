@@ -56,9 +56,9 @@
 
 ```cpp
 void moveZeroes(vector<int>& nums) {
-    int slow = 0;  // 下一个非零元素的位置
+    size_t slow = 0;  // 下一个非零元素的位置
 
-    for (int fast = 0; fast < nums.size(); ++fast) {
+    for (size_t fast = 0; fast < nums.size(); ++fast) {
         if (nums[fast] != 0) {
             swap(nums[slow], nums[fast]);
             ++slow;
@@ -136,8 +136,8 @@ nums: [1, 3, 12, 0, 0]
 
 ```cpp
 void moveEvens(vector<int>& nums) {
-    int slow = 0;
-    for (int fast = 0; fast < nums.size(); ++fast) {
+    size_t slow = 0;
+    for (size_t fast = 0; fast < nums.size(); ++fast) {
         if (nums[fast] % 2 != 0) {  // 奇数
             swap(nums[slow], nums[fast]);
             ++slow;
@@ -150,8 +150,8 @@ void moveEvens(vector<int>& nums) {
 
 ```cpp
 void moveNegatives(vector<int>& nums) {
-    int slow = 0;
-    for (int fast = 0; fast < nums.size(); ++fast) {
+    size_t slow = 0;
+    for (size_t fast = 0; fast < nums.size(); ++fast) {
         if (nums[fast] >= 0) {  // 非负
             swap(nums[slow], nums[fast]);
             ++slow;

@@ -3,22 +3,45 @@
  * @brief LeetCode 21 测试代码
  */
 
-#include "solution.cpp"
+#include "solution.h"
 #include <iostream>
+#include <memory>
 #include <vector>
-#include <cassert>
+
+using leetcode_0021::ListNode;
+using leetcode_0021::Solution;
+
+namespace {
+
+void recordResult(bool passed, bool& allPassed, const char* successMessage) {
+    allPassed = passed && allPassed;
+    if (passed) {
+        std::cout << "  ✓ " << successMessage << "\n";
+    } else {
+        std::cerr << "  ✗ 失败：" << successMessage << "\n";
+    }
+}
 
 // 辅助函数：从数组创建链表
 ListNode* createList(const std::vector<int>& vals) {
     if (vals.empty()) return nullptr;
-    
-    ListNode* head = new ListNode(vals[0]);
-    ListNode* cur = head;
-    for (size_t i = 1; i < vals.size(); ++i) {
-        cur->next = new ListNode(vals[i]);
+
+    const auto delete_chain = [](ListNode* node) {
+        while (node) {
+            ListNode* next_node = node->next;
+            delete node;
+            node = next_node;
+        }
+    };
+    std::unique_ptr<ListNode, decltype(delete_chain)> owner(
+        new ListNode(vals[0]), delete_chain);
+    ListNode* cur = owner.get();
+    for (std::size_t i = 1; i < vals.size(); ++i) {
+        auto node = std::make_unique<ListNode>(vals[i]);
+        cur->next = node.release();
         cur = cur->next;
     }
-    return head;
+    return owner.release();
 }
 
 // 辅助函数：链表转数组
@@ -51,8 +74,9 @@ void deleteList(ListNode* head) {
     }
 }
 
-void testMergeLists() {
+bool runMergeListTests() {
     Solution sol;
+    bool allPassed = true;
     
     std::cout << "【测试用例】\n\n";
     
@@ -72,8 +96,7 @@ void testMergeLists() {
         std::cout << "  合并结果: "; printList(merged); std::cout << "\n";
         std::cout << "  期望结果: [1, 1, 2, 3, 4, 4]\n";
         
-        assert(result == expected);
-        std::cout << "  ✓ 通过\n";
+        recordResult(result == expected, allPassed, "正常合并结果正确");
         
         deleteList(merged);
     }
@@ -92,8 +115,7 @@ void testMergeLists() {
         std::cout << "  l2: [1, 3, 5]\n";
         std::cout << "  合并结果: "; printList(merged); std::cout << "\n";
         
-        assert(result == expected);
-        std::cout << "  ✓ 通过\n";
+        recordResult(result == expected, allPassed, "空链表与非空链表合并正确");
         
         deleteList(merged);
     }
@@ -107,8 +129,7 @@ void testMergeLists() {
         std::cout << "  l2: []\n";
         std::cout << "  合并结果: []\n";
         
-        assert(merged == nullptr);
-        std::cout << "  ✓ 通过\n";
+        recordResult(merged == nullptr, allPassed, "两个空链表合并仍为空");
     }
     
     // 测试4：不同长度
@@ -126,8 +147,7 @@ void testMergeLists() {
         
         std::cout << "  合并结果: "; printList(merged); std::cout << "\n";
         
-        assert(result == expected);
-        std::cout << "  ✓ 通过\n";
+        recordResult(result == expected, allPassed, "不同长度链表合并正确");
         
         deleteList(merged);
     }
@@ -150,14 +170,13 @@ void testMergeLists() {
         std::cout << "  迭代结果: "; printList(resultIter); std::cout << "\n";
         std::cout << "  递归结果: "; printList(resultRecur); std::cout << "\n";
         
-        assert(iterArray == recurArray);
-        std::cout << "  ✓ 两种方法结果一致\n";
+        recordResult(iterArray == recurArray, allPassed, "迭代与递归结果一致");
         
         deleteList(resultIter);
         deleteList(resultRecur);
     }
     
-    std::cout << "\n所有测试通过！\n";
+    std::cout << (allPassed ? "\n所有测试通过！\n" : "\n存在失败用例！\n");
     
     std::cout << "\n【算法分析】\n";
     std::cout << "┌─────────────────────────────────────────────────────┐\n";
@@ -168,12 +187,15 @@ void testMergeLists() {
     std::cout << "│ 优点: 空间效率高       │ 优点: 代码简洁           │\n";
     std::cout << "│ 缺点: 代码稍长         │ 缺点: 递归栈开销         │\n";
     std::cout << "└─────────────────────────────────────────────────────┘\n";
+    return allPassed;
 }
 
-void testMergeListsMain() {
+}  // namespace
+
+int main() {
     std::cout << "╔══════════════════════════════════════════════════════════╗\n";
     std::cout << "║        LeetCode 21: 合并两个有序链表                      ║\n";
     std::cout << "╚══════════════════════════════════════════════════════════╝\n\n";
-    
-    testMergeLists();
+
+    return runMergeListTests() ? 0 : 1;
 }

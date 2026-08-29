@@ -4,19 +4,33 @@
  *
  * 本文件涵盖：
  * 1. 智能指针（unique_ptr, shared_ptr, weak_ptr）
- * 2. 右值引用与移动语义
- * 3. 完美转发
- * 4. RAII资源管理
+ * 2. RAII资源管理
+ * 3. 后续课程预览：右值引用、移动语义与完美转发
  */
 
+#include "review/week2_summary.h"
+
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <vector>
 #include <utility>
 #include <functional>
+#include <chrono>
+#include <mutex>
 
 namespace week2 {
+
+template<typename Writer>
+void writeLogNoexcept(Writer&& writer) noexcept {
+    try {
+        std::forward<Writer>(writer)();
+    } catch (...) {
+        // 析构器和删除器不能让教学日志异常逃逸。
+    }
+}
 
 // ============================================================
 // Part 1: unique_ptr - 独占所有权智能指针
@@ -28,7 +42,7 @@ namespace week2 {
  * 特点：
  * - 独占所有权，不可拷贝
  * - 可移动，资源转移
- * - 零开销抽象
+ * - 默认无状态删除器时通常与裸指针同样紧凑
  * - 支持自定义删除器
  */
 void demo_unique_ptr() {
@@ -48,9 +62,9 @@ void demo_unique_ptr() {
     std::cout << "p2 is null: " << (p2 == nullptr) << "\n";
 
     // 自定义删除器示例
-    auto file_deleter = [](FILE* f) {
+    auto file_deleter = [](FILE* f) noexcept {
         if (f) {
-            std::cout << "Closing file...\n";
+            writeLogNoexcept([] { std::cout << "Closing file...\n"; });
             fclose(f);
         }
     };
@@ -90,7 +104,9 @@ public:
         std::cout << "SharedResource(" << name_ << ") created\n";
     }
     ~SharedResource() {
-        std::cout << "SharedResource(" << name_ << ") destroyed\n";
+        writeLogNoexcept([this] {
+            std::cout << "SharedResource(" << name_ << ") destroyed\n";
+        });
     }
     const std::string& name() const { return name_; }
 private:
@@ -100,7 +116,7 @@ private:
 void demo_shared_ptr() {
     std::cout << "\n=== shared_ptr 示例 ===\n";
 
-    // make_shared推荐：一次分配完成对象和控制块
+    // make_shared通常会把对象和控制块合并为一次分配，但标准不要求绝对如此。
     auto sp1 = std::make_shared<SharedResource>("Resource1");
     std::cout << "use_count: " << sp1.use_count() << "\n";
 
@@ -127,7 +143,7 @@ void demo_shared_ptr() {
  * @brief weak_ptr使用示例
  *
  * 特点：
- * - 不增加引用计数
+ * - 不增加强引用计数，但仍连接控制块并维护弱引用状态
  * - 用于观察共享资源
  * - 打破shared_ptr循环引用
  */
@@ -141,7 +157,7 @@ public:
         std::cout << "Node(" << name << ") created\n";
     }
     ~Node() {
-        std::cout << "Node(" << name << ") destroyed\n";
+        writeLogNoexcept([this] { std::cout << "Node(" << name << ") destroyed\n"; });
     }
 };
 
@@ -171,7 +187,7 @@ void demo_weak_ptr() {
 }
 
 // ============================================================
-// Part 4: 右值引用与移动语义
+// 后续课程预览 Part 1: 右值引用与移动语义
 // ============================================================
 
 /**
@@ -186,33 +202,29 @@ public:
         std::cout << "MoveableResource(" << name << ") constructed\n";
     }
 
-    // 移动构造函数
-    MoveableResource(MoveableResource&& other) noexcept
-        : name(std::move(other.name)), data(std::move(other.data)) {
-        std::cout << "MoveableResource moved\n";
-        other.name = "(moved from)";
-    }
+    // 默认移动只搬运成员，不在noexcept路径做输出或给源string重新赋值。
+    // 源对象保持“有效但值未指定”，可以析构或重新赋值，但不能假定固定文本。
+    MoveableResource(MoveableResource&&) noexcept(
+        std::is_nothrow_move_constructible_v<std::string> &&
+        std::is_nothrow_move_constructible_v<std::vector<int>>) = default;
 
-    // 移动赋值运算符
-    MoveableResource& operator=(MoveableResource&& other) noexcept {
-        if (this != &other) {
-            name = std::move(other.name);
-            data = std::move(other.data);
-            other.name = "(moved from)";
-        }
-        return *this;
-    }
+    MoveableResource& operator=(MoveableResource&&) noexcept(
+        std::is_nothrow_move_assignable_v<std::string> &&
+        std::is_nothrow_move_assignable_v<std::vector<int>>) = default;
 };
 
+static_assert(std::is_nothrow_move_constructible_v<MoveableResource>);
+static_assert(std::is_nothrow_move_assignable_v<MoveableResource>);
+
 void demo_move_semantics() {
-    std::cout << "\n=== 移动语义示例 ===\n";
+    std::cout << "\n=== 后续预览：移动语义示例 ===\n";
 
     MoveableResource res1("Resource1");
     res1.data = {1, 2, 3, 4, 5};
 
     // 移动构造
     MoveableResource res2 = std::move(res1);
-    std::cout << "res1.name after move: " << res1.name << "\n";
+    std::cout << "res1.name after move (有效但值未指定): " << res1.name << "\n";
     std::cout << "res2.name: " << res2.name << "\n";
 
     // vector的移动语义
@@ -228,7 +240,7 @@ void demo_move_semantics() {
 }
 
 // ============================================================
-// Part 5: 完美转发
+// 后续课程预览 Part 2: 完美转发
 // ============================================================
 
 /**
@@ -239,7 +251,7 @@ void demo_move_semantics() {
 
 // 万能引用（Universal Reference）示例
 template<typename T>
-void show_type(T&& arg) {
+void show_type(T&&) {
     if constexpr (std::is_lvalue_reference_v<T>) {
         std::cout << "T is lvalue reference\n";
     } else {
@@ -267,7 +279,7 @@ std::unique_ptr<Widget> make_widget(T&& name, U&& value) {
 }
 
 void demo_perfect_forwarding() {
-    std::cout << "\n=== 完美转发示例 ===\n";
+    std::cout << "\n=== 后续预览：完美转发示例 ===\n";
 
     // 左值
     int x = 42;
@@ -300,7 +312,9 @@ public:
     ~ScopedTimer() {
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start_);
-        std::cout << "Timer '" << name_ << "' stopped: " << duration.count() << " us\n";
+        writeLogNoexcept([this, duration] {
+            std::cout << "Timer '" << name_ << "' stopped: " << duration.count() << " us\n";
+        });
     }
 
     // 禁止拷贝
@@ -320,7 +334,7 @@ public:
     }
     ~LockGuard() {
         mutex_.unlock();
-        std::cout << "Lock released\n";
+        writeLogNoexcept([] { std::cout << "Lock released\n"; });
     }
     LockGuard(const LockGuard&) = delete;
     LockGuard& operator=(const LockGuard&) = delete;
@@ -335,7 +349,8 @@ void demo_raii() {
         ScopedTimer timer("TestBlock");
         // 模拟一些工作
         for (int i = 0; i < 100000; ++i) {
-            volatile int x = i * i;
+            // 先提升到更宽的有符号类型再相乘，避免 int 在 i > 46340 时溢出。
+            volatile std::int64_t x = static_cast<std::int64_t>(i) * i;
             (void)x;
         }
     }  // timer自动析构
@@ -360,17 +375,18 @@ void run_week2_summary() {
     demo_unique_ptr();
     demo_shared_ptr();
     demo_weak_ptr();
+    demo_raii();
+
+    std::cout << "\n--- 以下移动语义与完美转发保留为后续课程预览 ---\n";
     demo_move_semantics();
     demo_perfect_forwarding();
-    demo_raii();
 
     std::cout << "\n=== 本周核心要点 ===\n";
     std::cout << "1. 优先使用unique_ptr，只在需要共享时用shared_ptr\n";
     std::cout << "2. 使用make_unique/make_shared创建智能指针\n";
     std::cout << "3. 用weak_ptr打破shared_ptr循环引用\n";
-    std::cout << "4. 理解移动语义和std::move\n";
-    std::cout << "5. 使用std::forward实现完美转发\n";
-    std::cout << "6. RAII是资源管理的基石\n";
+    std::cout << "4. RAII把资源生命周期绑定到对象作用域\n";
+    std::cout << "5. 移动语义和完美转发是后续现代C++课程主线\n";
 }
 
 } // namespace week2

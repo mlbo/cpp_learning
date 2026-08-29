@@ -25,12 +25,17 @@ echo -e "${NC}"
 
 # 创建构建目录
 echo -e "${BLUE}[1/3] 创建构建目录...${NC}"
+rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
 cd "${BUILD_DIR}"
 
 # 配置 CMake
 echo -e "${BLUE}[2/3] 配置 CMake 项目...${NC}"
-cmake .. -DCMAKE_BUILD_TYPE=Debug
+cmake .. \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DENABLE_SANITIZERS="${ENABLE_SANITIZERS:-OFF}" \
+    -DENABLE_ASAN="${ENABLE_ASAN:-OFF}" \
+    -DENABLE_UBSAN="${ENABLE_UBSAN:-OFF}"
 
 # 编译
 echo -e "${BLUE}[3/3] 编译项目...${NC}"
@@ -45,7 +50,8 @@ echo -e "${NC}"
 # 运行程序
 echo -e "${YELLOW}>>> 开始执行程序 <<<${NC}"
 echo ""
-./day_23_main
+ctest --output-on-failure
+./day_23_main --all
 
 echo ""
 echo -e "${GREEN}"

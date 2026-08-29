@@ -12,6 +12,8 @@
 #include <memory>
 #include <vector>
 
+#include "../../../common/noexcept_output.h"
+
 // ============================================
 // 1. 循环引用问题演示（故意设计有问题）
 // ============================================
@@ -26,7 +28,9 @@ struct Node {
         std::cout << "    Node(" << value << ") 创建\n";
     }
     ~Node() {
-        std::cout << "    Node(" << value << ") 销毁\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "    Node(" << value << ") 销毁\n";
+        });
     }
 };
 
@@ -66,7 +70,9 @@ struct Node {
         std::cout << "    Node(" << value << ") 创建\n";
     }
     ~Node() {
-        std::cout << "    Node(" << value << ") 销毁\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "    Node(" << value << ") 销毁\n";
+        });
     }
 };
 
@@ -103,7 +109,9 @@ public:
         std::cout << "    Parent '" << name << "' 创建\n";
     }
     ~Parent() {
-        std::cout << "    Parent '" << name << "' 销毁\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "    Parent '" << name << "' 销毁\n";
+        });
     }
 };
 
@@ -116,7 +124,9 @@ public:
         std::cout << "    Child '" << name << "' 创建\n";
     }
     ~Child() {
-        std::cout << "    Child '" << name << "' 销毁\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "    Child '" << name << "' 销毁\n";
+        });
     }
     
     void showParent() const {
@@ -167,7 +177,9 @@ public:
         std::cout << "    GraphNode(" << id << ") 创建\n";
     }
     ~GraphNode() {
-        std::cout << "    GraphNode(" << id << ") 销毁\n";
+        week2_support::write_noexcept([this] {
+            std::cout << "    GraphNode(" << id << ") 销毁\n";
+        });
     }
     
     void addNeighbor(std::shared_ptr<GraphNode> node) {

@@ -4,10 +4,18 @@
 class MinStack {
 public:
     MinStack();
+    ~MinStack();
+
+    MinStack(const MinStack&) = delete;
+    MinStack& operator=(const MinStack&) = delete;
+    MinStack(MinStack&&) = delete;
+    MinStack& operator=(MinStack&&) = delete;
+
     void push(int val);
     void pop();
-    int top();
-    int getMin();
+    int top() const;
+    int getMin() const;
+    bool empty() const noexcept;
     
 private:
     struct Node {

@@ -1,835 +1,267 @@
-# C++ 35天科学学习规划（最终版）
+# C++ 35 天科学学习规划
+
+> 本文件是 Day 1-35 的唯一课表和学习契约。它负责说明“按什么顺序学、每天完成什么、阶段如何验收”，不再复制专题教程、CMake 模板或公共类型实现。
+
+仓库统一以 C++17 构建，推荐 GCC 11+ 或 Clang 14+、CMake 3.16+。文档中的 C++11/14/17/20 标签表示特性首次进入标准的版本；Day 1-35 主线使用 C++17，C++20 内容只作为明确标注的延伸。
+
+## 1. 课程由哪些文档组成
 
-> 📚 参考：Hello-Algo 数据结构教程、LeetCode 科学刷题方法、Effective Modern C++、C++并发编程实战
-
----
-
-## 🎯 规划设计理念
-
-### 核心原则
-
-```mermaid
-mindmap
-  root((学习原则))
-    数据结构先行
-      先学原理再刷题
-      Hello-Algo图解
-      可视化理解
-    知识整合
-      EMC++相关条款合并
-      与C++11特性结合
-      底层知识补充
-    实战驱动
-      多写代码
-      多看例子
-      CMake项目
-    可视化讲解
-      Mermaid流程图
-      时序图
-      状态图
-```
-
----
-
-## 📁 项目文件结构
-
-```
-cpp_35days_learning/
-│
-├── README.md                           # 项目总览
-├── CMakeLists.txt                      # 根CMake配置
-├── build.sh                            # 一键编译脚本
-│
-├── week_01/                            # 第一周：基础入门 + 数组专题
-│   ├── README.md                       # 本周学习总结
-│   │
-│   ├── day_01/                         # Day 1
-│   │   ├── README.md                   # 📖 当天学习文档
-│   │   ├── CMakeLists.txt              # 🔧 CMake配置
-│   │   ├── build_and_run.sh            # 🚀 编译运行脚本
-│   │   │
-│   │   └── code/                       # 💻 代码目录
-│   │       ├── main.cpp                # 主程序入口
-│   │       │
-│   │       ├── data_structure/         # 数据结构代码
-│   │       │   ├── complexity.cpp      # 复杂度分析示例
-│   │       │   └── CMakeLists.txt
-│   │       │
-│   │       ├── cpp11_features/         # C++11特性代码
-│   │       │   ├── auto_demo.cpp       # auto演示
-│   │       │   ├── auto_rules.cpp      # auto推导规则
-│   │       │   └── CMakeLists.txt
-│   │       │
-│   │       ├── emcpp/                  # Effective Modern C++
-│   │       │   ├── item01_template_deduction.cpp
-│   │       │   ├── item02_auto_deduction.cpp
-│   │       │   ├── item03_decltype.cpp
-│   │       │   ├── item04_see_types.cpp
-│   │       │   ├── item05_prefer_auto.cpp
-│   │       │   └── CMakeLists.txt
-│   │       │
-│   │       └── leetcode/               # LeetCode刷题
-│   │           ├── 0001_two_sum/
-│   │           │   ├── solution.h
-│   │           │   ├── solution.cpp
-│   │           │   ├── test.cpp
-│   │           │   └── README.md       # 题目讲解
-│   │           │
-│   │           ├── 0167_two_sum_ii/
-│   │           │   ├── solution.h
-│   │           │   ├── solution.cpp
-│   │           │   ├── test.cpp
-│   │           │   └── README.md
-│   │           │
-│   │           └── CMakeLists.txt
-│   │
-│   ├── day_02/                         # Day 2
-│   │   ├── README.md
-│   │   ├── CMakeLists.txt
-│   │   ├── build_and_run.sh
-│   │   └── code/
-│   │       ├── main.cpp
-│   │       ├── data_structure/
-│   │       ├── cpp11_features/
-│   │       ├── emcpp/
-│   │       └── leetcode/
-│   │
-│   ├── day_03/ ... day_07/             # Day 3-7
-│   │
-│   └── week_summary/                   # 本周总结
-│       ├── README.md                   # 知识图谱
-│       ├── exercises/                  # 综合练习
-│       └── project/                    # 综合项目
-│
-├── week_02/                            # 第二周：链表 + 智能指针
-│   ├── README.md
-│   ├── day_08/
-│   ├── day_09/
-│   ...
-│   └── day_14/
-│
-├── week_03/                            # 第三周：栈队列 + Lambda
-│   ├── README.md
-│   ├── day_15/
-│   ...
-│   └── day_21/
-│
-├── week_04/                            # 第四周：哈希表 + 移动语义
-│   ├── README.md
-│   ├── day_22/
-│   ...
-│   └── day_28/
-│
-├── week_05/                            # 第五周：树 + 并发编程
-│   ├── README.md
-│   ├── day_29/
-│   ...
-│   └── day_35/
-│
-├── common/                             # 公共代码
-│   ├── include/
-│   │   ├── list_node.h                 # 链表节点定义
-│   │   ├── tree_node.h                 # 树节点定义
-│   │   └── test_utils.h                # 测试工具
-│   └── CMakeLists.txt
-│
-└── docs/                               # 文档资源
-    ├── images/                         # 图片资源
-    └── references/                     # 参考资料
-```
-
----
-
-## 📄 每天文档模板 (README.md)
-
-```markdown
-# Day XX：[主题名称]
-
-## 📅 学习目标
-
-- [ ] 掌握XX数据结构原理
-- [ ] 理解C++11 XX特性
-- [ ] 学习EMC++条款X-X
-- [ ] 完成LeetCode题目
-
----
-
-## 📖 知识点一：[数据结构名称]
-
-### 概念定义
-
-[定义内容]
-
-### 专业介绍
-
-[专业内容]
-
-### 通俗解释
-
-[类比解释]
-
-### 图示
-
-```mermaid
-graph TB
-    ...
-```
-
-### 代码示例
-
-[代码位置：`code/data_structure/xxx.cpp`]
-
----
-
-## 📖 知识点二：[C++11特性名称]
-
-### 概念定义
-
-[定义内容]
-
-### EMC++条款X要点
-
-[条款内容]
-
-### 代码示例
-
-[代码位置：`code/cpp11_features/xxx.cpp`]
-
----
-
-## 🎯 LeetCode 刷题
-
-### 讲解题：LC XXXX [题目名称]
-
-#### 题目描述
-
-[题目描述]
-
-#### 解题思路
-
-[思路分析]
-
-#### 代码实现
-
-[代码位置：`code/leetcode/xxxx_xxx/`]
-
-#### 复杂度分析
-
-- 时间复杂度：O(n)
-- 空间复杂度：O(n)
-
----
-
-### 实战题：LC XXXX [题目名称]
-
-#### 题目链接
-
-[LeetCode链接]
-
-#### 提示
-
-[解题提示]
-
----
-
-## 🚀 运行代码
-
-```bash
-# 编译并运行当天所有代码
-./build_and_run.sh
-
-# 或者手动编译
-mkdir build && cd build
-cmake ..
-make
-./day_xx_main
-```
-
----
-
-## 📚 相关术语
-
-| 术语 | 英文 | 定义 |
-|------|------|------|
-| ... | ... | ... |
-
----
-
-## 💡 学习提示
-
-[注意事项和常见陷阱]
-
----
-
-## 🔗 参考资料
-
-1. [Hello-Algo - XX章节](https://www.hello-algo.com/)
-2. [cppreference - XX](https://en.cppreference.com/)
-```
-
----
-
-## 🔧 CMake配置模板
-
-### 根目录 CMakeLists.txt
-
-```cmake
-cmake_minimum_required(VERSION 3.14)
-project(cpp_35days_learning VERSION 1.0.0 LANGUAGES CXX)
-
-# C++11 标准
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-# 编译选项
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -g")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-
-# 公共头文件
-include_directories(${CMAKE_SOURCE_DIR}/common/include)
-
-# 公共库
-add_subdirectory(common)
-
-# 每周学习
-option(BUILD_WEEK_01 "Build Week 01" ON)
-option(BUILD_WEEK_02 "Build Week 02" ON)
-option(BUILD_WEEK_03 "Build Week 03" ON)
-option(BUILD_WEEK_04 "Build Week 04" ON)
-option(BUILD_WEEK_05 "Build Week 05" ON)
-
-if(BUILD_WEEK_01)
-    add_subdirectory(week_01/day_01)
-    add_subdirectory(week_01/day_02)
-    add_subdirectory(week_01/day_03)
-    add_subdirectory(week_01/day_04)
-    add_subdirectory(week_01/day_05)
-    add_subdirectory(week_01/day_06)
-    add_subdirectory(week_01/day_07)
-endif()
-
-# ... 其他周类似
-
-# 线程支持（第五周需要）
-find_package(Threads REQUIRED)
-```
-
-### 每天目录 CMakeLists.txt (示例：day_01)
-
-```cmake
-cmake_minimum_required(VERSION 3.14)
-
-# Day 01 项目
-project(day_01_learning LANGUAGES CXX)
-
-# 数据结构示例
-add_executable(day01_complexity 
-    code/main.cpp
-    code/data_structure/complexity.cpp
-)
-target_link_libraries(day01_complexity PRIVATE common_utils)
-
-# C++11特性示例
-add_executable(day01_auto_demo 
-    code/cpp11_features/auto_demo.cpp
-)
-
-add_executable(day01_auto_rules 
-    code/cpp11_features/auto_rules.cpp
-)
-
-# EMC++条款示例
-add_executable(day01_item01 
-    code/emcpp/item01_template_deduction.cpp
-)
-
-add_executable(day01_item02 
-    code/emcpp/item02_auto_deduction.cpp
-)
-
-# LeetCode题目
-add_executable(day01_lc0001 
-    code/leetcode/0001_two_sum/solution.cpp
-    code/leetcode/0001_two_sum/test.cpp
-)
-
-add_executable(day01_lc0167 
-    code/leetcode/0167_two_sum_ii/solution.cpp
-    code/leetcode/0167_two_sum_ii/test.cpp
-)
-
-# 综合主程序
-add_executable(day01_main 
-    code/main.cpp
-    code/data_structure/complexity.cpp
-    code/cpp11_features/auto_demo.cpp
-    code/emcpp/item01_template_deduction.cpp
-    code/leetcode/0001_two_sum/solution.cpp
-    code/leetcode/0001_two_sum/test.cpp
-)
-```
-
----
-
-## 🚀 编译运行脚本模板
-
-### build_and_run.sh（每天目录下）
-
-```bash
-#!/bin/bash
-
-# ========================================
-# Day XX 编译运行脚本
-# ========================================
-
-set -e  # 遇错即停
-
-# 颜色定义
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# 项目目录
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_DIR="${SCRIPT_DIR}/build"
-
-echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}  Day XX: [主题名称] 编译运行${NC}"
-echo -e "${BLUE}========================================${NC}"
-
-# 清理旧的build目录
-echo -e "${YELLOW}[1/4] 清理构建目录...${NC}"
-rm -rf "${BUILD_DIR}"
-mkdir -p "${BUILD_DIR}"
-
-# CMake配置
-echo -e "${YELLOW}[2/4] CMake 配置...${NC}"
-cd "${BUILD_DIR}"
-cmake .. 
-
-# 编译
-echo -e "${YELLOW}[3/4] 编译项目...${NC}"
-make -j$(nproc)
-
-# 运行
-echo -e "${YELLOW}[4/4] 运行程序...${NC}"
-echo -e "${GREEN}----------------------------------------${NC}"
-echo -e "${GREEN}  运行主程序${NC}"
-echo -e "${GREEN}----------------------------------------${NC}"
-./day_xx_main
-
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  所有程序运行完成！${NC}"
-echo -e "${GREEN}========================================${NC}"
-
-# 可选：运行LeetCode测试
-echo -e "${BLUE}----------------------------------------${NC}"
-echo -e "${BLUE}  LeetCode 测试结果${NC}"
-echo -e "${BLUE}----------------------------------------${NC}"
-./day01_lc0001
-./day01_lc0167
-```
-
-### 根目录 build.sh（一键编译所有）
-
-```bash
-#!/bin/bash
-
-# ========================================
-# C++ 35天学习 一键编译脚本
-# ========================================
-
-set -e
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_DIR="${ROOT_DIR}/build"
-
-echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}  C++ 35天学习 - 全量编译${NC}"
-echo -e "${BLUE}========================================${NC}"
-
-# 清理
-rm -rf "${BUILD_DIR}"
-mkdir -p "${BUILD_DIR}"
-
-# CMake
-cd "${BUILD_DIR}"
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-
-# 编译
-make -j$(nproc)
-
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  编译完成！${NC}"
-echo -e "${GREEN}  可执行文件位于: ${BUILD_DIR}${NC}"
-echo -e "${GREEN}========================================${NC}"
-
-# 列出所有可执行文件
-echo -e "${YELLOW}可执行文件列表:${NC}"
-find "${BUILD_DIR}" -type f -executable -name "day*" | sort
-```
-
----
-
-## 📅 整体规划总览
-
-| 周次 | 数据结构 | C++11特性 | EMC++条款 | 底层知识 | LeetCode专题 |
-|------|---------|-----------|----------|---------|-------------|
-| 第1周 | 复杂度、数组 | auto/decltype/nullptr/constexpr/初始化 | 1-8 | 编译流程、内存模型 | 数组、双指针、二分 |
-| 第2周 | 链表 | 智能指针(unique/shared/weak)、Pimpl | 17-22 | 堆内存管理、RAII | 链表、快慢指针 |
-| 第3周 | 栈、队列 | Lambda/function/bind/enum class | 31-34, 10 | 函数调用栈、栈帧 | 栈队列、单调栈、BFS |
-| 第4周 | 哈希表 | 右值引用/移动语义/完美转发/类型别名 | 9, 23-30 | CPU缓存、内存对齐 | 哈希表、字符串 |
-| 第5周 | 二叉树、BST | 并发库(thread/mutex/atomic/条件变量) | 35-40, 11-16 | 进程线程、同步机制 | 二叉树、DFS/BFS |
-
----
-
-## 📋 每周详细规划
-
-### 第一周：基础入门 + 数组专题
-
-| Day | 主题 | 数据结构 | C++11特性 | EMC++条款 | LeetCode |
-|-----|------|---------|-----------|----------|----------|
-| 01 | 开发环境搭建 | 复杂度分析 | auto类型推导 | 1-5 | 1, 167 |
-| 02 | 数组基础 | 数组数据结构 | decltype详解 | 6 | 26, 27 |
-| 03 | 初始化专题 | - | 统一初始化 | 7 | 88, 283 |
-| 04 | 空指针专题 | - | nullptr详解 | 8 | 11, 15 |
-| 05 | 编译期计算 | - | constexpr详解 | - | 209, 3 |
-| 06 | 二分查找 | 二分查找算法 | - | - | 704, 34 |
-| 07 | 周复习 | 综合复习 | 综合复习 | 1-8复习 | 42, 189 |
-
----
-
-### 第二周：链表 + 智能指针
-
-| Day | 主题 | 数据结构 | C++11特性 | EMC++条款 | LeetCode |
-|-----|------|---------|-----------|----------|----------|
-| 08 | 链表入门 | 链表数据结构 | unique_ptr | 17-18 | 203, 206 |
-| 09 | 链表操作 | 快慢指针 | shared_ptr | 19-20 | 21, 141 |
-| 10 | 循环引用 | - | weak_ptr | 21 | 142, 19 |
-| 11 | Pimpl模式 | - | Pimpl模式 | 22 | 23, 61 |
-| 12 | 智能指针总结 | - | 智能指针选择 | 17-22复习 | 24, 25 |
-| 13 | 堆内存管理 | - | 内存管理 | - | 160, 148 |
-| 14 | 周复习 | 链表综合 | 智能指针综合 | 17-22复习 | 234, 138 |
-
----
-
-### 第三周：栈队列 + Lambda
-
-| Day | 主题 | 数据结构 | C++11特性 | EMC++条款 | LeetCode |
-|-----|------|---------|-----------|----------|----------|
-| 15 | 栈入门 | 栈数据结构 | Lambda入门 | 31 | 20, 1047 |
-| 16 | 队列入门 | 队列数据结构 | Lambda进阶 | 32-33 | 232, 225 |
-| 17 | 单调栈 | 单调栈算法 | function/bind | 34 | 739, 496 |
-| 18 | 函数调用栈 | 函数调用栈 | enum class | 10 | 84, 42 |
-| 19 | 优先队列 | 堆/优先队列 | - | - | 215, 347 |
-| 20 | BFS基础 | BFS算法 | - | - | 102, 107 |
-| 21 | 周复习 | 栈队列综合 | Lambda综合 | 31-34复习 | 155, 150 |
-
----
-
-### 第四周：哈希表 + 移动语义
-
-| Day | 主题 | 数据结构 | C++11特性 | EMC++条款 | LeetCode |
-|-----|------|---------|-----------|----------|----------|
-| 22 | 哈希表入门 | 哈希表数据结构 | 右值引用 | 9 | 242, 383 |
-| 23 | 移动语义 | - | 移动语义 | 23-25 | 1, 454 |
-| 24 | 通用引用 | - | 通用引用 | 26-28 | 49, 128 |
-| 25 | 完美转发 | - | 完美转发 | 29-30 | 3, 438 |
-| 26 | CPU缓存 | CPU缓存/对齐 | - | - | 5, 647 |
-| 27 | 字符串专题 | 字符串处理 | - | - | 76, 567 |
-| 28 | 周复习 | 哈希表综合 | 移动语义综合 | 9,23-30复习 | 146, 460 |
-
----
-
-### 第五周：树 + 并发编程
-
-| Day | 主题 | 数据结构 | C++11特性 | EMC++条款 | LeetCode |
-|-----|------|---------|-----------|----------|----------|
-| 29 | 二叉树入门 | 二叉树数据结构 | std::thread | 35 | 144, 145 |
-| 30 | 树遍历 | 二叉树遍历 | mutex | 36-37 | 94, 102 |
+| 文档 | 作用 | 什么时候读 |
+|---|---|---|
+| [根 README](README.md) | 最短入口、环境和导航 | 第一次打开仓库 |
+| 本规划 | 唯一课表、先修关系和阶段验收 | 开始一周前、周复习时 |
+| [C++ 基础学习教程](tutorials/CPP基础学习教程.md) | 第一次系统学习基础语法和现代机制 | 零基础准备、概念初识 |
+| [现代 C++ 特性学习地图](Modern_CPP_Features_Deep_Dive.md) | 版本、选型、迁移和仓库落点 | 不知道去哪里学或怎样选型时 |
+| [Effective Modern C++ 教程](tutorials/Effective_Modern_CPP教程.md) | 42 条机制与工程边界 | 随每日条款深化 |
+| [C++ 并发编程教程](tutorials/CPP并发编程教程.md) | 并发专题唯一深讲 | Week 5 与后续进阶 |
+| [C++ 项目组织与设计教程](tutorials/C++项目组织与设计教程.md) | 每日工程动作的方法论 | 设计接口、拆文件、写测试前 |
+| 周 README | 一周路线、先修、自测和周项目 | 每周 Day 1 前 |
+| 每日 README | 当日差异、代码导读、练习、工程动作和五句复盘 | 每次学习的主入口 |
+| 题目 README | 单题完整题解 | 独立做题后核对 |
+| 形象化专题指南 | 手算图和状态变化 | 算法过程无法在脑中展开时 |
+
+同一概念重复出现时采用“初识—深化—应用—复习”：主教程负责完整机制，每日 README 负责当天连接和练习，周复习负责迁移，不要求反复阅读相同正文。
+
+## 2. 开始前的最小能力
+
+进入 Day 1 前，至少应能：
+
+- 使用编译器或 CMake 构建一个最小 C++ 程序。
+- 读懂变量、表达式、条件、循环、函数和作用域。
+- 使用 `std::string` 与 `std::vector`。
+- 区分按值、引用、指针和 `nullptr` 的基本外观。
+- 知道类有构造和析构过程，但暂时不要求会写资源类。
+
+尚不具备时，先完成 [C++ 基础学习教程第 0 章](tutorials/CPP基础学习教程.md#0-零基础准备先读懂并运行第一周代码)。“一天”是课次编号，不是必须在一个自然日内完成；树与并发、移动与转发等课次可以拆成两次学习。
+
+## 3. 每天的固定学习闭环
+
+1. 阅读“本日位置、前置知识和可验证目标”。
+2. 不运行代码，先预测最小示例的类型、状态或输出。
+3. 阅读主讲内容，写出成立前提、边界和至少一个反例。
+4. 算法题先列输入契约、状态变量、不变量和终止条件，再看题解。
+5. 运行当天真实示例与测试，用结果修正预测。
+6. 完成一个与当天主题直接相关的工程动作。
+7. 回答自测，并按文档模板完成恰好五句复盘。
+
+每日最低完成证据不是“读完了”，而是：一次预测、一次真实运行、一张边界或所有权/状态图、一个工程动作和五句复盘。
+
+## 4. 五周总览
+
+| 周次 | 数据结构与算法 | 现代 C++ 主线 | EMC++ | 工程能力主线 |
+|---|---|---|---|---|
+| [Week 1](week_01/README.md) | 复杂度、数组、双指针、窗口、二分 | `auto`、`decltype`、初始化、`nullptr`、`constexpr` | 1-8 | 读懂翻译单元、接口和测试目标 |
+| [Week 2](week_02/README.md) | 链表、快慢指针、归并 | RAII、`unique_ptr`、`shared_ptr`、`weak_ptr`、Pimpl | 17-22 | 画所有权图、控制头文件依赖 |
+| [Week 3](week_03/README.md) | 栈、队列、单调栈、堆、BFS | Lambda、`std::function`、`std::bind`、`enum class` | 10、31-34 | 隔离数据结构与业务流程 |
+| [Week 4](week_04/README.md) | 哈希、缓存、字符串 | 值类别、移动、转发、类型别名 | 9、23-30 | 写值语义/所有权契约和性能前提 |
+| [Week 5](week_05/README.md) | 树、BST、DFS/BFS、路径 | 线程、mutex、条件变量、future、atomic、线程池 | 11-16、35-40 | 设计共享状态、同步与关闭协议 |
+| [Week 6（可选）](#week-6面试冲刺周day-36-42可选) | —— | 经典 C++ 与面试专项复习 | 按专题回顾 1-40 | 面试问答与手写实现 |
+
+## 5. Day 1-35 唯一课表
+
+### Week 1：基础、数组与类型推导
+
+| Day | 主题 | 数据结构/算法 | 现代 C++ | EMC++ | LeetCode |
+|---|---|---|---|---|---|
+| 01 | 开发环境搭建 | 复杂度分析 | `auto` 类型推导 | 1-5 | 1, 167 |
+| 02 | 数组基础 | 数组数据结构 | `decltype` | 6 | 26, 27 |
+| 03 | 初始化专题 | 双指针预备 | 统一初始化 | 7 | 88, 283 |
+| 04 | 空指针专题 | 双指针 | `nullptr` | 8 | 11, 15 |
+| 05 | 编译期计算 | 滑动窗口 | `constexpr` | - | 209, 3 |
+| 06 | 二分查找 | 二分与边界 | - | - | 704, 34 |
+| 07 | 周复习 | 数组综合 | 类型与初始化复习 | 1-8 复习 | 42, 189 |
+
+阶段出口：能解释值与引用、数组与 `vector`、半开/闭区间二分不变量，并能从 `main.cpp` 追到声明、定义、构建目标和测试。
+
+### Week 2：链表与智能指针
+
+| Day | 主题 | 数据结构/算法 | 现代 C++ | EMC++ | LeetCode |
+|---|---|---|---|---|---|
+| 08 | 链表入门 | 链表基础 | `unique_ptr` | 17-18 | 203, 206 |
+| 09 | 链表操作 | 快慢指针 | `shared_ptr` | 19-20 | 21, 141 |
+| 10 | 循环引用 | 环检测 | `weak_ptr` | 21 | 142, 19 |
+| 11 | Pimpl 模式 | 多链表合并 | Pimpl | 22 | 23, 61 |
+| 12 | 智能指针总结 | 成对操作 | 所有权选择 | 17-22 复习 | 24, 25 |
+| 13 | 堆内存管理 | 相交与排序 | 内存管理 | - | 160, 148 |
+| 14 | 周复习 | 链表综合 | 智能指针综合 | 17-22 复习 | 234, 138 |
+
+阶段出口：能画出链表和智能指针的所有权图，说明控制块、循环引用、不完整类型和链表复杂度成立的前提。
+
+> **类与多态复习**：主线 Day 1-35 没有专门安排"经典 C++ 类系统"的日，但继承、多态、虚函数、强制转换是面试高频考点。建议在 Day 14 周复习日或进入 Week 3 前，额外通读 [C++ 类与对象核心教程](tutorials/C++类与对象核心教程.md)：它复用了本周 `DynamicArray` 和第 4 章 `MyString` 的示例，把五件套升华成 Rule of Three/Five，并补齐虚函数表、虚析构、`dynamic_cast` 等缺口。Day 37（冲刺周）再做专题复习。
+
+### Week 3：栈队列与 Lambda
+
+| Day | 主题 | 数据结构/算法 | 现代 C++ | EMC++ | LeetCode |
+|---|---|---|---|---|---|
+| 15 | 栈入门 | 栈 | Lambda 入门 | 31 | 20, 1047 |
+| 16 | 队列入门 | 队列 | Lambda 进阶 | 32-33 | 232, 225 |
+| 17 | 单调栈 | 单调栈 | `function` / `bind` | 34 | 739, 496 |
+| 18 | 函数调用栈 | 调用栈 | `enum class` | 10 | 84, 42 |
+| 19 | 优先队列 | 堆 | - | - | 215, 347 |
+| 20 | BFS 基础 | BFS | - | - | 102, 107 |
+| 21 | 周复习 | 栈队列综合 | Lambda 综合 | 31-34 复习 | 155, 150 |
+
+阶段出口：能写清栈/队列约束、单调栈不变量、BFS 标记时机，并能判断闭包保存的是值、引用还是 `this`。
+
+### Week 4：哈希、移动语义与字符串
+
+| Day | 主题 | 数据结构/算法 | 现代 C++ | EMC++ | LeetCode |
+|---|---|---|---|---|---|
+| 22 | 哈希表入门 | 哈希表 | 右值引用预备、类型别名 | 9 | 242, 383 |
+| 23 | 移动语义 | 哈希应用 | 移动语义 | 23-25 | 1, 454 |
+| 24 | 通用引用 | 分组与前缀 | 转发引用（早期常称通用引用） | 26-28 | 49, 128 |
+| 25 | 完美转发 | 滑动窗口 | 完美转发 | 29-30 | 3, 438 |
+| 26 | CPU 缓存 | 缓存/对齐 | 性能观察 | - | 5, 647 |
+| 27 | 字符串专题 | 字符串与窗口 | 字符串接口 | - | 76, 567 |
+| 28 | 周复习 | 哈希综合 | 移动与转发综合 | 9、23-30 复习 | 146, 460 |
+
+阶段出口：能区分值类别和对象类型，说明 `std::move`/`std::forward` 的真实作用、移动后状态和哈希平均复杂度的条件。
+
+### Week 5：树与并发
+
+| Day | 主题 | 数据结构/算法 | 并发主线 | EMC++ | LeetCode |
+|---|---|---|---|---|---|
+| 29 | 二叉树入门 | 二叉树 | `std::thread`、任务 | 35 | 144, 145 |
+| 30 | 树遍历 | 二叉树遍历 | mutex、线程句柄 | 36-37 | 94, 102 |
 | 31 | BST | 二叉搜索树 | 条件变量 | 38 | 98, 700 |
-| 32 | DFS | DFS算法 | atomic | 39-40 | 104, 111 |
-| 33 | 树路径 | 路径问题 | 线程池 | 11-16 | 257, 113 |
-| 34 | 并发综合 | 进程线程模型 | 并发综合 | 35-40复习 | 236, 105 |
+| 32 | DFS | DFS | future、atomic | 39-40 | 104, 111 |
+| 33 | 树路径 | 路径问题 | 线程池、接口规则 | 11-16 | 257, 113 |
+| 34 | 并发综合 | 树与图综合 | 并发协议 | 35-40 复习 | 236, 105 |
 | 35 | 总结 | 知识体系 | 综合项目 | 全部复习 | 297, 124 |
 
----
+阶段出口：能写出递归函数含义、树的深度空间复杂度、共享状态与 happens-before，并能设计接受—拒绝—排空—停止—join 的关闭流程。
 
-## 📚 代码文件命名规范
+### Week 6：面试冲刺周（Day 36-42，可选）
 
-### 文件命名
+主线 35 天聚焦现代 C++ 与并发，但经典 C++ 的类系统、继承多态、虚函数、强制转换、STL 底层是面试高频却散落在各处的考点。这一周可选，用 [C++ 类与对象核心教程](tutorials/C++类与对象核心教程.md) 和 [STL 容器底层原理](tutorials/STL容器底层原理.md) 两篇专题把缺口补齐，并做手写实现。
 
-| 类型 | 命名规则 | 示例 |
-|------|---------|------|
-| 数据结构 | `{结构名}_{操作}.cpp` | `array_operations.cpp` |
-| C++11特性 | `{特性名}_demo.cpp` | `auto_demo.cpp` |
-| EMC++条款 | `item{条款号}_{主题}.cpp` | `item01_template_deduction.cpp` |
-| LeetCode | `{题号}_{题目名}/solution.cpp` | `0001_two_sum/solution.cpp` |
-| 测试文件 | `test_{功能}.cpp` | `test_two_sum.cpp` |
+| Day | 主题 | 专题复习 | 经典 C++ 核心 | 面试题数 | 手写实现 |
+|---|---|---|---|---|---|
+| 36 | 类与对象专项 | 类模型、`sizeof`、对齐、初始化列表 | 类、构造析构、`static`/`const`/`friend` | 10 | 含 Rule of Five 的资源类 |
+| 37 | 继承多态专项 | 继承语义、构造析构顺序、vtable | 多态、`virtual`、`override`、虚析构 | 10 | 抽象基类多态容器 |
+| 38 | 内存管理专项 | 内存四区、`new`/`delete`、野指针 | 深浅拷贝、`Rule of Three/Five/Zero` | 10 | 简易 `unique_ptr` |
+| 39 | STL 底层专项 | `vector` 扩容、红黑树、哈希桶 | 迭代器失效规则、`map` vs `unordered_map` | 10 | 简易 `vector` |
+| 40 | 智能指针专项 | 控制块、循环引用、`make_shared` | `unique`/`shared`/`weak` 选型 | 10 | 简易 `shared_ptr` |
+| 41 | 移动语义专项 | 值类别、`noexcept`、copy-and-swap | `move`/`forward`、转发引用 | 10 | `std::move` 等价实现 |
+| 42 | 并发专项 | 同步原语、内存序、停止协议 | `mutex`/`cv`/`atomic`、happens-before | 10 | 固定线程池 |
 
-### 类/函数命名
+阶段出口：能脱稿回答虚函数/vtable、虚析构、深浅拷贝、`vector` 扩容与失效、`map` vs `unordered_map`、强制类型转换、`sizeof` 含虚函数的计算、内存四区等经典面试题，并能手写出小型的 `unique_ptr`、`vector`、线程池。
 
-```cpp
-// 类名：大驼峰
-class MyLinkedList { ... };
+> 这一周末尾建议自测仓库根目录 `cpp_learning_optimization_report.md` 第 6 节的 10 道验收题：能独立答出 8 道即说明 P0/P1 内容已落地。
 
-// 函数名：小驼峰 或 下划线
-void reverseList();      // 小驼峰
-void reverse_list();     // 下划线风格
+## 6. 重复内容怎样处理
 
-// 常量：全大写下划线
-const int MAX_SIZE = 100;
+### 6.1 语言机制
 
-// 成员变量：下划线后缀
-class Solution {
-private:
-    int size_;
-    ListNode* head_;
-};
+- 基础教程负责第一次系统讲解。
+- EMC++ 教程负责推导规则、错误模式、例外和工程取舍。
+- 每日 README 只补当天所需前置、仓库代码落点和练习。
+- 周复习用对比题和迁移题检查掌握，不再次复制正文。
 
-// LeetCode题解类
-class Solution {
-public:
-    vector<int> twoSum(vector<int>& nums, int target) {
-        // ...
-    }
-};
-```
+### 6.2 算法题
 
----
+- 题目 README 保存完整题解：契约、不变量、正确性、复杂度和边界。
+- 形象化指南保存手算过程、状态图和容易走错的分支。
+- 每日 README 保存本日为什么选这道题、解题前检查表、代码入口和完成标准。
 
-## 🧪 公共代码库 (common/)
+### 6.3 并发
 
-### list_node.h（链表节点）
+- 并发教程是机制主讲位置。
+- Day 29-35 只讲与当天树主题配套的并发入口和真实代码路径。
+- 正确性以协议、同步边和最终不变量说明，不以 `sleep`、打印顺序或固定耗时说明。
 
-```cpp
-#ifndef COMMON_LIST_NODE_H
-#define COMMON_LIST_NODE_H
+## 7. 每日 README 的最低结构
 
-// 单链表节点
-struct ListNode {
-    int val;
-    ListNode *next;
-    ListNode() : val(0), next(nullptr) {}
-    ListNode(int x) : val(x), next(nullptr) {}
-    ListNode(int x, ListNode *next) : val(x), next(next) {}
-};
+标题可以因主题变化，但学习逻辑必须包含：
 
-// 双向链表节点
-struct DoublyListNode {
-    int val;
-    DoublyListNode *prev;
-    DoublyListNode *next;
-    DoublyListNode() : val(0), prev(nullptr), next(nullptr) {}
-    DoublyListNode(int x) : val(x), prev(nullptr), next(nullptr) {}
-};
+1. 本日位置、前置知识和建议时长。
+2. 可验证学习目标。
+3. 动机和正式定义。
+4. 最小示例或状态图。
+5. 核心机制/算法不变量。
+6. 常见错误、生命周期或复杂度边界。
+7. 当日 EMC++ 连接。
+8. 题目入口和独立完成步骤。
+9. 真实代码目录与运行命令。
+10. 分层自测。
+11. 一个工程动作。
+12. 下一日过渡。
+13. 恰好五句复盘。
 
-// 链表工具函数
-namespace list_utils {
-    // 从数组创建链表
-    ListNode* createList(const std::vector<int>& nums);
-    
-    // 打印链表
-    void printList(ListNode* head);
-    
-    // 释放链表内存
-    void deleteList(ListNode* head);
-    
-    // 链表转数组
-    std::vector<int> listToArray(ListNode* head);
-}
+如果某一项已由主教程完整承担，每日 README 使用清晰的相对链接，并写明“今天要带着什么问题去读”，而不是复制整节。
 
-#endif // COMMON_LIST_NODE_H
-```
+## 8. 工程能力辅线
 
-### tree_node.h（树节点）
+| 周次 | 每日训练焦点 | 周末应形成的产物 |
+|---|---|---|
+| Week 1 | 入口、声明/定义、容器接口、边界、测试目标 | 第一张构建关系图和 DynamicArray 项目卡 |
+| Week 2 | 所有权、特殊成员、头文件依赖、Pimpl、异常安全 | 所有权图、接口卡和资源类不变量 |
+| Week 3 | 数据结构接口、可调用对象边界、模块职责 | 栈/队列库边界和黑盒测试表 |
+| Week 4 | 值语义、泛型约束、性能假设、缓存模块 | 移动/转发契约和缓存模块依赖图 |
+| Week 5 | 共享状态、线程职责、同步、关闭和观测 | 并发组件生命周期图和综合项目验收表 |
 
-```cpp
-#ifndef COMMON_TREE_NODE_H
-#define COMMON_TREE_NODE_H
+工程动作的评价标准不是目录是否“像大项目”，而是职责、依赖、所有权、失败方式和测试入口是否能解释。
 
-// 二叉树节点
-struct TreeNode {
-    int val;
-    TreeNode *left;
-    TreeNode *right;
-    TreeNode() : val(0), left(nullptr), right(nullptr) {}
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
-    TreeNode(int x, TreeNode *left, TreeNode *right) 
-        : val(x), left(left), right(right) {}
-};
+## 9. EMC++ 42 条与主线位置
 
-// 树工具函数
-namespace tree_utils {
-    // 从数组创建树（层序）
-    TreeNode* createTree(const std::vector<int>& nums);
-    
-    // 打印树（层序）
-    void printTree(TreeNode* root);
-    
-    // 释放树内存
-    void deleteTree(TreeNode* root);
-    
-    // 前序遍历
-    std::vector<int> preorderTraversal(TreeNode* root);
-    
-    // 中序遍历
-    std::vector<int> inorderTraversal(TreeNode* root);
-    
-    // 后序遍历
-    std::vector<int> postorderTraversal(TreeNode* root);
-}
+| 内容 | 条款 | 课程位置 |
+|---|---|---|
+| 类型推导与 `auto` | 1-6 | Day 1-2，Day 7 复习 |
+| 初始化与空指针 | 7-8 | Day 3-4 |
+| 类型别名与枚举 | 9-10 | Day 22、Day 18 |
+| 接口与特殊成员规则 | 11-17 | Day 33、Day 8 |
+| 智能指针与 Pimpl | 18-22 | Day 8-12 |
+| 移动与转发 | 23-30 | Day 23-28 |
+| Lambda | 31-34 | Day 15-17，Week 4 回看 |
+| 并发 API | 35-40 | Day 29-34 |
+| 按值传参与 emplacement | 41-42 | 专题教程与总结 |
 
-#endif // COMMON_TREE_NODE_H
-```
+条款标题是学习索引，不是无条件规则。每条都要回答：解决什么问题、为什么可能出错、推荐写法的成本、例外和验证方法。
 
-### test_utils.h（测试工具）
+## 10. 运行与验证
 
-```cpp
-#ifndef COMMON_TEST_UTILS_H
-#define COMMON_TEST_UTILS_H
-
-#include <iostream>
-#include <vector>
-#include <string>
-#include <functional>
-
-// 测试框架
-namespace test {
-
-// 颜色输出
-constexpr const char* RED = "\033[0;31m";
-constexpr const char* GREEN = "\033[0;32m";
-constexpr const char* YELLOW = "\033[1;33m";
-constexpr const char* RESET = "\033[0m";
-
-// 断言相等
-template<typename T>
-void assertEqual(const T& expected, const T& actual, const std::string& name = "") {
-    if (expected == actual) {
-        std::cout << GREEN << "[PASS] " << RESET << name << std::endl;
-    } else {
-        std::cout << RED << "[FAIL] " << RESET << name 
-                  << " - Expected: " << expected 
-                  << ", Got: " << actual << std::endl;
-    }
-}
-
-// 断言向量相等
-template<typename T>
-void assertVectorEqual(const std::vector<T>& expected, 
-                       const std::vector<T>& actual, 
-                       const std::string& name = "") {
-    bool pass = (expected.size() == actual.size());
-    if (pass) {
-        for (size_t i = 0; i < expected.size(); ++i) {
-            if (expected[i] != actual[i]) {
-                pass = false;
-                break;
-            }
-        }
-    }
-    
-    if (pass) {
-        std::cout << GREEN << "[PASS] " << RESET << name << std::endl;
-    } else {
-        std::cout << RED << "[FAIL] " << RESET << name << std::endl;
-        std::cout << "  Expected: [";
-        for (size_t i = 0; i < expected.size(); ++i) {
-            std::cout << expected[i] << (i < expected.size()-1 ? ", " : "");
-        }
-        std::cout << "]" << std::endl;
-        std::cout << "  Got:      [";
-        for (size_t i = 0; i < actual.size(); ++i) {
-            std::cout << actual[i] << (i < actual.size()-1 ? ", " : "");
-        }
-        std::cout << "]" << std::endl;
-    }
-}
-
-// 打印分隔线
-void printSeparator(const std::string& title = "") {
-    std::cout << YELLOW << "======== " << title << " ========" << RESET << std::endl;
-}
-
-// 测试用例结构
-struct TestCase {
-    std::string name;
-    std::function<void()> func;
-};
-
-// 运行测试套件
-void runTestSuite(const std::vector<TestCase>& tests) {
-    int passed = 0;
-    for (const auto& test : tests) {
-        test.func();
-        passed++;
-    }
-    std::cout << std::endl;
-    std::cout << "Total: " << tests.size() << " tests" << std::endl;
-}
-
-} // namespace test
-
-#endif // COMMON_TEST_UTILS_H
-```
-
----
-
-## 📚 附录
-
-### A. EMC++ 42条款总索引
-
-| 章节 | 条款 | 内容 | 学习日期 |
-|------|------|------|----------|
-| 类型推导 | 1-6 | 模板推导、auto、decltype | Day 1-2 |
-| 初始化 | 7 | 区分()和{} | Day 3 |
-| 空指针 | 8 | 优先使用nullptr | Day 4 |
-| 类型别名 | 9 | using vs typedef | Day 22 |
-| 枚举 | 10 | enum class | Day 18 |
-| 杂项 | 11-16 | delete、const_iterator、noexcept等 | Day 33 |
-| 特殊成员 | 17 | 移动构造/赋值生成规则 | Day 8 |
-| 智能指针 | 18-22 | unique_ptr、shared_ptr、weak_ptr、Pimpl | Day 8-11 |
-| 移动语义 | 23-30 | move、forward、通用引用、引用折叠 | Day 23-25 |
-| Lambda | 31-34 | 捕获、初始化捕获、bind | Day 15-17 |
-| 并发 | 35-40 | 任务、线程、事件循环、volatile | Day 29-33 |
-
-### B. 推荐学习资源
-
-1. **Hello-Algo**: https://www.hello-algo.com/
-2. **LeetCode刷题指南**: https://leetcode.cn/discuss/post/RvFUtj/
-3. **cppreference**: https://en.cppreference.com/
-4. **Effective Modern C++**: Scott Meyers
-5. **C++ Concurrency in Action**: Anthony Williams
-
-### C. 快速开始
+运行一天：
 
 ```bash
-# 克隆项目（假设）
-git clone https://github.com/xxx/cpp_35days_learning.git
-cd cpp_35days_learning
-
-# 一键编译所有代码
-./build.sh
-
-# 运行某天的程序
-./build/day01_main
-
-# 或者进入某天目录单独编译
 cd week_01/day_01
 ./build_and_run.sh
 ```
 
----
+验证 Day 1-35 和模型综合项目：
 
-> 🎉 祝学习顺利！35天后你将掌握现代C++核心特性、数据结构与算法、并发编程基础！
+```bash
+./build_all.sh
+```
+
+只验证综合项目：
+
+```bash
+./build_all.sh --model-only --clean
+```
+
+根脚本使用全新临时构建树分别执行 configure、build 和 CTest；根目录本身没有统一 `CMakeLists.txt`。详细参数和失败传播规则以 [根 README](README.md) 的“编译环境”一节与脚本帮助为准，本规划不复制实现细节。
+
+## 11. 阶段复盘问题
+
+每周结束时至少回答：
+
+1. 本周最重要的不变量是什么？
+2. 哪个结论只在特定前提下成立？
+3. 哪个错误属于编译错误、异常、未定义行为或并发协议错误？
+4. 哪份文档是本主题的主讲位置，其他文档承担什么作用？
+5. 哪个工程动作能迁移到下一周或综合项目？
+
+Day 35 的目标是形成可继续学习的知识地图，不是宣称“35 天精通 C++”。完成主线后，应根据薄弱项回到专题教程，再进入模型推理综合项目或更大型的个人项目。
+
+## 12. 参考资料
+
+- C++ working draft：<https://eel.is/c++draft/>
+- cppreference：<https://en.cppreference.com/w/>
+- ISO C++ Core Guidelines：<https://isocpp.github.io/CppCoreGuidelines/>
+- Bjarne Stroustrup, *A Tour of C++*。
+- Stanley B. Lippman 等，*C++ Primer*。
+- Scott Meyers, *Effective Modern C++*。
+- Anthony Williams, *C++ Concurrency in Action*。
+- Hello 算法：<https://www.hello-algo.com/>。
+
+使用参考资料时区分标准保证、实现行为和作者建议。标准语义与版本由 working draft/cppreference 交叉核对，教材用于建立直觉、组织练习和理解工程取舍。

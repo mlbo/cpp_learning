@@ -62,56 +62,59 @@
 
 ## 代码实现
 
+下面的代码块可直接作为 `Solution34` 的公开成员实现使用，名称、`const` 输入和安全下标转换都与 `solution.h` 一致。
+
 ```cpp
-vector<int> searchRange(vector<int>& nums, int target) {
-    // 查找左边界
-    int leftBound = findLeft(nums, target);
-    if (leftBound == -1) {
+#include "solution.h"
+
+#include "../../../../common/integer_contracts.h"
+
+std::vector<int> Solution34::searchRange(const std::vector<int>& nums, int target) {
+    const int left_bound = findLeftBound(nums, target);
+    if (left_bound == -1) {
         return {-1, -1};
     }
-    
-    // 查找右边界
-    int rightBound = findRight(nums, target);
-    
-    return {leftBound, rightBound};
+    return {left_bound, findRightBound(nums, target)};
 }
 
-int findLeft(vector<int>& nums, int target) {
-    int left = 0, right = nums.size();
-    
+int Solution34::findLeftBound(const std::vector<int>& nums, int target) {
+    (void)week01::checked_index(nums.size());
+    std::size_t left = 0;
+    std::size_t right = nums.size();
+
     while (left < right) {
-        int mid = left + (right - left) / 2;
-        
+        const std::size_t mid = left + (right - left) / 2;
         if (nums[mid] >= target) {
             right = mid;
         } else {
             left = mid + 1;
         }
     }
-    
+
     if (left == nums.size() || nums[left] != target) {
         return -1;
     }
-    return left;
+    return week01::checked_index(left);
 }
 
-int findRight(vector<int>& nums, int target) {
-    int left = 0, right = nums.size();
-    
+int Solution34::findRightBound(const std::vector<int>& nums, int target) {
+    (void)week01::checked_index(nums.size());
+    std::size_t left = 0;
+    std::size_t right = nums.size();
+
     while (left < right) {
-        int mid = left + (right - left) / 2;
-        
+        const std::size_t mid = left + (right - left) / 2;
         if (nums[mid] <= target) {
             left = mid + 1;
         } else {
             right = mid;
         }
     }
-    
+
     if (left == 0 || nums[left - 1] != target) {
         return -1;
     }
-    return left - 1;
+    return week01::checked_index(left - 1);
 }
 ```
 

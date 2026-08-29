@@ -19,81 +19,66 @@
  * 空间复杂度：O(min(m, n))，m为字符集大小
  */
 
+#include "solution.h"
+
 #include <iostream>
-#include <string>
+#include <limits>
+#include <stdexcept>
 #include <unordered_map>
-#include <algorithm>
-#include <vector>
 
 // ==================== 解决方案类 ====================
 
-class Solution {
-public:
-    /**
-     * @brief 滑动窗口法求最长无重复子串
-     * 
-     * 核心思想：
-     * 维护一个滑动窗口 [left, right]，窗口内的字符都不重复。
-     * 当遇到重复字符时，移动左边界到重复字符的下一个位置。
-     * 
-     * @param s 输入字符串
-     * @return int 最长无重复子串的长度
-     */
-    int lengthOfLongestSubstring(std::string s) {
-        // 使用哈希表记录字符最后出现的位置
-        std::unordered_map<char, int> charIndex;
-        int maxLen = 0;
-        int left = 0;  // 窗口左边界
-        
-        // 遍历字符串，right为窗口右边界
-        for (int right = 0; right < static_cast<int>(s.size()); ++right) {
-            char c = s[right];
-            
-            // 如果字符已在窗口中出现
-            if (charIndex.find(c) != charIndex.end() && charIndex[c] >= left) {
-                // 移动左边界到重复字符的下一个位置
-                left = charIndex[c] + 1;
-            }
-            
-            // 更新字符位置
-            charIndex[c] = right;
-            
-            // 更新最大长度
-            maxLen = std::max(maxLen, right - left + 1);
-        }
-        
-        return maxLen;
+namespace leetcode::lc0003 {
+
+namespace {
+
+int toLengthResult(std::size_t length) {
+    if (length > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        throw std::overflow_error("子串长度超出题目 int 返回类型的范围");
     }
-    
-    /**
-     * @brief 使用数组优化的版本
-     * 
-     * 当字符集较小（如ASCII）时，使用数组比哈希表更快
-     * 
-     * @param s 输入字符串
-     * @return int 最长无重复子串的长度
-     */
-    int lengthOfLongestSubstringArray(std::string s) {
-        // 使用数组记录字符最后出现的位置，初始化为-1
-        std::vector<int> charIndex(128, -1);
-        int maxLen = 0;
-        int left = 0;
-        
-        for (int right = 0; right < static_cast<int>(s.size()); ++right) {
-            char c = s[right];
-            
-            // 如果字符已在窗口中，更新左边界
-            if (charIndex[c] >= left) {
-                left = charIndex[c] + 1;
-            }
-            
-            charIndex[c] = right;
-            maxLen = std::max(maxLen, right - left + 1);
+    return static_cast<int>(length);
+}
+
+} // namespace
+
+int Solution::lengthOfLongestSubstring(std::string s) {
+    std::unordered_map<char, std::size_t> charIndex;
+    std::size_t maxLen = 0;
+    std::size_t left = 0;
+
+    for (std::size_t right = 0; right < s.size(); ++right) {
+        const char c = s[right];
+        const auto found = charIndex.find(c);
+        if (found != charIndex.end() && found->second >= left) {
+            left = found->second + 1;
         }
-        
-        return maxLen;
+
+        charIndex[c] = right;
+        maxLen = std::max(maxLen, right - left + 1U);
     }
-};
+
+    return toLengthResult(maxLen);
+}
+
+int Solution::lengthOfLongestSubstringArray(std::string s) {
+    std::vector<std::size_t> charIndex(256, std::string::npos);
+    std::size_t maxLen = 0;
+    std::size_t left = 0;
+
+    for (std::size_t right = 0; right < s.size(); ++right) {
+        const auto c = static_cast<unsigned char>(s[right]);
+        if (charIndex[c] != std::string::npos && charIndex[c] >= left) {
+            left = charIndex[c] + 1;
+        }
+
+        charIndex[c] = right;
+        maxLen = std::max(maxLen, right - left + 1U);
+    }
+
+    return toLengthResult(maxLen);
+}
+
+} // namespace leetcode::lc0003
 
 // ==================== 演示函数 ====================
 
@@ -104,13 +89,13 @@ void visualizeSlidingWindow(const std::string& s) {
     std::cout << "\n可视化滑动窗口过程:\n";
     std::cout << "字符串: \"" << s << "\"\n\n";
     
-    std::unordered_map<char, int> charIndex;
-    int maxLen = 0;
-    int left = 0;
-    int maxLeft = 0;
+    std::unordered_map<char, std::size_t> charIndex;
+    std::size_t maxLen = 0;
+    std::size_t left = 0;
+    std::size_t maxLeft = 0;
     
-    for (int right = 0; right < static_cast<int>(s.size()); ++right) {
-        char c = s[right];
+    for (std::size_t right = 0; right < s.size(); ++right) {
+        const char c = s[right];
         
         std::cout << "步骤 " << right + 1 << ": 处理 '" << c << "'\n";
         
@@ -121,11 +106,11 @@ void visualizeSlidingWindow(const std::string& s) {
         }
         
         charIndex[c] = right;
-        int currentLen = right - left + 1;
+        const std::size_t currentLen = right - left + 1U;
         
         // 打印当前窗口
         std::cout << "  当前窗口: [";
-        for (int i = left; i <= right; ++i) {
+        for (std::size_t i = left; i <= right; ++i) {
             std::cout << s[i];
             if (i < right) std::cout << ", ";
         }
@@ -140,7 +125,7 @@ void visualizeSlidingWindow(const std::string& s) {
     }
     
     std::cout << "最长无重复子串: \"";
-    for (int i = maxLeft; i < maxLeft + maxLen; ++i) {
+    for (std::size_t i = maxLeft; i < maxLeft + maxLen; ++i) {
         std::cout << s[i];
     }
     std::cout << "\" 长度 = " << maxLen << "\n";
@@ -151,7 +136,7 @@ namespace leetcode {
 void lc0003Demo() {
     std::cout << "【LeetCode 3: 无重复字符的最长子串】\n\n";
     
-    Solution solution;
+    lc0003::Solution solution;
     
     // 测试用例1
     std::string s1 = "abcabcbb";

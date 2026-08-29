@@ -1,4 +1,10 @@
-# Day 35: 35天学习总结 - 从入门到精通的C++之旅
+# Day 35：阶段总结——建立可继续进阶的 C++ 知识体系
+
+> **学习定位**：本日用于验收、查漏和规划项目实践，不再把“看完章节”当成掌握。课程内容覆盖 EMC++ 42 个条款的索引与关键主题，但真正内化仍需要在后续代码评审和项目中反复使用。
+
+> **共性入口**：35 天课表以 [科学学习规划](../../CPP_35天科学学习规划_最终版.md) 为单一来源，语言机制与 EMC++ 条款分别回到对应专题教程；本日只保留阶段检索框架、LC 297/124 的完整契约、核心/进阶自测分层和项目验收动作。树序列化与最大路径和的手算图见 [形象化指南的 Day 35](../树与并发专题形象化题解指南.md#day35-visual)。
+
+> **前后关系**：先确认 [Day 34](../day_34/README.md) 的综合同步与树重建契约，再完成本日验收；之后回到 [课程总入口](../../README.md) 选择项目、调试、构建或 C++20 等下一阶段路线。
 
 > 恭喜你完成了35天的C++学习之旅！今天我们将系统性地回顾整个学习内容，巩固知识点，并为未来的进阶学习指明方向。
 
@@ -14,438 +20,118 @@
 
 ---
 
-## 📖 35天知识体系总览
+## 📖 35 天知识体系总览：从重复阅读改成检索与证明
 
-```mermaid
-mindmap
-  root((C++ 35天学习体系))
-    第一周 基础夯实
-      Day 1 数组与双指针
-        Day 2 数组进阶
-      Day 3 链表基础
-        Day 4 链表进阶
-      Day 5 栈与队列
-      Day 6 哈希表
-      Day 7 周复习
-    第二周 特性深入
-      Day 8 auto关键字
-      Day 9 智能指针基础
-      Day 10 智能指针进阶
-      Day 11 Lambda表达式
-      Day 12 函数对象
-      Day 13 类型推断
-      Day 14 周复习
-    第三周 现代C++
-      Day 15 移动语义
-      Day 16 右值引用
-      Day 17 完美转发
-      Day 18 资源管理
-      Day 19 并发基础
-      Day 20 线程同步
-      Day 21 周复习
-    第四周 高级专题
-      Day 22 树基础
-      Day 23 二叉树遍历
-      Day 24 树的应用
-      Day 25 DFS专题
-      Day 26 BFS专题
-      Day 27 滑动窗口
-      Day 28 周复习
-    第五周 综合提升
-      Day 29 EMC++条款1-10
-      Day 30 EMC++条款11-20
-      Day 31 EMC++条款21-30
-      Day 32 EMC++条款31-40
-      Day 33 算法实战一
-      Day 34 算法实战二
-      Day 35 总结复习
-```
+Day 1–35 的唯一课表、先修关系和阶段出口统一查看 [35 天科学学习规划](../../CPP_35天科学学习规划_最终版.md)。本日不再逐段复制前四周教程，也不重新摘要 42 条 EMC++；阶段总结的任务是面对一个问题时，能定位主讲文档、写出契约并给出验证证据。
+
+| 主线 | 已建立的能力 | Day 35 的检索问题 | 主入口 |
+|---|---|---|---|
+| Week 1：数组与类型 | 连续存储、复杂度、类型推导 | 变量是值、引用还是观察者，边界由谁检查？ | [Week 1](../../week_01/README.md) |
+| Week 2：链表与所有权 | 节点重连、RAII、智能指针 | 谁拥有节点，删除或异常后哪些指针仍有效？ | [Week 2](../../week_02/README.md) |
+| Week 3：栈队列与可调用对象 | 受限容器、BFS、Lambda | 状态放在栈、队列还是闭包中，生命周期够长吗？ | [Week 3](../../week_03/README.md) |
+| Week 4：哈希与移动 | 平均复杂度、值类别、转移 | 哈希前提是什么，移动是否真的发生，移动后允许做什么？ | [Week 4](../../week_04/README.md) |
+| Week 5：树与并发 | 递归不变量、同步与停止 | 递归深度多大，哪条同步边建立 happens-before，怎样关闭？ | [Week 5](../README.md) |
+
+复习时不要问“我是否见过这个 API”，而要独立回答四句话：输入与失败是什么、状态与所有权由谁维护、正确性不变量是什么、测试怎样让错误稳定失败。若回答不出，再按上表回到主讲处；这比再次浏览一份压缩摘要更能暴露知识缺口。
 
 ---
 
-## 📖 知识点回顾一：数据结构
+## 📖 知识点回顾一：数据结构选择必须带前提
 
-数据结构是程序设计的基石，理解各种数据结构的特性、操作复杂度和适用场景，是编写高效代码的前提。在过去的35天里，我们系统学习了以下核心数据结构：
+### 选择矩阵
 
-### 数组 (Array)
+| 需求 | 候选结构 | 复杂度与成立前提 | 主要失效点 |
+|---|---|---|---|
+| 连续随机访问 | 数组或 <code>vector</code> | 下标访问 O(1)；中间插删通常 O(n) | 越界、扩容导致引用/迭代器失效 |
+| 已知连接位置的重连 | 链表 | 已知节点和所需前驱时修改链接 O(1)；定位仍 O(n) | 所有权断链、悬空观察者 |
+| 最近进入者优先 | 栈 | 受限端 push/pop 通常 O(1) | 把容器适配器误当随机访问容器 |
+| 先进入者优先或逐层展开 | 队列 | 受限端入队/出队通常 O(1) | BFS 标记过晚导致重复入队 |
+| 平均常数时间按键查找 | 哈希表 | 平均 O(1)，依赖哈希分布和负载；最坏可 O(n) | 等价关系与哈希不一致、rehash 失效 |
+| 保持有序并做范围查询 | 平衡关联结构 | 搜索/插删通常 O(log n) | 把普通 BST 退化情况忽略 |
+| 层次关系与递归分解 | 树 | 一次遍历 O(n)，额外空间取决于 h 或 w | 深树调用栈、所有权和输入结构不合法 |
 
-数组是最基础的数据结构，它在内存中连续存储元素，支持O(1)时间的随机访问。我们学习了双指针技巧（快慢指针、对撞指针）来解决数组去重、两数之和等问题。滑动窗口技术则是处理连续子数组问题的利器，能够在O(n)时间内解决子数组和、最长连续子序列等问题。数组的缺点是插入和删除操作需要移动大量元素，时间复杂度为O(n)。
+复杂度必须说清输入规模和空间口径。树 DFS 的额外空间通常是 O(h)，层序 BFS 队列是 O(w)；哈希 O(1) 是平均界；链表 O(1) 插删不包含定位；输出所有路径还要把输出总长度计入时间和空间。复杂度不是标签，而是由“不变量维持了什么、每个元素被处理几次”推导出的结果。
 
-### 链表 (Linked List)
+### 所有权检查
 
-链表通过指针连接节点，克服了数组插入删除效率低的问题。单向链表只支持单向遍历，双向链表支持双向遍历，循环链表的尾节点指向头节点。我们学习了虚拟头节点技巧简化边界处理、快慢指针检测环和寻找中点、递归与迭代两种反转链表方法。链表的随机访问需要O(n)时间，这是它相对于数组的主要劣势。
-
-### 栈与队列 (Stack & Queue)
-
-栈遵循后进先出(LIFO)原则，常用于表达式求值、括号匹配、函数调用栈等场景。单调栈是解决下一更大元素、柱状图最大矩形等问题的神器。队列遵循先进先出(FIFO)原则，是BFS遍历和任务调度的核心数据结构。双端队列(deque)结合了栈和队列的优点，滑动窗口最值问题常使用单调双端队列解决。优先队列(堆)能够在O(log n)时间内获取最值，是Top K问题的标准解法。
-
-### 哈希表 (Hash Table)
-
-哈希表通过哈希函数将键映射到数组索引，实现O(1)平均时间的查找、插入和删除。我们学习了哈希冲突的两种主要解决方法：链地址法和开放寻址法。unordered_map和unordered_set是C++ STL提供的哈希容器，常用于计数、去重、缓存等场景。哈希表的缺点是不支持有序遍历，最坏情况下操作复杂度退化为O(n)。
-
-### 树 (Tree)
-
-树是一种层次化的数据结构，二叉树是最常见的树结构。我们学习了前序、中序、后序三种深度优先遍历，以及层序广度优先遍历。二叉搜索树(BST)支持高效查找、插入和删除，是平衡树的基础。递归是解决树问题的核心思维，分治思想将大问题分解为子树问题。高级树结构如AVL树、红黑树、B树、字典树等在数据库和文件系统中有广泛应用。
-
-```cpp
-// 数据结构复杂度速查表
-// ┌─────────────┬──────────┬──────────┬──────────┬──────────┐
-// │  操作       │  访问    │  查找    │  插入    │  删除    │
-// ├─────────────┼──────────┼──────────┼──────────┼──────────┤
-// │  数组       │  O(1)    │  O(n)    │  O(n)    │  O(n)    │
-// │  链表       │  O(n)    │  O(n)    │  O(1)    │  O(1)    │
-// │  栈         │  O(n)    │  O(n)    │  O(1)    │  O(1)    │
-// │  队列       │  O(n)    │  O(n)    │  O(1)    │  O(1)    │
-// │  哈希表     │  N/A     │  O(1)*   │  O(1)*   │  O(1)*   │
-// │  BST        │  O(log n)│  O(log n)│  O(log n)│  O(log n)│
-// └─────────────┴──────────┴──────────┴──────────┴──────────┘
-// * 平均时间复杂度
-```
+- 容器或根对象拥有元素与节点，算法中的指针/迭代器通常只观察。
+- 返回观察指针时，要说明其有效期不能超过原容器或树所有者。
+- 修改容器前先查迭代器、引用和指针失效规则。
+- 递归构造树时优先让返回值转移 <code>unique_ptr</code>，异常发生后已建子树自动释放。
+- 共享所有权只在确有多个独立 owner 时使用；控制块线程安全不等于被管理对象线程安全。
 
 ---
 
-## 📖 知识点回顾二：C++11特性
+## 📖 知识点回顾二：现代 C++ 是一条语义链
 
-C++11是C++语言的一次重大升级，引入了大量现代编程特性，使C++更加安全、高效、易用。以下是我们在35天中学习的核心C++11特性：
+完整语言机制统一回到 [C++ 基础学习教程](../../tutorials/CPP基础学习教程.md)，42 条工程建议统一回到 [Effective Modern C++ 教程](../../tutorials/Effective_Modern_CPP教程.md)。Day 35 只保留把这些机制串起来的检查顺序。
 
-### auto关键字与类型推导
+1. **类型**：<code>auto</code>、模板推导和 <code>decltype</code> 得到的类型是什么，顶层 const、引用和数组是否被保留？
+2. **值类别**：表达式是左值、将亡值还是纯右值；<code>std::move</code> 只是转换，后续是否移动由重载和类型能力决定。
+3. **所有权**：资源由值对象、<code>unique_ptr</code>、<code>shared_ptr</code> 还是外部系统拥有；裸指针和引用是否仅观察。
+4. **生命周期**：闭包、异步任务、迭代器和观察指针会不会活过它们引用的对象。
+5. **失败语义**：错误是编译失败、异常、未定义行为、有效但未指定状态，还是只有性能不佳。
+6. **接口承诺**：<code>const</code>、<code>noexcept</code>、<code>constexpr</code>、<code>override</code> 和 deleted 函数各自承诺什么，又不承诺什么。
 
-auto关键字让编译器自动推导变量类型，简化了冗长的类型声明，特别是迭代器和模板类型的声明。配合decltype可以获取表达式的类型，用于返回类型推导。auto不能推导数组类型、函数参数类型和非静态成员变量。使用auto时要注意初始化表达式必须完整，且推导结果可能出乎意料（如auto推导出引用还是副本）。
+### EMC++ 检索地图
 
-```cpp
-// auto使用示例
-auto iter = my_map.begin();  // 替代 std::map<K,V>::iterator
-auto lambda = [](int x) { return x * 2; };  // 推导lambda类型
-decltype(5 + 3.0) result;  // double类型
-```
+| Item | 主题 | 阶段复习时应能解释 |
+|---|---|---|
+| 1–6 | 推导与 auto | 推导结果、代理类型和花括号初始化差异 |
+| 7–16 | 现代接口规则 | 初始化、nullptr、别名、枚举、deleted、override、const_iterator、noexcept、constexpr、const 线程安全 |
+| 17–22 | 特殊成员与智能指针 | Rule of Zero、独占/共享/弱观察、Pimpl 完整类型边界 |
+| 23–30 | 移动与转发 | move/forward、转发引用、引用折叠和完美转发失败 |
+| 31–34 | Lambda | 捕获时机、悬空引用、move-only 捕获和泛型转发 |
+| 35–40 | 并发 API | task/thread、启动策略、句柄析构、一次性事件、atomic/volatile |
+| 41–42 | 参数与 emplacement | 按值接收的复制移动成本，emplace 的适用条件和例外 |
 
-### 智能指针
-
-智能指针是C++11最重要的特性之一，它通过RAII机制自动管理内存，有效防止内存泄漏。unique_ptr独占资源所有权，不能拷贝但可以移动，是零开销的智能指针。shared_ptr共享资源所有权，通过引用计数管理生命周期，但可能产生循环引用问题。weak_ptr是shared_ptr的观察者，不增加引用计数，用于打破循环引用和观察资源状态。使用make_unique和make_shared函数创建智能指针更加安全和高效。
-
-```cpp
-// 智能指针最佳实践
-auto uptr = std::make_unique<int>(42);
-auto sptr = std::make_shared<int>(100);
-std::weak_ptr<int> wptr = sptr;  // 观察shared_ptr
-if (auto locked = wptr.lock()) {  // 安全访问
-    std::cout << *locked << std::endl;
-}
-```
-
-### Lambda表达式
-
-Lambda表达式是匿名函数的语法糖，它使得在需要函数对象的地方可以直接定义行为。Lambda的捕获列表决定如何访问外部变量：[=]值捕获所有变量，[&]引用捕获所有变量，也可以指定变量名和捕获方式。Lambda可以指定返回类型（->Type），也可以省略让编译器推导。Lambda常用于STL算法的自定义比较器、回调函数、事件处理等场景。
-
-```cpp
-// Lambda表达式进阶用法
-std::vector<int> nums = {3, 1, 4, 1, 5, 9, 2, 6};
-// 自定义排序：偶数在前，奇数在后
-std::sort(nums.begin(), nums.end(), 
-    [](int a, int b) {
-        return (a % 2 == b % 2) ? (a < b) : (a % 2 == 0);
-    });
-// 捕获外部变量
-int threshold = 5;
-auto count_above = [&nums, threshold]() {
-    return std::count_if(nums.begin(), nums.end(),
-        [threshold](int x) { return x > threshold; });
-};
-```
-
-### 移动语义与右值引用
-
-移动语义是C++11性能优化的核心特性，它允许资源所有权从一个对象转移到另一个对象，避免不必要的深拷贝。右值引用(T&&)用于绑定临时对象（右值），std::move将左值转换为右值引用。移动构造函数和移动赋值运算符是实现移动语义的关键。完美转发使用std::forward保持参数的值类别，配合万能引用(T&&)实现参数的精确传递。
-
-```cpp
-// 移动语义示例
-class String {
-    char* data;
-    size_t len;
-public:
-    // 移动构造函数
-    String(String&& other) noexcept 
-        : data(other.data), len(other.len) {
-        other.data = nullptr;  // 置空源对象
-        other.len = 0;
-    }
-    // 完美转发
-    template<typename T>
-    void process(T&& arg) {
-        do_something(std::forward<T>(arg));
-    }
-};
-```
-
-### 并发编程
-
-C++11将线程支持纳入标准库，提供了thread、mutex、condition_variable等组件。std::thread创建和管理线程，支持传入函数对象和Lambda表达式。std::mutex保护共享资源，配合std::lock_guard和std::unique_lock实现RAII风格的锁管理。std::condition_variable实现线程间的等待/通知机制。std::atomic提供无锁原子操作，适用于简单的共享变量访问。std::async和std::future简化异步任务编程。
-
-```cpp
-// 并发编程示例
-std::mutex mtx;
-std::vector<int> results;
-
-void worker(int start, int end) {
-    for (int i = start; i < end; ++i) {
-        std::lock_guard<std::mutex> lock(mtx);
-        results.push_back(i * i);
-    }
-}
-
-int main() {
-    std::vector<std::thread> threads;
-    for (int i = 0; i < 4; ++i) {
-        threads.emplace_back(worker, i * 25, (i + 1) * 25);
-    }
-    for (auto& t : threads) t.join();
-    // 异步任务
-    auto future = std::async(std::launch::async, 
-        []() { return 42; });
-    std::cout << future.get() << std::endl;  // 42
-}
-```
+条款是带适用条件的设计建议，不是语言定律。阶段验收至少要能给每组条款举出一个反例、一个适用边界和一个仓库中的可执行落点；只背标题不算掌握。
 
 ---
 
-## 📖 知识点回顾三：EMC++条款
+## 📖 知识点回顾三：算法先声明状态，再写循环或递归
 
-《Effective Modern C++》是Scott Meyers的经典著作，总结了42条现代C++的最佳实践。以下是前40条条款的核心要点总结：
+### 通用证明模板
 
-### 第一章：类型推导（条款1-4）
+1. **契约**：输入是否合法，空输入怎样处理，结果是否唯一。
+2. **状态含义**：指针、窗口、栈、队列或递归返回值在任一时刻代表什么。
+3. **不变量**：一次循环或一次递归前后，哪些条件保持成立。
+4. **前进与终止**：哪一个区间缩小、哪个节点被标记、为何不会无限重复。
+5. **正确性**：终止时不变量为何推出目标结果。
+6. **复杂度**：每个元素进出几次，辅助结构最大多大，是否还要计入输出。
 
-**条款1：理解模板类型推导** - 模板类型推导是理解auto和decltype的基础。推导规则分为三种情况：ParamType是指针或引用、ParamType是万能引用、ParamType既不是指针也不是引用。数组名和函数名会退化为指针，除非ParamType是引用。
-
-**条款2：理解auto类型推导** - auto类型推导与模板类型推导基本相同，但auto假设大括号初始化列表为std::initializer_list，而模板不会。
-
-**条款3：理解decltype** - decltype返回变量或表达式的确切类型，C++14支持decltype(auto)作为返回类型推导。
-
-**条款4：学会查看推导出的类型** - 使用IDE、编译器错误信息、运行时类型识别(typeid)或Boost.TypeIndex查看推导结果。
-
-### 第二章：auto（条款5-6）
-
-**条款5：优先使用auto而非显式类型声明** - auto避免未初始化变量、冗长的类型声明、变量截断类型不匹配等问题。但要注意不可见的代理类型可能导致的性能问题。
-
-**条款6：auto推导出非常规类型时需要显式类型初始化** - vector<bool>的operator[]返回代理对象，auto会推导为错误类型，应使用static_cast显式转换。
-
-### 第三章：转向现代C++（条款7-10）
-
-**条款7：区别使用()和{}创建对象** - 大括号初始化是最通用的初始化语法，禁止窄化转换，但可能匹配initializer_list重载。小括号初始化可能被解析为函数声明。
-
-**条款8：优先使用nullptr而非0或NULL** - nullptr是std::nullptr_t类型，不会产生类型推断错误，避免重载决议歧义。
-
-**条款9：优先使用别名声明而非typedef** - using支持模板别名，语法更清晰，可以用于模板元编程。
-
-**条款10：优先使用限定作用域的enum** - enum class避免命名污染，禁止隐式转换，可以前置声明并指定底层类型。
-
-### 第四章：智能指针（条款17-22）
-
-**条款17：理解特种成员函数的生成** - C++11中，移动构造/赋值在需要时自动生成，但如果声明了拷贝或析构函数，则不会生成移动操作。
-
-**条款18：使用std::unique_ptr管理独占所有权资源** - unique_ptr小巧高效，可以自定义删除器，适合Pimpl模式。
-
-**条款19：使用std::shared_ptr管理共享所有权资源** - shared_ptr通过控制块管理引用计数，避免用裸指针创建多个shared_ptr。
-
-**条款20：使用std::weak_ptr管理类似缓存的资源** - weak_ptr不增加引用计数，lock()返回可能过期的shared_ptr。
-
-**条款21：优先使用std::make_unique和std::make_shared** - 避免内存泄漏，减少内存分配次数，提高异常安全性。
-
-**条款22：使用Pimpl模式时，在实现文件中定义特殊成员函数** - 将实现细节移到cpp文件，减少编译依赖，必须在实现文件中定义析构函数。
-
-### 第五章：右值引用与移动语义（条款23-30）
-
-**条款23：理解std::move和std::forward** - move执行到右值的无条件转换，forward仅在条件满足时执行转换。它们在运行时什么也不做，只是类型转换。
-
-**条款24：区别万能引用和右值引用** - T&&在类型推导语境下是万能引用，包括模板参数和auto&&。const修饰的右值引用不是万能引用。
-
-**条款25：右值引用使用std::move，万能引用使用std::forward** - 右值引用绑定到右值，移动是合适的；万能引用可能是左值或右值，需要精确转发。
-
-**条款26：避免万能引用重载** - 万能引用匹配几乎所有类型，会导致重载决议意外匹配。使用标签分发或限制模板参数来替代。
-
-**条款27：熟悉万能引用重载的替代方案** - 使用const T&、值传递、标签分发、SFINAE等技术避免万能引用重载问题。
-
-**条款28：理解引用折叠** - 引用折叠规则：只有两个右值引用折叠为右值引用，其他情况都折叠为左值引用。这是万能引用和完美转发的基础。
-
-**条款29：假设移动操作不存在、不便宜、不被使用** - 移动操作可能未定义、可能比复制更快但非O(1)、可能在异常情况下被禁用。
-
-**条款30：熟悉完美转发的失败情况** - 大括号初始化、空指针0、重载函数名、位域等不能完美转发。
-
-### 第六章：Lambda表达式（条款31-34）
-
-**条款31：避免默认捕获模式** - 引用捕获可能导致悬垂引用，值捕获可能误以为捕获了指针所指向的对象。显式指定捕获变量更安全。
-
-**条款32：使用初始化捕获将对象移入闭包** - C++14支持初始化捕获，可以移动捕获对象、捕获表达式结果。
-
-**条款33：对std::forward的万能引用使用auto&&** - auto&&配合decltype可以在Lambda中完美转发捕获的万能引用。
-
-**条款34：优先使用Lambda而非std::bind** - Lambda可读性好，支持内联，表达式求值时机清晰，效率更高。
-
-### 第七章：并发API（条款35-40）
-
-**条款35：优先使用基于任务的编程而非基于线程的编程** - std::async返回future，可以获取返回值和异常，避免线程管理和资源耗尽问题。
-
-**条款36：如果异步是必要的，请指定std::launch::async** - 默认启动策略可能同步执行，需要异步行为时应显式指定。
-
-**条款37：使std::thread在所有路径上不可join** - 析构joinable的thread会终止程序，使用RAII包装器确保thread被join或detach。
-
-**条款38：关注未来析构行为** - future析构时，共享状态为deferred的任务会同步执行，其他情况只是减少计数。
-
-**条款39：考虑单线程事件循环使用void返回的future** - void返回的future可以用于事件通知机制。
-
-**条款40：对并发使用std::atomic，对特殊内存使用volatile** - atomic提供原子操作和内存序保证，volatile用于特殊内存映射，不提供线程安全。
+| 模式 | 核心状态 | 关键不变量 | 常见错误 |
+|---|---|---|---|
+| 双指针 | 左右边界或快慢位置 | 被排除区间已不可能包含答案 | 没有单调前进，整数求和溢出 |
+| 滑动窗口 | 半开或闭区间及频次 | 窗口状态与边界完全对应 | 收缩条件错误、混淆“至多”和“恰好” |
+| DFS | 当前节点、visited、路径 | 调用处理一棵子树或一个搜索状态 | 环图不标记、回溯不撤销 |
+| BFS | 队列前沿和距离 | 出队状态按最少边数层次展开 | 入队后才标记，带权图误用普通 BFS |
+| 树后序 DP | 子树返回值和全局候选 | 返回值只能表达可连接父节点的状态 | 把当前完整答案直接返回给父节点 |
 
 ---
 
-## 📖 知识点回顾四：算法专题
+## 📖 知识点回顾四：Week 5 的综合契约
 
-算法是解决复杂问题的方法论，我们在35天中系统学习了多种经典算法技术：
+### 树算法检查表
 
-### 双指针技巧
+- 根为空时是否有明确定义，叶子是否严格等于“左右孩子都为空”。
+- 递归函数是一条返回值契约还是向结果追加的副作用契约。
+- 父节点是否独占孩子，算法是否只借用节点而不保存悬空地址。
+- 时间是否真为 O(n)，额外空间究竟是 O(h)、O(w) 还是输出规模。
+- 退化树令 h 等于 n 时，是否需要显式栈或输入深度上限。
+- BST、LCA、重建和序列化的在线评测前提，是否已经转成通用接口可检查的失败条件。
 
-双指针技巧通过两个指针协同工作，将嵌套循环优化为单层循环，显著降低时间复杂度。**快慢指针**：一快一慢两个指针，用于检测链表环、寻找链表中点、删除倒数第N个节点。**对撞指针**：左右两端向中间移动，用于有序数组两数之和、三数之和、接雨水问题。**滑动窗口指针**：维护一个窗口，通过移动左右边界寻找满足条件的子数组。
+### 并发算法检查表
 
-```cpp
-// 快慢指针检测环
-bool hasCycle(ListNode* head) {
-    ListNode *slow = head, *fast = head;
-    while (fast && fast->next) {
-        slow = slow->next;
-        fast = fast->next->next;
-        if (slow == fast) return true;
-    }
-    return false;
-}
+- 共享状态、mutex、atomic、任务、future 和线程句柄分别由谁拥有。
+- 每对冲突访问由 mutex、future、join 或 release/acquire 中哪条边建立 happens-before。
+- 条件变量谓词由哪把 mutex 保护，通知之前改变了什么状态。
+- close 与 submit/send 如何在线程安全的线性化点决定接受或拒绝。
+- 已接受工作是 drain 还是 cancel，停止时谁唤醒，worker 何时退出，谁最终 join。
+- 任务异常由谁 get，析构是否可能等待，引用捕获能否活到任务完成。
+- 测试是否使用同步门、future、join 和最终不变量，而不是 sleep、日志顺序或固定耗时。
 
-// 对撞指针两数之和
-vector<int> twoSum(vector<int>& nums, int target) {
-    int left = 0, right = nums.size() - 1;
-    while (left < right) {
-        int sum = nums[left] + nums[right];
-        if (sum == target) return {left, right};
-        else if (sum < target) ++left;
-        else --right;
-    }
-    return {};
-}
-```
-
-### 滑动窗口
-
-滑动窗口是处理连续子数组/子字符串问题的通用模板。固定窗口大小问题直接维护窗口，可变窗口问题通过双指针动态调整窗口边界。核心思路是：先扩展右边界找到满足条件的窗口，再收缩左边界寻找最优解。
-
-```cpp
-// 最小覆盖子串模板
-string minWindow(string s, string t) {
-    unordered_map<char, int> need, window;
-    for (char c : t) need[c]++;
-    int left = 0, right = 0, valid = 0;
-    int start = 0, len = INT_MAX;
-    
-    while (right < s.size()) {
-        char c = s[right++];  // 扩展窗口
-        if (need.count(c)) {
-            window[c]++;
-            if (window[c] == need[c]) valid++;
-        }
-        
-        while (valid == need.size()) {  // 收缩窗口
-            if (right - left < len) {
-                start = left;
-                len = right - left;
-            }
-            char d = s[left++];
-            if (need.count(d)) {
-                if (window[d] == need[d]) valid--;
-                window[d]--;
-            }
-        }
-    }
-    return len == INT_MAX ? "" : s.substr(start, len);
-}
-```
-
-### DFS深度优先搜索
-
-DFS沿着一条路径一直走到底，再回溯探索其他分支。适用于路径搜索、组合枚举、连通性问题。递归是DFS最自然的实现方式，需要注意递归终止条件和剪枝优化。
-
-```cpp
-// DFS遍历二叉树
-void dfs(TreeNode* root) {
-    if (!root) return;
-    // 前序位置
-    dfs(root->left);
-    // 中序位置
-    dfs(root->right);
-    // 后序位置
-}
-
-// DFS岛屿数量
-int numIslands(vector<vector<char>>& grid) {
-    int count = 0;
-    for (int i = 0; i < grid.size(); ++i) {
-        for (int j = 0; j < grid[0].size(); ++j) {
-            if (grid[i][j] == '1') {
-                dfs(grid, i, j);
-                count++;
-            }
-        }
-    }
-    return count;
-}
-```
-
-### BFS广度优先搜索
-
-BFS逐层向外扩展，常用于最短路径问题。使用队列实现，先入先出保证按层遍历。无权图的最短路径可以用BFS直接求解。
-
-```cpp
-// BFS层序遍历
-vector<vector<int>> levelOrder(TreeNode* root) {
-    vector<vector<int>> result;
-    if (!root) return result;
-    
-    queue<TreeNode*> q;
-    q.push(root);
-    
-    while (!q.empty()) {
-        int size = q.size();
-        vector<int> level;
-        for (int i = 0; i < size; ++i) {
-            TreeNode* node = q.front(); q.pop();
-            level.push_back(node->val);
-            if (node->left) q.push(node->left);
-            if (node->right) q.push(node->right);
-        }
-        result.push_back(level);
-    }
-    return result;
-}
-
-// BFS最短路径
-int shortestPath(vector<vector<int>>& grid) {
-    int m = grid.size(), n = grid[0].size();
-    vector<vector<int>> dist(m, vector<int>(n, -1));
-    queue<pair<int,int>> q;
-    q.push({0, 0});
-    dist[0][0] = 0;
-    
-    int dirs[4][2] = {{0,1}, {1,0}, {0,-1}, {-1,0}};
-    while (!q.empty()) {
-        auto [x, y] = q.front(); q.pop();
-        for (auto& d : dirs) {
-            int nx = x + d[0], ny = y + d[1];
-            if (nx >= 0 && nx < m && ny >= 0 && ny < n && 
-                grid[nx][ny] == 0 && dist[nx][ny] == -1) {
-                dist[nx][ny] = dist[x][y] + 1;
-                q.push({nx, ny});
-            }
-        }
-    }
-    return dist[m-1][n-1];
-}
-```
-
----
+这两张检查表是 Day 35 后续项目的设计评审入口；具体 API 语义继续查阅 [C++ 并发编程教程](../../tutorials/CPP并发编程教程.md) 和本周各日 README。
 
 ## 🎯 LeetCode 刷题
 
@@ -462,125 +148,116 @@ int shortestPath(vector<vector<int>>& grid) {
 想象你要把一棵树"打包"成一个字符串，然后能在另一台电脑上"拆包"恢复成完全一样的树。就像把乐高积木拆散后用说明书记录每个积木的位置，收到的人可以照着说明书重新组装。
 
 **关键洞察**：
-- 树的遍历有前序、中序、后序、层序四种方式，都可以用于序列化
-- 需要用特殊标记（如"null"或"#")表示空节点，否则无法唯一还原
+- 前序或后序配合空节点标记可以唯一重建；层序必须为每个父节点保留左右孩子槽位
+- **普通中序序列不能单独唯一表示任意二叉树**：`#,1,#,2,#` 既可解释为 1 的右孩子是 2，也可解释为 2 的左孩子是 1；除非额外加入括号结构或另一种遍历
+- 需要用特殊标记（如 `#`）表示空节点，并规定是否允许尾随分隔符、空 token 和数值空白
 - 前序遍历便于反序列化：先处理根节点，再递归处理左右子树
 - 层序遍历更直观：按层输出，用队列辅助重建
+
+工程版本还必须定义格式和所有权契约：仓库代码用 `unique_ptr` 表达反序列化结果的独占所有权，规范格式不产生尾随逗号，并拒绝开头/结尾/连续逗号形成的空 token、非法或越界整数、提前结束和多余 token。数值解析必须确认整个 token 都被消费；只写 `stoi(token)` 会错误接受 `12abc`。为避免恶意输入耗尽内存或调用栈，教学实现还限制最多 100000 个 token 且树高不超过 1024，超限抛 `length_error`。下面两种算法都假设节点字段名为 `value`，`left`/`right` 是 `unique_ptr<TreeNode>`；序列化参数是只读观察者，调用者仍拥有原树。
 
 #### 🔍 解题思路
 
 **方法一：前序遍历DFS**
 
-序列化：按照"根-左-右"的顺序遍历树，空节点用"null"表示，节点之间用分隔符连接。
+序列化：按照"根-左-右"的顺序遍历树，空节点用 `#` 表示，节点之间用逗号连接。
 
-反序列化：按分隔符拆分字符串，按照前序遍历的顺序重建树。递归处理：当前元素非null则创建节点，递归构建左子树和右子树。
+反序列化：按逗号拆分字符串，按照前序遍历的顺序重建树。当前 token 为 `#` 则返回空子树，否则严格解析整数并递归构建左右子树。
+
+下面是与实际 [`solution.h`](code/leetcode/0297_serialize_deserialize/solution.h) 一致的核心递归片段。**代码块性质：局部实现片段，不可单独编译**；省略了头文件、严格 `tokenize`、无尾随分隔符的拼接循环、`TreeNode` 定义以及 token/递归深度限制参数，完整版本由 CMake 编译并由契约测试覆盖。
 
 ```cpp
-class Codec {
+class Codec final {
 public:
-    // 序列化：前序遍历
-    string serialize(TreeNode* root) {
-        string result;
-        serializeHelper(root, result);
-        return result;
+    std::unique_ptr<TreeNode> deserialize(const std::string& data) const {
+        const std::vector<std::string> tokens = tokenize(data);
+        std::size_t index = 0U;
+        auto root = deserialize_node(tokens, index);
+        if (index != tokens.size()) {
+            throw std::invalid_argument("serialized tree has trailing tokens");
+        }
+        return root;
     }
-    
-    void serializeHelper(TreeNode* root, string& result) {
-        if (!root) {
-            result += "null,";
+
+private:
+    static void serialize_node(const TreeNode* node,
+                               std::vector<std::string>& tokens) {
+        if (node == nullptr) {
+            tokens.emplace_back("#");
             return;
         }
-        result += to_string(root->val) + ",";
-        serializeHelper(root->left, result);
-        serializeHelper(root->right, result);
+        tokens.push_back(std::to_string(node->value));
+        serialize_node(node->left.get(), tokens);
+        serialize_node(node->right.get(), tokens);
     }
-    
-    // 反序列化：前序遍历重建
-    TreeNode* deserialize(string data) {
-        queue<string> nodes;
-        string node;
-        stringstream ss(data);
-        while (getline(ss, node, ',')) {
-            nodes.push(node);
+
+    static std::unique_ptr<TreeNode> deserialize_node(
+        const std::vector<std::string>& tokens, std::size_t& index) {
+        if (index >= tokens.size()) {
+            throw std::invalid_argument("serialized tree ended early");
         }
-        return deserializeHelper(nodes);
-    }
-    
-    TreeNode* deserializeHelper(queue<string>& nodes) {
-        string node = nodes.front();
-        nodes.pop();
-        if (node == "null") return nullptr;
-        TreeNode* root = new TreeNode(stoi(node));
-        root->left = deserializeHelper(nodes);
-        root->right = deserializeHelper(nodes);
-        return root;
+        const std::string& token = tokens[index++];
+        if (token == "#") {
+            return nullptr;
+        }
+        const int value = parse_integer_exactly(token);  // from_chars 且 position == end
+        auto node = std::make_unique<TreeNode>(value);
+        node->left = deserialize_node(tokens, index);
+        node->right = deserialize_node(tokens, index);
+        return node;
     }
 };
 ```
 
 **方法二：层序遍历BFS**
 
+层序版本复用同一套严格 tokenizer 与整数解析器。**代码块性质：局部替代算法片段，不可单独编译**；省略的 `tokenize`/`parse_integer_exactly` 契约与前序版本相同。
+
 ```cpp
-class Codec {
+class LevelOrderCodec final {
 public:
-    string serialize(TreeNode* root) {
-        if (!root) return "null";
-        string result;
-        queue<TreeNode*> q;
-        q.push(root);
-        
-        while (!q.empty()) {
-            TreeNode* node = q.front(); q.pop();
-            if (node) {
-                result += to_string(node->val) + ",";
-                q.push(node->left);
-                q.push(node->right);
+    std::vector<std::string> serialize_tokens(const TreeNode* root) const {
+        std::vector<std::string> tokens;
+        std::queue<const TreeNode*> pending;
+        pending.push(root);
+        while (!pending.empty()) {
+            const TreeNode* node = pending.front();
+            pending.pop();
+            if (node != nullptr) {
+                tokens.push_back(std::to_string(node->value));
+                pending.push(node->left.get());
+                pending.push(node->right.get());
             } else {
-                result += "null,";
+                tokens.emplace_back("#");
             }
         }
-        return result;
+        return tokens;
     }
-    
-    TreeNode* deserialize(string data) {
-        queue<string> nodes;
-        string node;
-        stringstream ss(data);
-        while (getline(ss, node, ',')) {
-            nodes.push(node);
-        }
-        
-        if (nodes.front() == "null") return nullptr;
-        TreeNode* root = new TreeNode(stoi(nodes.front()));
-        nodes.pop();
-        queue<TreeNode*> q;
-        q.push(root);
-        
-        while (!q.empty()) {
-            TreeNode* parent = q.front(); q.pop();
-            if (!nodes.empty()) {
-                string left = nodes.front(); nodes.pop();
-                if (left != "null") {
-                    parent->left = new TreeNode(stoi(left));
-                    q.push(parent->left);
-                }
+
+    std::unique_ptr<TreeNode> deserialize(const std::string& data) const {
+        std::queue<std::string> tokens = tokenize_to_queue(data);
+        if (tokens.front() == "#") {
+            tokens.pop();
+            if (!tokens.empty()) {
+                throw std::invalid_argument("trailing tree token");
             }
-            if (!nodes.empty()) {
-                string right = nodes.front(); nodes.pop();
-                if (right != "null") {
-                    parent->right = new TreeNode(stoi(right));
-                    q.push(parent->right);
-                }
-            }
+            return nullptr;
         }
+        auto root = std::make_unique<TreeNode>(parse_integer_exactly(tokens.front()));
+        tokens.pop();
+        std::queue<TreeNode*> parents;
+        parents.push(root.get());
+        // 每个 parent 必须精确消费 left/right 两个 token；缺失或多余都抛异常。
+        attach_children_strictly(parents, tokens);
         return root;
     }
 };
 ```
 
 **复杂度分析**：
-- 时间复杂度：O(n)，每个节点访问一次
-- 空间复杂度：O(n)，存储序列化字符串或队列
+- 时间复杂度：O(n)，序列化与反序列化都只处理每个节点/空标记常数次。
+- 输出空间：序列化文本需要 Θ(n) 个 token；反序列化得到的结果树本身需要 Θ(n) 节点。
+- 辅助空间：本实现先保存全部 token，因此为 O(n)，其中父节点 BFS 队列峰值为 O(w)，`w` 是最大层宽；若改用流式 token 输入可去掉完整 token 队列。递归 DFS 版本的辅助调用栈则是 O(h)，`h` 是树高。
 
 ---
 
@@ -600,44 +277,52 @@ public:
 - 路径可以是一条"直线"，也可以是一条"人字形"（在某个节点转弯）
 - 对于每个节点，计算以其为转折点的最大路径和：左子树贡献 + 节点值 + 右子树贡献
 - 递归返回的是以该节点为一端的最大路径和，只能选择一边（左边或右边或都不选）
-- 全局变量维护最大路径和
+- 用“本次调用共享的 `best` 状态”维护最大路径和，通过引用传入递归，避免全局变量破坏可重入性
 
 #### 🔍 解题思路
 
 **核心思想**：后序遍历 + 动态规划
 
+以下代码沿用本日 `unique_ptr` 树节点：父节点独占子树，算法只接收 `const TreeNode*` 观察者，因此递归不转移所有权。
+
 1. 对于每个节点，计算其能贡献给父节点的最大路径和
-2. 贡献值 = max(0, 左子树最大贡献) + max(0, 右子树最大贡献) + 当前节点值
-3. 但返回给父节点时只能选择一边：max(max(左贡献, 右贡献), 0) + 当前节点值
-4. 用全局变量记录过程中的最大路径和
+2. 当前节点作为转折点的候选答案 = 当前值 + max(0, 左贡献) + max(0, 右贡献)
+3. 返回给父节点的单臂贡献只能选择一边：当前值 + max(左贡献, 右贡献)
+4. 每次加法都必须符合数值接口；本工程结果超出 `std::int64_t` 时抛出 `overflow_error`，而不是执行有符号溢出 UB
+
+下面是与实际 [`solution.h`](code/leetcode/0124_max_path_sum/solution.h) 相同的核心算法。**代码块性质：局部实现片段，不可单独编译**；省略了 `TreeNode` 与标准头，但没有省略空树和溢出契约。
 
 ```cpp
-class Solution {
+class MaxPathSum final {
 private:
-    int maxSum = INT_MIN;
-    
-    // 返回以node为一端的最大路径和（贡献给父节点）
-    int maxGain(TreeNode* node) {
-        if (!node) return 0;
-        
-        // 递归计算左右子树贡献，负数贡献视为0（不选）
-        int leftGain = max(maxGain(node->left), 0);
-        int rightGain = max(maxGain(node->right), 0);
-        
-        // 以当前节点为转折点的路径和
-        int pathSum = node->val + leftGain + rightGain;
-        
-        // 更新最大路径和
-        maxSum = max(maxSum, pathSum);
-        
-        // 返回给父节点的贡献值（只能选一边）
-        return node->val + max(leftGain, rightGain);
+    static std::int64_t checked_add(std::int64_t left, std::int64_t right) {
+        const auto maximum = std::numeric_limits<std::int64_t>::max();
+        const auto minimum = std::numeric_limits<std::int64_t>::lowest();
+        if ((right > 0 && left > maximum - right) ||
+            (right < 0 && left < minimum - right)) {
+            throw std::overflow_error("maximum path sum is outside int64_t");
+        }
+        return left + right;
     }
-    
+
+    static std::int64_t gain(const TreeNode* node, std::int64_t& best) {
+        if (node == nullptr) {
+            return 0;
+        }
+        const auto left = std::max<std::int64_t>(0, gain(node->left.get(), best));
+        const auto right = std::max<std::int64_t>(0, gain(node->right.get(), best));
+        best = std::max(best, checked_add(checked_add(node->value, left), right));
+        return checked_add(node->value, std::max(left, right));
+    }
+
 public:
-    int maxPathSum(TreeNode* root) {
-        maxGain(root);
-        return maxSum;
+    std::int64_t operator()(const TreeNode* root) const {
+        if (root == nullptr) {
+            throw std::invalid_argument("maximum path requires a non-empty tree");
+        }
+        std::int64_t best = std::numeric_limits<std::int64_t>::lowest();
+        static_cast<void>(gain(root, best));
+        return best;
     }
 };
 ```
@@ -661,27 +346,34 @@ public:
 - 时间复杂度：O(n)，每个节点访问一次
 - 空间复杂度：O(h)，递归栈深度为树高
 
+关键不变量是：递归返回值只能是一条能继续接到父节点的“单臂路径”，而全局答案可以在当前节点把左右两臂合并。全负树不能把答案初始化为 0，否则会错误地返回空路径；题目要求路径至少含一个节点。仓库实现把状态放在单次调用的局部变量中，空树是契约错误，并用受检 `std::int64_t` 加法明确报告越界；把节点类型简单扩大为 `long long` 只能扩大范围，不能让 `LLONG_MAX + 1` 变得合法。
+
 ---
 
 ## 📊 学习成果自测
 
-通过以下问题检验你对35天学习内容的掌握程度：
+自测分成两层，不能把分数混在一起。核心阶段验收只覆盖本课程已经系统讲解或实际练过的内容；进阶挑战保留用于规划下一阶段，未完成表示“尚未学习对应先修”，不等于 Week 1–5 基础未掌握。
 
-### 数据结构篇
+| 分区 | 题号 | 如何解释结果 |
+|---|---|---|
+| 核心阶段验收 | 1–3、5–15 | 应能独立说明不变量、所有权、复杂度或失败方式；不会时回到对应周复习 |
+| 进阶挑战 | 4、16–20 | 不计入 Day 35 结业判断；先完成标注的先修，再把已学模板迁移到新模型 |
 
-1. **数组**：给定一个有序数组，原地删除重复元素，使得每个元素最多出现两次，返回新长度。要求O(1)空间复杂度。
+### 核心阶段验收：课程已教内容
 
-2. **链表**：如何判断链表是否有环？如果有环，如何找到环的入口节点？
+#### 数据结构篇
 
-3. **栈**：设计一个支持O(1)时间获取最小元素的栈。
+- **题 1（数组）**：给定一个有序数组，原地删除重复元素，使得每个元素最多出现两次，返回新长度。要求O(1)空间复杂度。
 
-4. **哈希表**：设计一个数据结构，支持O(1)时间的插入、删除和获取随机元素。
+- **题 2（链表）**：如何判断链表是否有环？如果有环，如何找到环的入口节点？
 
-5. **树**：给定二叉树的前序和中序遍历序列，重建二叉树。
+- **题 3（栈）**：设计一个支持O(1)时间获取最小元素的栈。
 
-### C++特性篇
+- **题 5（树）**：给定二叉树的前序和中序遍历序列，重建二叉树。
 
-6. **auto**：以下代码中，a、b、c的类型分别是什么？
+#### C++特性篇
+
+- **题 6（auto）**：以下代码中，a、b、c的类型分别是什么？
 ```cpp
 int x = 10;
 auto a = x;
@@ -689,87 +381,99 @@ auto& b = x;
 auto&& c = 10;
 ```
 
-7. **智能指针**：shared_ptr的引用计数是如何实现的？为什么是线程安全的？
+- **题 7（智能指针）**：shared_ptr 的控制块并发保证到哪里为止，为什么它不等于所管理对象线程安全？
 
-8. **Lambda**：以下Lambda的捕获列表有什么问题？
+- **题 8（Lambda）**：以下Lambda的捕获列表有什么问题？
 ```cpp
+#include <functional>
+
 std::function<int()> createMultiplier(int factor) {
     return [&]() { return factor * 2; };
 }
 ```
 
-9. **移动语义**：解释std::move和std::forward的区别。
+- **题 9（移动语义）**：解释std::move和std::forward的区别。
 
-10. **并发**：如何避免死锁？RAII锁管理器是如何帮助的？
+- **题 10（并发）**：如何避免死锁？RAII锁管理器是如何帮助的？
 
-### EMC++条款篇
+#### EMC++条款篇
 
-11. 为什么优先使用nullptr而不是NULL？
+- **题 11**：为什么优先使用nullptr而不是NULL？
 
-12. unique_ptr为什么比auto_ptr更安全？
+- **题 12**：unique_ptr为什么比auto_ptr更安全？
 
-13. 什么情况下编译器不会生成移动构造函数？
+- **题 13**：什么情况下编译器不会生成移动构造函数？
 
-14. 为什么说"万能引用重载"是危险的？
+- **题 14**：为什么说“转发引用重载”是危险的？
 
-15. volatile和atomic的区别是什么？
+- **题 15**：volatile和atomic的区别是什么？
 
-### 算法篇
+### 进阶挑战：保留内容，但不计入核心结业
 
-16. 给定一个包含正负数的数组，找出和最大的连续子数组。
+下面六题都能复用课程中的局部工具，但还需要新模型。建议顺序是题 18（网格建图）→ 题 16（一维动态规划）→ 题 4（组合数据结构与随机性）→ 题 20（树形动态规划）→ 题 19（图染色）→ 题 17（二维动态规划）；每完成一题，先写状态定义和失败边界，再写代码。
 
-17. 给定一个字符串s和模式串p，实现支持'.'和'*'的正则表达式匹配。
+- **题 4（组合数据结构挑战）**：设计一个数据结构，支持O(1)时间的插入、删除和获取随机元素。先修是动态数组尾部交换删除、哈希索引同步、均匀随机数与接口不变量；课程讲过数组和哈希，但没有系统完成这一组合设计。
 
-18. 给定一个二维网格地图，计算岛屿的数量。
+- **题 16（动态规划入门）**：给定一个包含正负数的数组，找出和最大的连续子数组。先修是“以当前位置结尾”的状态定义、状态转移和空输入契约；Kadane 是该递推的常用名称，不属于本阶段必会术语。
 
-19. 给定一个无向图，判断是否为二分图。
+- **题 17（二维动态规划）**：给定一个字符串s和模式串p，实现支持'.'和'*'的正则表达式匹配。先修是二维 DP、模式合法性和 `*` 对前一元素的零次/多次解释；课程只讲过普通字符串处理，没有系统教授正则匹配。
 
-20. 给定一棵二叉树，找到最深的叶子节点的最近公共祖先。
+- **题 18（DFS/BFS 迁移）**：给定一个二维网格地图，计算岛屿的数量。先修是把网格单元建模为图顶点、定义四邻接并管理 visited；课程已教 DFS/BFS，但网格建模仍是一次新迁移。
+
+- **题 19（图论挑战）**：给定一个无向图，判断是否为二分图。先修是邻接表、连通分量和二染色不变量；“会 BFS”本身还不足以推出二分图判定。
+
+- **题 20（树形动态规划）**：给定一棵二叉树，找到最深的叶子节点的最近公共祖先。先修是让后序递归同时返回子树深度与候选祖先；课程讲过普通 LCA 和树高，但没有系统推导这个组合状态。
 
 ### 参考答案提示
 
 <details>
 <summary>点击查看答案提示</summary>
 
-1. 双指针：快慢指针，快指针遍历，慢指针记录有效位置。
+#### 核心阶段答案提示
 
-2. 快慢指针相遇则环存在；相遇后一指针从头开始，两指针同步移动，再次相遇即为入口。
+- **题 1**：双指针：快慢指针，快指针遍历，慢指针记录有效位置。
 
-3. 辅助栈记录最小值，或在栈节点中额外存储当前最小值。
+- **题 2**：快慢指针相遇则环存在；相遇后一指针从头开始，两指针同步移动，再次相遇即为入口。
 
-4. 哈希表+数组：数组存储元素支持随机访问，哈希表存储值到索引的映射。
+- **题 3**：辅助栈记录最小值，或在栈节点中额外存储当前最小值。
 
-5. 前序第一个元素为根，在中序中找到根位置，左边为左子树，右边为右子树，递归处理。
+- **题 5**：前序第一个元素为根，在中序中找到根位置，左边为左子树，右边为右子树，递归处理。
 
-6. a是int，b是int&，c是int&&（万能引用绑定右值）。
+- **题 6**：a是int，b是int&，c是int&&（`auto&&` 在这里是转发引用，并被右值初始化）。
 
-7. 控制块存储引用计数，使用原子操作保证线程安全。
+- **题 7**：不同 shared_ptr 实例可以并发复制和销毁，因为控制块计数按标准要求安全更新；但多个线程通过它们访问同一个可变对象仍需同步，同一个 shared_ptr 对象本身被一边读一边写也不能当然安全。
 
-8. 引用捕获局部变量factor，函数返回后factor被销毁，产生悬垂引用。
+- **题 8**：引用捕获局部变量factor，函数返回后factor被销毁，产生悬垂引用。
 
-9. move无条件转换为右值，forward根据类型信息条件转换。
+- **题 9**：`std::move` 无条件把表达式转换成 xvalue，`std::forward<T>` 根据推导得到的 `T` 条件恢复左值或右值类别；是否真的移动资源仍由后续重载决议和目标类型能力决定。
 
-10. 按固定顺序获取锁；lock_guard/unique_lock自动释放锁，即使异常也会析构。
+- **题 10**：按固定顺序获取锁；lock_guard/unique_lock自动释放锁，即使异常也会析构。
 
-11. nullptr是std::nullptr_t类型，不会与整型重载混淆。
+- **题 11**：nullptr是std::nullptr_t类型，不会与整型重载混淆。
 
-12. unique_ptr独占所有权，禁止拷贝，只能移动。
+- **题 12**：unique_ptr独占所有权，禁止拷贝，只能移动。
 
-13. 声明了拷贝操作或析构函数时，移动操作不会自动生成。
+- **题 12 补充**：`auto_ptr` 的“复制”会从源对象偷走所有权，使按值传参和容器操作出现意外失效；`unique_ptr` 直接删除复制操作，只允许显式移动，所有权转移在类型和调用点上都可见。
 
-14. 万能引用匹配几乎所有类型，会导致重载决议意外匹配。
+- **题 13**：当类用户声明了拷贝构造、拷贝赋值、移动构造、移动赋值或析构函数时，编译器不会再同时为它隐式声明默认移动操作；成员自身不可移动时，即使写 `= default`，对应操作也可能被定义为 deleted。工程上优先 Rule of Zero，需要直接管理资源时再成套设计 Rule of Five。
 
-15. volatile不保证原子性和内存序，atomic提供线程安全的原子操作。
+- **题 14**：转发引用匹配范围极广，会导致重载决议意外匹配。
 
-16. 动态规划或Kadane算法，维护当前最大和全局最大。
+- **题 15**：volatile不保证原子性和内存序，atomic提供线程安全的原子操作。
 
-17. 动态规划，dp[i][j]表示s[0:i]与p[0:j]是否匹配。
+#### 进阶挑战路线提示
 
-18. DFS/BFS遍历，访问过的标记为'0'，计数连通分量。
+- **题 4**：哈希表+数组：数组存储元素支持随机访问，哈希表存储值到索引的映射。删除时把末尾元素移到洞位，并同步更新索引；随机接口还要说明均匀性和空容器行为。
 
-19. BFS染色，相邻节点颜色不同，冲突则非二分图。
+- **题 16**：动态规划或Kadane算法，维护当前最大和全局最大。
 
-20. BFS找最深层节点，递归找最近公共祖先。
+- **题 17**：动态规划，dp[i][j]表示s[0:i]与p[0:j]是否匹配。
+
+- **题 18**：DFS/BFS遍历，访问过的标记为'0'，计数连通分量。
+
+- **题 19**：BFS染色，相邻节点颜色不同，冲突则非二分图。
+
+- **题 20**：BFS找最深层节点，递归找最近公共祖先；也可一次后序返回“最大深度+该深度所有叶子的公共祖先”，避免先收集最深叶再做额外搜索。
 
 </details>
 
@@ -779,51 +483,36 @@ std::function<int()> createMultiplier(int factor) {
 
 ```bash
 # 进入Day 35目录
-cd /home/z/my-project/download/week_05/day_35
+cd week_05/day_35
 
-# 添加执行权限
-chmod +x build_and_run.sh
-
-# 编译并运行
+# 脚本已随仓库保存为可执行文件，直接编译并运行
 ./build_and_run.sh
 ```
 
 ### 预期输出
 
 ```
-=== Day 35: 35天学习总结 ===
-
-[数据结构知识体系]
-数组: 访问O(1), 插入删除O(n)
-链表: 访问O(n), 插入删除O(1)
-哈希表: 平均O(1)查找插入删除
-二叉搜索树: O(log n)查找插入删除
-
-[C++11特性综合示例]
-auto推导: 42 (int)
-unique_ptr: 100
-shared_ptr use_count: 2
-Lambda结果: 30, 60, 90
-移动语义: 资源已转移
-线程并发: 任务完成
-
-[EMC++条款复习]
-条款5: auto优于显式类型声明
-条款17: 理解特种成员函数生成
-条款25: 右值引用用move，万能引用用forward
-条款31: 避免默认捕获模式
-
-[LC 297: 二叉树序列化]
-原始树: 1 2 3 # # 4 5
-序列化: 1,2,null,null,3,4,null,null,5,null,null,
-反序列化: 1 2 3 # # 4 5
-验证: 序列化/反序列化正确！
-
-[LC 124: 最大路径和]
-测试树: [-10,9,20,null,null,15,7]
-最大路径和: 42
-解释: 9 + 20 + 15 = 44 或 15 + 20 + 7 = 42
+100% tests passed, 0 tests failed out of 8
 ```
+
+其中 `day35_emcpp_review` 不只检查条目数量，还核对并发条款与 Item 41–42 的具体位置；`day35_lc0297_contract` 覆盖尾随/连续分隔符、部分整数、越界整数、精确边界、token 总量和树高限制；`day35_lc0124_contract` 验证 `INT64_MAX + 1` 被报告为溢出而不是执行 UB。输出文字可随教学说明调整，测试只断言稳定语义，不把展示格式当作接口。
+
+### 今日工程动作：写一页项目验收契约
+
+本日不要求立刻写一个几千行项目，而是先把“大项目”拆成可独立构建和测试的模块。仓库中的 `code/main.cpp` 给出一个树任务服务清单：`tree_model` 位于第 0 层，只定义所有权模型；`codec`/`algorithms`/`executor` 位于第 1 层，分别负责文本边界、纯计算和任务停止；`tree_service` 位于第 2 层，只编排接口。依赖必须严格从高层指向低层，因而自依赖、底层反向包含应用层和任意环都会让契约测试失败。
+
+建议落地后的目录形状如下，公开头、实现、应用和测试不混放：
+
+```text
+tree_service/
+├── CMakeLists.txt
+├── include/tree_service/      # Tree、Codec、Executor 的稳定公开接口
+├── src/                       # 私有实现与不导出的辅助类型
+├── app/main.cpp               # 组合模块，不承载算法细节
+└── tests/                     # 单元、接口契约、停止与 sanitizer 回归
+```
+
+可执行动作只有一个：打开 `code/main.cpp`，为你准备继续实现的项目改写 `modules` 和 `ProjectContract`，逐模块写清公开接口、所有者、不变量、层级和允许依赖，再运行 `ctest -R day35_project_contract --test-dir build --output-on-failure`。先故意把 `tree_service` 的依赖改成不存在的模块、让模块依赖自己，再让 `codec` 反向依赖 `tree_service`，逐次确认清单测试以非零退出；恢复后运行完整 `./build_and_run.sh`。随后把这张清单作为真正拆分 library target、app target 和 test target 的依据，而不是按“一个功能一个巨大 cpp”继续堆代码。
 
 ---
 
@@ -835,9 +524,9 @@ Lambda结果: 30, 60, 90
 | 空间复杂度 | Space Complexity | 算法占用空间与输入规模的增长关系 |
 | RAII | Resource Acquisition Is Initialization | 资源获取即初始化，利用对象生命周期管理资源 |
 | 右值引用 | Rvalue Reference | 绑定到右值的引用类型 T&& |
-| 移动语义 | Move Semantics | 转移资源所有权而非复制 |
+| 移动语义 | Move Semantics | 允许类型通过右值重载复用或转移资源；实际行为由类型契约决定 |
 | 完美转发 | Perfect Forwarding | 保持参数原有值类别的转发 |
-| 万能引用 | Universal Reference | 能同时接受左值和右值的引用 T&& |
+| 转发引用 | Forwarding Reference | 特定推导语境下可保留左值或右值类别的 `T&&`/`auto&&` |
 | 引用折叠 | Reference Collapsing | 多层引用的简化规则 |
 | 智能指针 | Smart Pointer | 自动管理内存的指针封装类 |
 | 控制块 | Control Block | shared_ptr管理的引用计数等元数据 |
@@ -894,14 +583,29 @@ Lambda结果: 30, 60, 90
 
 ## 🔗 参考资料
 
-1. [C++ Reference](https://en.cppreference.com/)
-2. [Effective Modern C++ - Scott Meyers](https://www.aristeia.com/EMC++.html)
-3. [LeetCode题解](https://leetcode.com/problemset/)
-4. [算法（第四版）- Robert Sedgewick](https://algs4.cs.princeton.edu/)
-5. [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/)
+1. [C++ working draft](https://eel.is/c++draft/)
+2. [cppreference](https://en.cppreference.com/w/)
+3. [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines)
+4. Stanley B. Lippman 等，*C++ Primer*（语言、标准库与对象模型基础）
+5. Scott Meyers, *Effective Modern C++*（42 条工程建议及适用边界）
+6. Anthony Williams, *C++ Concurrency in Action*（并发语义与工程协议）
+7. Robert Sedgewick / Kevin Wayne, *Algorithms*（不变量与复杂度组织）
+8. [LeetCode 题库](https://leetcode.com/problemset/)
+9. [仓库 Effective Modern C++ 教程](../../tutorials/Effective_Modern_CPP教程.md)
+10. [仓库并发编程教程](../../tutorials/CPP并发编程教程.md)
 
 ---
 
 > "学习的目的不是为了记住所有知识，而是建立一套能够快速定位和解决问题的知识体系。35天只是一个开始，保持学习，持续进步！"
 
 **祝你编程之路越走越远！** 🚀
+
+---
+
+## 五句复盘（恰好五句）
+
+1. 数据结构复杂度必须连同平均最坏情况、内存布局和输入前提一起说明。
+2. 现代 C++ 的核心不是堆叠语法，而是用类型和 RAII 表达所有权、寿命与失败处理。
+3. EMC++ 条款是带适用条件的设计建议，必须理解反例与代价后再使用。
+4. 并发模块只有在不变量、异常传播和停止协议都可测试时才算完成。
+5. 阶段学习的交付物应是可构建代码、失败会报错的测试和能够解释设计取舍的项目记录。

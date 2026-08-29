@@ -3,30 +3,28 @@
 # Day 8 构建脚本
 # 主题：链表数据结构与unique_ptr智能指针
 
-set -e  # 遇到错误立即退出
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_DIR="${SCRIPT_DIR}/build"
+BUILD_DIR="${1:-${SCRIPT_DIR}/build}"
 
 echo "========================================"
 echo "  Day 8: 链表数据结构与unique_ptr"
 echo "========================================"
 echo ""
 
-# 创建构建目录
-echo "[1/3] 创建构建目录..."
-mkdir -p "${BUILD_DIR}"
-
 # 配置CMake
-echo "[2/3] 配置CMake..."
-cd "${BUILD_DIR}"
-cmake .. \
+echo "[1/3] 配置CMake..."
+cmake -S "${SCRIPT_DIR}" -B "${BUILD_DIR}" \
     -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 # 编译
-echo "[3/3] 编译项目..."
-cmake --build . -j$(nproc)
+echo "[2/3] 编译项目..."
+cmake --build "${BUILD_DIR}" --parallel "$(nproc 2>/dev/null || echo 4)"
+
+echo "[3/3] 运行测试..."
+ctest --test-dir "${BUILD_DIR}" --output-on-failure
 
 echo ""
 echo "========================================"
@@ -44,15 +42,5 @@ echo "  - leetcode_0206        : LeetCode 206题测试"
 echo "  - day_08_demo          : 主程序演示"
 echo ""
 echo "运行方式："
-echo "  cd ${BUILD_DIR} && ./day_08_demo"
-echo "  或运行所有程序: cd ${BUILD_DIR} && make run_all"
-echo ""
-
-# 询问是否运行
-read -p "是否运行所有演示程序？(y/n) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo ""
-    cd "${BUILD_DIR}"
-    make run_all
-fi
+echo "  ${BUILD_DIR}/day_08_demo"
+echo "  或运行所有程序: cmake --build ${BUILD_DIR} --target run_all"

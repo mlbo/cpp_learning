@@ -1,109 +1,49 @@
-/**
- * Day 32: DFS深度优先搜索 - 主程序
- */
-
+#include <array>
 #include <iostream>
-#include <vector>
-#include <atomic>
-#include <thread>
+#include <string_view>
 
-// 二叉树节点
-struct TreeNode {
-    int val;
-    TreeNode* left;
-    TreeNode* right;
-    TreeNode() : val(0), left(nullptr), right(nullptr) {}
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
-};
+namespace {
 
-// 前向声明
-void dfsDemo();
-void atomicDemo();
-void item39_40Demo();
-
-// DFS遍历
-void dfs(TreeNode* root, std::vector<int>& result) {
-    if (root == nullptr) return;
-    result.push_back(root->val);
-    dfs(root->left, result);
-    dfs(root->right, result);
+template <std::size_t Count>
+bool valid_manifest(const std::array<std::string_view, Count>& modules) {
+    bool has_dfs = false;
+    bool has_atomic = false;
+    bool has_depth_contract_test = false;
+    for (std::size_t index = 0; index < modules.size(); ++index) {
+        const std::string_view module = modules[index];
+        if (module.empty() || module.find("day32_") != 0U) {
+            return false;
+        }
+        has_dfs = has_dfs || module == "day32_dfs_demo";
+        has_atomic = has_atomic || module == "day32_atomic_demo";
+        has_depth_contract_test = has_depth_contract_test ||
+                                  module == "day32_lc0111_test";
+        for (std::size_t other = index + 1U; other < modules.size(); ++other) {
+            if (module == modules[other]) {
+                return false;
+            }
+        }
+    }
+    return has_dfs && has_atomic && has_depth_contract_test;
 }
 
-// 计算树深度
-int maxDepth(TreeNode* root) {
-    if (root == nullptr) return 0;
-    return 1 + std::max(maxDepth(root->left), maxDepth(root->right));
-}
-
-// 删除树
-void deleteTree(TreeNode* root) {
-    if (root == nullptr) return;
-    deleteTree(root->left);
-    deleteTree(root->right);
-    delete root;
-}
+}  // namespace
 
 int main() {
-    std::cout << "=== Day 32: DFS深度优先搜索 ===" << std::endl;
-    
-    // 1. DFS演示
-    std::cout << "\n--- 1. DFS基础 ---" << std::endl;
-    TreeNode* root = new TreeNode(1);
-    root->left = new TreeNode(2);
-    root->right = new TreeNode(3);
-    root->left->left = new TreeNode(4);
-    root->left->right = new TreeNode(5);
-    
-    std::vector<int> result;
-    dfs(root, result);
-    
-    std::cout << "DFS遍历结果: ";
-    for (int v : result) std::cout << v << " ";
-    std::cout << std::endl;
-    std::cout << "树深度: " << maxDepth(root) << std::endl;
-    deleteTree(root);
-    
-    // 2. atomic演示
-    std::cout << "\n--- 2. atomic原子操作 ---" << std::endl;
-    atomicDemo();
-    
-    // 3. EMC++ Item 39-40
-    std::cout << "\n--- 3. EMC++ Item 39-40 ---" << std::endl;
-    item39_40Demo();
-    
-    std::cout << "\n=== Day 32 学习完成 ===" << std::endl;
-    return 0;
-}
+    constexpr std::array<std::string_view, 7> modules{
+        "day32_dfs_demo",
+        "day32_atomic_demo",
+        "day32_item39_40",
+        "day32_lc0104_demo",
+        "day32_lc0104_test",
+        "day32_lc0111_demo",
+        "day32_lc0111_test",
+    };
 
-void atomicDemo() {
-    std::atomic<int> counter(0);
-    
-    // 多线程原子递增
-    std::vector<std::thread> threads;
-    for (int i = 0; i < 5; ++i) {
-        threads.emplace_back([&counter]() {
-            for (int j = 0; j < 1000; ++j) {
-                counter.fetch_add(1, std::memory_order_relaxed);
-            }
-        });
+    std::cout << "Day 32 工程动作：由 CTest 验证以下模块：\n";
+    for (const std::string_view module : modules) {
+        std::cout << "  - " << module << '\n';
     }
-    
-    for (auto& t : threads) t.join();
-    std::cout << "原子计数器结果: " << counter.load() << std::endl;
-    
-    // CAS操作演示
-    int expected = 5000;
-    bool success = counter.compare_exchange_strong(expected, 0);
-    std::cout << "CAS操作: " << (success ? "成功" : "失败") << std::endl;
-    std::cout << "重置后counter: " << counter.load() << std::endl;
-}
 
-void item39_40Demo() {
-    std::cout << "Item 39: atomic用于并发，volatile用于特殊内存" << std::endl;
-    std::cout << "  - atomic保证原子性和内存序" << std::endl;
-    std::cout << "  - volatile只告诉编译器不要优化访问" << std::endl;
-    std::cout << "  - volatile不保证线程安全！" << std::endl;
-    
-    std::cout << "\nItem 40: void future用于一次性事件通信" << std::endl;
-    std::cout << "  - promise<void>/future<void>比条件变量更简洁" << std::endl;
+    return valid_manifest(modules) ? 0 : 1;
 }

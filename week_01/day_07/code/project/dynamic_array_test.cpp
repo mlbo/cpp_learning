@@ -3,18 +3,61 @@
  * @brief DynamicArray 测试代码
  */
 
+#ifdef NDEBUG
+#undef NDEBUG  // 教学测试在 Release 构建中也必须保留断言。
+#endif
+
 #include "dynamic_array.h"
 #include <iostream>
 #include <cassert>
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <utility>
 
 using namespace cpp_learning;
 
 // 测试辅助宏
 #define TEST(name) std::cout << "  [TEST] " << name << "... "
 #define PASS() std::cout << "✅ PASS\n"
+
+struct LifetimeProbe {
+    static int alive;
+    static int destroyed;
+
+    int value{};
+
+    explicit LifetimeProbe(int value_) : value(value_) { ++alive; }
+    LifetimeProbe(const LifetimeProbe& other) : value(other.value) { ++alive; }
+    LifetimeProbe(LifetimeProbe&& other) noexcept : value(other.value) { ++alive; }
+    LifetimeProbe& operator=(const LifetimeProbe&) = default;
+    LifetimeProbe& operator=(LifetimeProbe&&) noexcept = default;
+    ~LifetimeProbe() {
+        --alive;
+        ++destroyed;
+    }
+};
+
+int LifetimeProbe::alive = 0;
+int LifetimeProbe::destroyed = 0;
+
+struct CopyOnly {
+    int value{};
+
+    explicit CopyOnly(int value_) : value(value_) {}
+    CopyOnly(const CopyOnly&) = default;
+    CopyOnly(CopyOnly&&) = delete;
+    CopyOnly& operator=(const CopyOnly&) = default;
+    CopyOnly& operator=(CopyOnly&&) = delete;
+};
+
+struct alignas(64) OverAligned {
+    int value{};
+
+    explicit OverAligned(int value_) : value(value_) {}
+};
 
 void test_default_constructor() {
     TEST("默认构造函数");
@@ -24,6 +67,22 @@ void test_default_constructor() {
     assert(arr.size() == 0);
     assert(arr.capacity() == 0);
     assert(arr.data() == nullptr);
+
+    bool front_caught = false;
+    try {
+        (void)arr.front();
+    } catch (const std::out_of_range&) {
+        front_caught = true;
+    }
+    assert(front_caught);
+
+    bool back_caught = false;
+    try {
+        (void)arr.back();
+    } catch (const std::out_of_range&) {
+        back_caught = true;
+    }
+    assert(back_caught);
     
     PASS();
 }
@@ -140,6 +199,56 @@ void test_emplace_back() {
     PASS();
 }
 
+void test_copy_only_and_overaligned_elements() {
+    TEST("仅可拷贝类型与过对齐类型");
+
+    DynamicArray<CopyOnly> copies;
+    CopyOnly first{1};
+    copies.push_back(first);
+    copies.emplace_back(2);
+    assert(copies.size() == 2);
+    assert(copies[0].value == 1);
+    assert(copies[1].value == 2);
+
+    DynamicArray<OverAligned> aligned;
+    aligned.emplace_back(42);
+    const auto address = reinterpret_cast<std::uintptr_t>(aligned.data());
+    assert(address % alignof(OverAligned) == 0);
+    assert(aligned[0].value == 42);
+
+    PASS();
+}
+
+void test_self_referencing_growth() {
+    TEST("自引用参数触发扩容");
+
+    DynamicArray<std::string> moved;
+    moved.push_back("first");
+    moved.shrink_to_fit();
+    moved.push_back(std::move(moved[0]));
+    assert(moved.size() == 2);
+    assert(moved[1] == "first");
+
+    DynamicArray<std::string> emplaced;
+    emplaced.push_back("copy me");
+    emplaced.shrink_to_fit();
+    emplaced.emplace_back(emplaced[0]);
+    assert(emplaced.size() == 2);
+    assert(emplaced[0] == "copy me");
+    assert(emplaced[1] == "copy me");
+
+    DynamicArray<std::string> resized;
+    resized.push_back("fill");
+    resized.shrink_to_fit();
+    resized.resize(3, resized[0]);
+    assert(resized.size() == 3);
+    assert(resized[0] == "fill");
+    assert(resized[1] == "fill");
+    assert(resized[2] == "fill");
+
+    PASS();
+}
+
 void test_pop_back() {
     TEST("pop_back 操作");
     
@@ -149,6 +258,34 @@ void test_pop_back() {
     assert(arr.size() == 2);
     assert(arr.back() == 2);
     
+    PASS();
+}
+
+void test_element_lifetime() {
+    TEST("pop_back/clear 立即结束元素生命周期");
+
+    LifetimeProbe::alive = 0;
+    LifetimeProbe::destroyed = 0;
+    {
+        DynamicArray<LifetimeProbe> arr;
+        arr.emplace_back(1);
+        arr.emplace_back(2);
+        assert(LifetimeProbe::alive == static_cast<int>(arr.size()));
+
+        const int destroyed_before_pop = LifetimeProbe::destroyed;
+        arr.pop_back();
+        assert(arr.size() == 1);
+        assert(LifetimeProbe::alive == 1);
+        assert(LifetimeProbe::destroyed == destroyed_before_pop + 1);
+
+        const int destroyed_before_clear = LifetimeProbe::destroyed;
+        arr.clear();
+        assert(arr.empty());
+        assert(LifetimeProbe::alive == 0);
+        assert(LifetimeProbe::destroyed == destroyed_before_clear + 1);
+    }
+    assert(LifetimeProbe::alive == 0);
+
     PASS();
 }
 
@@ -203,6 +340,23 @@ void test_at_bounds_check() {
     }
     assert(caught);
     
+    PASS();
+}
+
+void test_capacity_overflow_contract() {
+    TEST("容量字节乘法边界");
+
+    DynamicArray<int> arr;
+    bool caught = false;
+    try {
+        arr.reserve(DynamicArray<int>::max_size() + 1);
+    } catch (const std::length_error&) {
+        caught = true;
+    }
+    assert(caught);
+    assert(arr.empty());
+    assert(arr.capacity() == 0);
+
     PASS();
 }
 
@@ -338,10 +492,14 @@ void dynamic_array_test() {
     test_move_constructor();
     test_push_back();
     test_emplace_back();
+    test_copy_only_and_overaligned_elements();
+    test_self_referencing_growth();
     test_pop_back();
+    test_element_lifetime();
     test_resize();
     test_reserve();
     test_at_bounds_check();
+    test_capacity_overflow_contract();
     test_iteration();
     test_copy_assignment();
     test_move_assignment();
@@ -351,4 +509,9 @@ void dynamic_array_test() {
     
     std::cout << "===========================================\n";
     std::cout << "✅ 所有测试通过!\n";
+}
+
+int main() {
+    dynamic_array_test();
+    return 0;
 }

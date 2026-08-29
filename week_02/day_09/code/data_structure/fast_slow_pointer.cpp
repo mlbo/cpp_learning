@@ -9,6 +9,7 @@
  */
 
 #include <iostream>
+#include <memory>
 #include <vector>
 
 // 链表节点定义
@@ -162,30 +163,33 @@ ListNode* detectCycle(ListNode* head) {
 // 创建链表
 static ListNode* createList(const std::vector<int>& vals) {
     if (vals.empty()) return nullptr;
-    
-    ListNode* head = new ListNode(vals[0]);
-    ListNode* cur = head;
-    for (size_t i = 1; i < vals.size(); ++i) {
-        cur->next = new ListNode(vals[i]);
+
+    const auto delete_chain = [](ListNode* node) {
+        while (node) {
+            ListNode* next = node->next;
+            delete node;
+            node = next;
+        }
+    };
+    std::unique_ptr<ListNode, decltype(delete_chain)> owner(
+        new ListNode(vals[0]), delete_chain);
+    ListNode* cur = owner.get();
+    for (std::size_t i = 1; i < vals.size(); ++i) {
+        auto node = std::make_unique<ListNode>(vals[i]);
+        cur->next = node.release();
         cur = cur->next;
     }
-    return head;
+    return owner.release();
 }
 
 // 创建带环链表
 static ListNode* createListWithCycle(const std::vector<int>& vals, int pos) {
-    if (vals.empty()) return nullptr;
-    
-    ListNode* head = new ListNode(vals[0]);
+    ListNode* head = createList(vals);
+    if (!head) return nullptr;
+
     ListNode* cur = head;
-    ListNode* cycleEntry = nullptr;
-    
-    for (size_t i = 1; i < vals.size(); ++i) {
-        cur->next = new ListNode(vals[i]);
+    while (cur->next) {
         cur = cur->next;
-        if (static_cast<int>(i) == pos) {
-            cycleEntry = cur;
-        }
     }
     
     // 创建环
@@ -276,9 +280,15 @@ void demoFastSlowPointer() {
         std::cout << "环入口节点值: " << entry->val << "\n";
     }
     
-    // 简单清理（带环链表需要特殊处理）
-    // 这里为了演示简单，不进行完整清理
-    // 实际应用中应该断开环后再删除
+    // 带环链表必须先断环再按普通链表释放。
+    if (entry) {
+        ListNode* tail = entry;
+        while (tail->next != entry) {
+            tail = tail->next;
+        }
+        tail->next = nullptr;
+    }
+    deleteList(list4);
     
     std::cout << "\n";
 }

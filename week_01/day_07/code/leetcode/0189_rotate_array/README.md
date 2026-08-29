@@ -2,7 +2,7 @@
 
 ## 问题描述
 
-给定一个整数数组 `nums`，将数组中的元素向右轮转 `k` 个位置，其中 `k` 是非负数。
+给定一个整数数组 `nums`，将数组中的元素向右轮转 `k` 个位置。LeetCode 原题给出非负 `k`，本课程还把负 `k` 明确定义为向左轮转。
 
 ### 示例
 
@@ -20,6 +20,18 @@
 
 ## 解法分析
 
+四种解法共用同一个归一化契约：空数组的位移量为 `0`，其他输入先检查长度可以用 `int` 接口表示，再在 `int64_t` 中取模并把负余数换算成向右位移。
+
+```cpp
+size_t normalized_shift(const vector<int>& nums, int k) {
+    if (nums.empty()) return 0;
+    const int n = week01::checked_index(nums.size());
+    int64_t shift = static_cast<int64_t>(k) % n;
+    if (shift < 0) shift += n;
+    return static_cast<size_t>(shift);
+}
+```
+
 ### 解法一：数组翻转法 ⭐推荐
 
 **核心思想**：通过三次翻转实现轮转。
@@ -33,12 +45,13 @@
 
 ```cpp
 void rotate(vector<int>& nums, int k) {
-    int n = nums.size();
-    k = k % n;
+    const size_t shift = normalized_shift(nums, k);
+    if (shift == 0) return;
+    const auto offset = static_cast<vector<int>::difference_type>(shift);
     
     reverse(nums.begin(), nums.end());
-    reverse(nums.begin(), nums.begin() + k);
-    reverse(nums.begin() + k, nums.end());
+    reverse(nums.begin(), nums.begin() + offset);
+    reverse(nums.begin() + offset, nums.end());
 }
 ```
 
@@ -62,11 +75,12 @@ void rotate(vector<int>& nums, int k) {
 
 ```cpp
 void rotate(vector<int>& nums, int k) {
-    int n = nums.size();
-    vector<int> temp(n);
+    const size_t shift = normalized_shift(nums, k);
+    if (shift == 0) return;
+    vector<int> temp(nums.size());
     
-    for (int i = 0; i < n; ++i) {
-        temp[(i + k) % n] = nums[i];
+    for (size_t i = 0; i < nums.size(); ++i) {
+        temp[(i + shift) % nums.size()] = nums[i];
     }
     
     nums = std::move(temp);
@@ -74,7 +88,7 @@ void rotate(vector<int>& nums, int k) {
 ```
 
 **位置映射**：
-- 原位置 `i` → 新位置 `(i + k) % n`
+- 原位置 `i` → 新位置 `(i + shift) % n`
 
 **复杂度**：
 - 时间：O(n)
@@ -88,15 +102,16 @@ void rotate(vector<int>& nums, int k) {
 
 ```cpp
 void rotate(vector<int>& nums, int k) {
-    int n = nums.size();
-    int count = 0;
+    const size_t shift = normalized_shift(nums, k);
+    if (shift == 0) return;
+    size_t count = 0;
     
-    for (int start = 0; count < n; ++start) {
-        int current = start;
+    for (size_t start = 0; count < nums.size(); ++start) {
+        size_t current = start;
         int prev = nums[start];
         
         do {
-            int next = (current + k) % n;
+            const size_t next = (current + shift) % nums.size();
             swap(nums[next], prev);
             current = next;
             ++count;
@@ -107,11 +122,11 @@ void rotate(vector<int>& nums, int k) {
 
 **工作原理**：
 
-- 每次从一个起点开始，沿着 `(i + k) % n` 的路径移动
+- 每次从一个起点开始，沿着 `(i + shift) % n` 的路径移动
 - 直到回到起点，完成一个环
 - 需要从多个起点开始，覆盖所有元素
 
-**环的数量**：`gcd(n, k)` 个
+**环的数量**：`gcd(n, shift)` 个
 
 **复杂度**：
 - 时间：O(n)
@@ -123,9 +138,10 @@ void rotate(vector<int>& nums, int k) {
 
 ```cpp
 void rotate(vector<int>& nums, int k) {
-    int n = nums.size();
-    k = k % n;
-    std::rotate(nums.begin(), nums.end() - k, nums.end());
+    const size_t shift = normalized_shift(nums, k);
+    if (shift == 0) return;
+    const auto offset = static_cast<vector<int>::difference_type>(shift);
+    std::rotate(nums.begin(), nums.end() - offset, nums.end());
 }
 ```
 
@@ -148,7 +164,7 @@ void rotate(vector<int>& nums, int k) {
 
 ## 边界情况
 
-1. **k > n**：需要取模 `k = k % n`
+1. **|k| > n**：需要在 `int64_t` 中取模并归一化
 2. **k == 0 或 k == n**：无需操作
 3. **单元素或空数组**：直接返回
 4. **k 是 n 的倍数**：数组不变
@@ -162,9 +178,12 @@ void rotate(vector<int>& nums, int k) {
 ```cpp
 // 向左轮转 k 位，等价于向右轮转 n-k 位
 void rotateLeft(vector<int>& nums, int k) {
-    int n = nums.size();
-    k = k % n;
-    rotate(nums, n - k);
+    if (nums.empty()) return;
+    const int64_t n = week01::checked_index(nums.size());
+    int64_t shift = static_cast<int64_t>(k) % n;
+    if (shift < 0) shift += n;
+    const auto offset = static_cast<vector<int>::difference_type>(shift);
+    std::rotate(nums.begin(), nums.begin() + offset, nums.end());
 }
 ```
 
@@ -179,11 +198,8 @@ void rotateLeft(vector<int>& nums, int k) {
 ## 运行测试
 
 ```bash
-# 编译
-g++ -std=c++17 -O2 test.cpp -o test_189
-
-# 运行
-./test_189
+cd week_01/day_07
+./build_and_run.sh
 ```
 
 ---

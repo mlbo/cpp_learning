@@ -7,11 +7,15 @@
 
 #include <string>
 
+namespace lc20 {
+
 class Solution {
 public:
-    bool isValid(std::string s);
+    bool isValid(const std::string& s);
 };
 
-void testValidParentheses();
+bool testValidParentheses();
+
+}  // namespace lc20
 
 #endif // LC20_SOLUTION_H

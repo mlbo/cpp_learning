@@ -1,56 +1,15 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Day 6: 二分查找详解 - 构建和运行脚本
+set -euo pipefail
 
-set -e  # 遇到错误立即退出
-
-echo "=========================================="
-echo "  Day 6: 二分查找详解 - 构建系统"
-echo "=========================================="
-echo ""
-
-# 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="${SCRIPT_DIR}/build"
 
-# 创建构建目录
-echo "📁 创建构建目录..."
-mkdir -p "${BUILD_DIR}"
+echo "Day 6: 配置 Release 构建"
+cmake -S "${SCRIPT_DIR}" -B "${BUILD_DIR}" -DCMAKE_BUILD_TYPE=Release
 
-# 进入构建目录
-cd "${BUILD_DIR}"
+echo "Day 6: 编译全部目标"
+cmake --build "${BUILD_DIR}" --parallel
 
-# 运行CMake配置
-echo ""
-echo "🔧 配置项目 (CMake)..."
-cmake ..
-
-# 编译项目
-echo ""
-echo "🔨 编译项目..."
-make -j$(nproc)
-
-echo ""
-echo "=========================================="
-echo "  编译成功！"
-echo "=========================================="
-echo ""
-
-# 运行程序
-echo "🚀 运行主程序..."
-echo ""
-echo "--- 二分查找演示 ---"
-./bin/binary_search_demo
-
-echo ""
-echo "--- LeetCode 704 测试 ---"
-./bin/test_0704
-
-echo ""
-echo "--- LeetCode 34 测试 ---"
-./bin/test_0034
-
-echo ""
-echo "=========================================="
-echo "  所有测试完成！"
-echo "=========================================="
+echo "Day 6: 运行半开区间演示和两道二分测试"
+ctest --test-dir "${BUILD_DIR}" --output-on-failure

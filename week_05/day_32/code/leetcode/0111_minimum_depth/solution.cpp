@@ -1,38 +1,16 @@
-/**
- * LeetCode 111: 二叉树的最小深度
- */
+#include "solution.h"
 
 #include <iostream>
-#include <algorithm>
-
-struct TreeNode {
-    int val;
-    TreeNode* left;
-    TreeNode* right;
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
-};
-
-class Solution {
-public:
-    int minDepth(TreeNode* root) {
-        if (root == nullptr) return 0;
-        if (root->left == nullptr) return minDepth(root->right) + 1;
-        if (root->right == nullptr) return minDepth(root->left) + 1;
-        return 1 + std::min(minDepth(root->left), minDepth(root->right));
-    }
-};
 
 int main() {
-    std::cout << "=== LeetCode 111: 二叉树最小深度 ===" << std::endl;
-    
-    TreeNode* root = new TreeNode(3);
-    root->left = new TreeNode(9);
-    root->right = new TreeNode(20);
-    root->right->left = new TreeNode(15);
-    root->right->right = new TreeNode(7);
-    
-    Solution sol;
-    std::cout << "最小深度: " << sol.minDepth(root) << std::endl;
-    
-    return 0;
+    auto root = std::make_unique<lc0111::TreeNode>(3);
+    root->left = std::make_unique<lc0111::TreeNode>(9);
+    root->right = std::make_unique<lc0111::TreeNode>(20);
+    root->right->left = std::make_unique<lc0111::TreeNode>(15);
+    root->right->right = std::make_unique<lc0111::TreeNode>(7);
+
+    const lc0111::Solution solution;
+    const int depth = solution.min_depth(root.get());
+    std::cout << "LC 111 sample minimum depth: " << depth << '\n';
+    return depth == 2 ? 0 : 1;
 }

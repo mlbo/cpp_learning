@@ -3,10 +3,14 @@
 
 #include <vector>
 
+namespace leetcode_0084 {
+
 class Solution {
 public:
-    int largestRectangleArea(std::vector<int>& heights);
+    int largestRectangleArea(const std::vector<int>& heights);
 };
+
+} // namespace leetcode_0084
 
 void testLargestRectangle();
 

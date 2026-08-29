@@ -5,6 +5,8 @@
 
 #include "solution.h"
 
+#include "../../../../common/integer_contracts.h"
+
 /**
  * @brief 查找目标值的起始和结束位置
  * 
@@ -17,7 +19,7 @@
  * 时间复杂度：O(log n)
  * 空间复杂度：O(1)
  */
-std::vector<int> Solution34::searchRange(std::vector<int>& nums, int target) {
+std::vector<int> Solution34::searchRange(const std::vector<int>& nums, int target) {
     // 查找左边界
     int leftBound = binarySearchLeft(nums, target);
     
@@ -35,14 +37,14 @@ std::vector<int> Solution34::searchRange(std::vector<int>& nums, int target) {
 /**
  * @brief 查找左边界（公开接口）
  */
-int Solution34::findLeftBound(std::vector<int>& nums, int target) {
+int Solution34::findLeftBound(const std::vector<int>& nums, int target) {
     return binarySearchLeft(nums, target);
 }
 
 /**
  * @brief 查找右边界（公开接口）
  */
-int Solution34::findRightBound(std::vector<int>& nums, int target) {
+int Solution34::findRightBound(const std::vector<int>& nums, int target) {
     return binarySearchRight(nums, target);
 }
 
@@ -52,17 +54,14 @@ int Solution34::findRightBound(std::vector<int>& nums, int target) {
  * 使用左闭右开区间 [left, right)
  * 找到第一个 >= target 的位置，然后检查是否等于 target
  */
-int Solution34::binarySearchLeft(std::vector<int>& nums, int target) {
-    if (nums.empty()) {
-        return -1;
-    }
-    
-    int left = 0;
-    int right = static_cast<int>(nums.size());
+int Solution34::binarySearchLeft(const std::vector<int>& nums, int target) {
+    (void)week01::checked_index(nums.size());
+    std::size_t left = 0;
+    std::size_t right = nums.size();
     
     // 查找第一个 >= target 的位置
     while (left < right) {
-        int mid = left + (right - left) / 2;
+        const std::size_t mid = left + (right - left) / 2;
         
         if (nums[mid] >= target) {
             right = mid;  // 收缩右边界
@@ -73,11 +72,11 @@ int Solution34::binarySearchLeft(std::vector<int>& nums, int target) {
     
     // 检查是否找到
     // left == right，需要检查是否在数组范围内且等于target
-    if (left == static_cast<int>(nums.size()) || nums[left] != target) {
+    if (left == nums.size() || nums[left] != target) {
         return -1;
     }
     
-    return left;
+    return week01::checked_index(left);
 }
 
 /**
@@ -86,17 +85,14 @@ int Solution34::binarySearchLeft(std::vector<int>& nums, int target) {
  * 使用左闭右开区间 [left, right)
  * 找到第一个 > target 的位置，然后返回前一个位置
  */
-int Solution34::binarySearchRight(std::vector<int>& nums, int target) {
-    if (nums.empty()) {
-        return -1;
-    }
-    
-    int left = 0;
-    int right = static_cast<int>(nums.size());
+int Solution34::binarySearchRight(const std::vector<int>& nums, int target) {
+    (void)week01::checked_index(nums.size());
+    std::size_t left = 0;
+    std::size_t right = nums.size();
     
     // 查找第一个 > target 的位置
     while (left < right) {
-        int mid = left + (right - left) / 2;
+        const std::size_t mid = left + (right - left) / 2;
         
         if (nums[mid] <= target) {
             left = mid + 1;  // 收缩左边界
@@ -113,7 +109,7 @@ int Solution34::binarySearchRight(std::vector<int>& nums, int target) {
         return -1;
     }
     
-    return left - 1;
+    return week01::checked_index(left - 1);
 }
 
 /**

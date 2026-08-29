@@ -24,9 +24,9 @@ void Solution::moveZeroes(std::vector<int>& nums) {
      * 空间复杂度：O(1)
      */
 
-    int slow = 0;  // 下一个非零元素的位置
+    std::size_t slow = 0;  // 下一个非零元素的位置
 
-    for (int fast = 0; fast < static_cast<int>(nums.size()); ++fast) {
+    for (std::size_t fast = 0; fast < nums.size(); ++fast) {
         if (nums[fast] != 0) {
             std::swap(nums[slow], nums[fast]);
             ++slow;
@@ -45,7 +45,7 @@ void Solution::moveZeroes_two_pass(std::vector<int>& nums) {
      * 空间复杂度：O(1)
      */
 
-    int pos = 0;  // 下一个非零元素的位置
+    std::size_t pos = 0;  // 下一个非零元素的位置
 
     // 第一次遍历：移动非零元素
     for (int num : nums) {
@@ -56,7 +56,7 @@ void Solution::moveZeroes_two_pass(std::vector<int>& nums) {
     }
 
     // 第二次遍历：填充零
-    while (pos < static_cast<int>(nums.size())) {
+    while (pos < nums.size()) {
         nums[pos] = 0;
         ++pos;
     }
@@ -75,9 +75,9 @@ void Solution::moveZeroes_optimized(std::vector<int>& nums) {
      * 空间复杂度：O(1)
      */
 
-    int slow = 0;
+    std::size_t slow = 0;
 
-    for (int fast = 0; fast < static_cast<int>(nums.size()); ++fast) {
+    for (std::size_t fast = 0; fast < nums.size(); ++fast) {
         if (nums[fast] != 0) {
             if (slow != fast) {
                 std::swap(nums[slow], nums[fast]);

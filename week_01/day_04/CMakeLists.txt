@@ -8,7 +8,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # 编译选项
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    add_compile_options(-Wall -Wextra -Wpedantic)
+    add_compile_options(
+        -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion
+        -Wshadow -Werror
+    )
 endif()
 
 # 定义源文件列表
@@ -42,22 +45,9 @@ target_include_directories(day04_main PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/code/leetcode/0015_3sum
 )
 
-# 添加测试目标
-add_library(day04_test_leetcode11 STATIC
-    code/leetcode/0011_container_with_most_water/solution.cpp
-    code/leetcode/0011_container_with_most_water/test.cpp
-)
-target_include_directories(day04_test_leetcode11 PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/leetcode/0011_container_with_most_water
-)
-
-add_library(day04_test_leetcode15 STATIC
-    code/leetcode/0015_3sum/solution.cpp
-    code/leetcode/0015_3sum/test.cpp
-)
-target_include_directories(day04_test_leetcode15 PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/leetcode/0015_3sum
-)
+# 主程序会运行两道 LeetCode 题的全部用例，因此将它注册为冒烟测试。
+enable_testing()
+add_test(NAME Day04AllDemosAndCases COMMAND day04_main)
 
 # 打印配置信息
 message(STATUS "=== Day 4 Build Configuration ===")

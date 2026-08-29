@@ -8,9 +8,8 @@
 #include "cpp11_features/lambda_generic_demo.h"
 #include "cpp11_features/lambda_init_capture_demo.h"
 #include "emcpp/item32_item33.h"
-
-void testMyQueue();
-void testMyStack();
+#include "leetcode/0225_implement_stack_using_queues/solution.h"
+#include "leetcode/0232_implement_queue_using_stacks/solution.h"
 
 int main() {
     std::cout << "========================================" << std::endl;
@@ -35,15 +34,16 @@ int main() {
 
     // 5. LeetCode 232 测试
     std::cout << "\n【5. LeetCode 232: 用栈实现队列】" << std::endl;
-    testMyQueue();
+    const bool queuePassed = testMyQueue();
 
     // 6. LeetCode 225 测试
     std::cout << "\n【6. LeetCode 225: 用队列实现栈】" << std::endl;
-    testMyStack();
+    const bool stackPassed = testMyStack();
 
     std::cout << "\n========================================" << std::endl;
-    std::cout << "  Day 16 学习完成！" << std::endl;
+    const bool allPassed = queuePassed && stackPassed;
+    std::cout << "  Day 16 测试" << (allPassed ? "全部通过！" : "存在失败！") << std::endl;
     std::cout << "========================================" << std::endl;
 
-    return 0;
+    return allPassed ? 0 : 1;
 }

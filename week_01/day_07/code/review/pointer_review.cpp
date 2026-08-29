@@ -1,14 +1,16 @@
 /**
  * @file pointer_review.cpp
- * @brief 指针与智能指针复习
+ * @brief nullptr 复习与智能指针所有权预览
  */
 
+#include <cstdio>
 #include <iostream>
 #include <memory>
 #include <vector>
 #include <string>
 #include <chrono>
 #include <iomanip>
+#include <utility>
 
 // ============================================================================
 // 1. 原始指针基础
@@ -32,6 +34,8 @@ void raw_pointer_basics() {
     int* p1 = nullptr;  // C++11 推荐
     int* p2 = NULL;     // C风格，不推荐
     int* p3 = 0;        // 不推荐
+    (void)p2;
+    (void)p3;
     
     std::cout << "  int* p1 = nullptr;  // C++11 推荐\n";
     std::cout << "  p1 == nullptr: " << (p1 == nullptr) << "\n";
@@ -54,21 +58,21 @@ void raw_pointer_basics() {
 }
 
 // ============================================================================
-// 2. 智能指针详解
+// 2. 智能指针所有权预览
 // ============================================================================
 
 // 自定义删除器示例
 struct FileDeleter {
-    void operator()(FILE* f) const {
+    void operator()(std::FILE* f) const {
         if (f) {
             std::cout << "    [FileDeleter] 关闭文件\n";
-            fclose(f);
+            std::fclose(f);
         }
     }
 };
 
 void smart_pointers_demo() {
-    std::cout << "\n【2. 智能指针】\n";
+    std::cout << "\n【2. 智能指针所有权预览】\n";
     std::cout << "-------------------------------------------\n";
 
     // unique_ptr - 独占所有权
@@ -244,7 +248,8 @@ void performance_demo() {
     std::cout << "  unique_ptr:  " << std::setw(6) << unique_duration.count() << " μs\n";
     std::cout << "  shared_ptr:  " << std::setw(6) << shared_duration.count() << " μs\n";
     
-    std::cout << "\n  结论: unique_ptr 几乎零开销，shared_ptr 有引用计数开销\n";
+    std::cout << "\n  解读: 本次结果只是本机上的教学演示，不是严谨基准。\n";
+    std::cout << "  unique_ptr 的所有权操作通常不需要引用计数；shared_ptr 需维护控制块。\n";
 }
 
 // ============================================================================
@@ -262,11 +267,11 @@ void best_practices_summary() {
     
     std::cout << "\n  ✅ 优先使用 make_unique/make_shared:\n";
     std::cout << "     • 异常安全\n";
-    std::cout << "     • 性能优化（shared_ptr 一次分配）\n";
+    std::cout << "     • make_shared 通常合并对象与控制块的分配\n";
     
     std::cout << "\n  ✅ 避免原始指针管理所有权:\n";
     std::cout << "     • 原始指针用于\"观察\"，不用于\"管理\"\n";
-    std::cout << "     • 不知道所有权时使用 observer_ptr 或裸指针\n";
+    std::cout << "     • 先明确所有权；仅在确定不拥有且生命周期有保证时使用裸指针观察\n";
     
     std::cout << "\n  ✅ 使用 nullptr 而非 NULL 或 0:\n";
     std::cout << "     • 类型安全\n";
@@ -288,5 +293,5 @@ void pointer_review() {
     performance_demo();
     best_practices_summary();
     
-    std::cout << "\n✅ 指针复习完成!\n";
+    std::cout << "\n✅ nullptr 复习与智能指针所有权预览完成!\n";
 }

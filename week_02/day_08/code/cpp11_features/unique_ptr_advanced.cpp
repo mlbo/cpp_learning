@@ -18,6 +18,8 @@
 #include <fstream>
 #include <functional>
 
+#include "../../../common/noexcept_output.h"
+
 // 辅助打印
 void printSeparator(const std::string& title = "") {
     std::cout << "\n======== " << title << " ========\n";
@@ -35,25 +37,27 @@ void printSeparator(const std::string& title = "") {
  */
 
 // 方式1：函数指针作为删除器
-void customDelete(int* p) {
-    std::cout << "自定义删除器：删除 int*\n";
+void customDelete(int* p) noexcept {
     delete p;
+    week2_support::write_noexcept([] {
+        std::cout << "自定义删除器：删除 int*\n";
+    });
 }
 
 // 方式2：函数对象作为删除器
 struct FileDeleter {
-    void operator()(FILE* f) const {
+    void operator()(FILE* f) const noexcept {
         if (f) {
-            std::cout << "关闭文件\n";
             fclose(f);
+            week2_support::write_noexcept([] { std::cout << "关闭文件\n"; });
         }
     }
 };
 
 // 方式3：Lambda作为删除器
-auto arrayDeleter = [](int* p) {
-    std::cout << "数组删除器\n";
+auto arrayDeleter = [](int* p) noexcept {
     delete[] p;
+    week2_support::write_noexcept([] { std::cout << "数组删除器\n"; });
 };
 
 // 方式4：通用资源删除器
@@ -63,9 +67,11 @@ struct LoggingDeleter {
     
     explicit LoggingDeleter(const std::string& n) : name(n) {}
     
-    void operator()(T* p) const {
-        std::cout << "正在删除 " << name << " (地址: " << p << ")\n";
+    void operator()(T* p) const noexcept {
         delete p;
+        week2_support::write_noexcept([this, p] {
+            std::cout << "正在删除 " << name << " (地址: " << p << ")\n";
+        });
     }
 };
 
@@ -108,12 +114,12 @@ void demoArrayManagement() {
     std::cout << "\n【unique_ptr<T[]>方式】\n";
     {
         std::unique_ptr<int[]> arr = std::make_unique<int[]>(5);
-        for (int i = 0; i < 5; ++i) {
-            arr[i] = i * 10;
+        for (std::size_t i = 0; i < 5U; ++i) {
+            arr[i] = static_cast<int>(i) * 10;
         }
         
         std::cout << "数组内容: ";
-        for (int i = 0; i < 5; ++i) {
+        for (std::size_t i = 0; i < 5U; ++i) {
             std::cout << arr[i] << " ";
         }
         std::cout << "\n";
@@ -125,7 +131,7 @@ void demoArrayManagement() {
     // 方式2：使用自定义删除器（不推荐，但有时需要）
     std::cout << "\n【自定义删除器方式】\n";
     {
-        auto deleter = [](int* p) { delete[] p; };
+        auto deleter = [](int* p) noexcept { delete[] p; };
         std::unique_ptr<int, decltype(deleter)> arr2(new int[3]{1, 2, 3}, deleter);
         
         // 注意：这种方式不支持[]访问
@@ -183,9 +189,8 @@ WidgetPimpl::WidgetPimpl(const std::string& name)
     std::cout << "WidgetPimpl '" << name << "' 构造\n";
 }
 
-WidgetPimpl::~WidgetPimpl() {
-    std::cout << "WidgetPimpl '" << pImpl_->name << "' 析构\n";
-}
+// moved-from对象的pImpl_可能为空；默认析构既安全又不会让日志破坏noexcept契约。
+WidgetPimpl::~WidgetPimpl() = default;
 
 void WidgetPimpl::doSomething() {
     pImpl_->data.push_back(++pImpl_->counter);

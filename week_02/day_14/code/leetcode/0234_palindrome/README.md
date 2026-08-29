@@ -31,6 +31,8 @@
 
 ## 解题思路
 
+本教程把它定义为查询接口：允许临时反转后半段，但返回前必须恢复原链拓扑。输入链表必须无环；算法不取得节点所有权，也不创建或释放节点。
+
 ### 方法一：快慢指针 + 反转链表（推荐）
 
 **核心思想**：将链表分成两半，反转后半部分，然后比较。
@@ -39,7 +41,7 @@
 1. 使用快慢指针找到链表中点
 2. 反转后半部分链表
 3. 同时遍历前后两半进行比较
-4. （可选）恢复链表原始结构
+4. 恢复链表原始结构，兑现查询接口不修改输入拓扑的后置条件
 
 **复杂度**：
 - 时间：O(n)
@@ -71,7 +73,7 @@ bool isPalindrome(ListNode* head) {
         p2 = p2->next;
     }
 
-    // 4. 恢复（可选）
+    // 4. 恢复，保证查询接口不改变输入结构
     slow->next = reverseList(second);
 
     return result;
@@ -94,11 +96,14 @@ bool isPalindrome_array(ListNode* head) {
         head = head->next;
     }
 
-    int left = 0, right = vals.size() - 1;
+    size_t left = 0;
+    size_t right = vals.size(); // 半开区间 [left, right)
     while (left < right) {
-        if (vals[left++] != vals[right--]) {
+        --right;
+        if (vals[left] != vals[right]) {
             return false;
         }
+        ++left;
     }
     return true;
 }
@@ -148,7 +153,7 @@ public:
    - 奇偶长度链表的处理
 
 4. **链表恢复**：
-   - 如果不允许修改原链表，需要恢复
+   - 本教程把 `isPalindrome` 定义为查询接口，因此无论比较成功还是失败都必须恢复
 
 ---
 
@@ -163,6 +168,8 @@ public:
 ## 运行测试
 
 ```bash
-cd build
-./test_leetcode234
+cd week_02/day_14
+cmake -S . -B build-manual -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-manual --target test_leetcode234
+./build-manual/test_leetcode234
 ```

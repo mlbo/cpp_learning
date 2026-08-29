@@ -4,19 +4,21 @@
  */
 
 #include <iostream>
-#include <cassert>
-#include "solution.cpp"
+#include "solution.h"
 
 namespace lru_cache_test {
 
 /**
  * @brief 打印测试结果
  */
+int failures = 0;
+
 void printResult(bool passed, const std::string& testName) {
     if (passed) {
         std::cout << "  ✓ " << testName << " 通过\n";
     } else {
         std::cout << "  ✗ " << testName << " 失败\n";
+        ++failures;
     }
 }
 
@@ -39,9 +41,9 @@ void test() {
         printResult(cache.get(2) == -1, "淘汰最久未使用的键");
         printResult(cache.get(1) == 1, "访问过的键仍存在");
         
-        cache.put(4, 4);  // 淘汰key=1（因为key=1最近被访问过，但put(3,3)时key=2被淘汰，现在key=1是最久未使用）
-        printResult(cache.get(1) == -1, "第二次淘汰正确");
-        printResult(cache.get(3) == 3, "key=3存在");
+        cache.put(4, 4);  // 第二次 get(1) 后，key=3 才是最久未使用
+        printResult(cache.get(1) == 1, "最近再次访问的key=1保留");
+        printResult(cache.get(3) == -1, "第二次淘汰key=3");
         printResult(cache.get(4) == 4, "key=4存在");
         std::cout << "\n";
     }
@@ -127,6 +129,20 @@ void test() {
         printResult(cache.size() == 1, "重复put不增加大小");
         std::cout << "\n";
     }
+
+    // 测试7：零容量和负容量都按禁用缓存处理
+    {
+        std::cout << "测试7：非正容量\n";
+        LRUCache zero(0);
+        zero.put(1, 1);
+        printResult(zero.size() == 0 && zero.get(1) == -1, "容量0不保存条目");
+
+        LRUCache negative(-3);
+        negative.put(2, 2);
+        printResult(negative.capacity() == 0 && negative.size() == 0,
+                    "负容量被规范化为0");
+        std::cout << "\n";
+    }
     
     std::cout << "所有LRU缓存测试完成！\n";
 }
@@ -136,5 +152,5 @@ void test() {
 // 如果直接运行此文件
 int main() {
     lru_cache_test::test();
-    return 0;
+    return lru_cache_test::failures == 0 ? 0 : 1;
 }

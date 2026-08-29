@@ -4,10 +4,12 @@
  */
 
 #include "leetcode/0232_implement_queue_using_stacks/solution.h"
+#include <cstddef>
 #include <iostream>
 #include <vector>
 #include <string>
-#include <cassert>
+#include <memory>
+#include <stdexcept>
 
 // 测试用例结构
 struct TestCase {
@@ -17,7 +19,7 @@ struct TestCase {
     std::string description;               // 测试描述
 };
 
-void runTests() {
+bool runTests() {
     std::cout << "=== LeetCode 232. 用栈实现队列 测试 ===\n\n";
     
     // 测试用例数组
@@ -25,7 +27,7 @@ void runTests() {
         {
             {"MyQueue", "push", "push", "peek", "pop", "empty"},
             {{}, {1}, {2}, {}, {}, {}},
-            {"null", "null", "null", "1", "1", "true"},
+            {"null", "null", "null", "1", "1", "false"},
             "基本操作测试"
         },
         {
@@ -48,21 +50,21 @@ void runTests() {
         }
     };
     
-    int passed = 0;
-    int total = static_cast<int>(testCases.size());
+    std::size_t passed = 0;
+    const std::size_t total = testCases.size();
     
-    for (int i = 0; i < total; ++i) {
+    for (std::size_t i = 0; i < total; ++i) {
         const auto& tc = testCases[i];
         std::cout << "测试 " << i + 1 << ": " << tc.description << "\n";
         
-        MyQueue* queue = nullptr;
+        std::unique_ptr<MyQueue> queue;
         bool testPassed = true;
         
-        for (size_t j = 0; j < tc.operations.size(); ++j) {
+        for (std::size_t j = 0; j < tc.operations.size(); ++j) {
             const std::string& op = tc.operations[j];
             
             if (op == "MyQueue") {
-                queue = new MyQueue();
+                queue = std::make_unique<MyQueue>();
                 std::cout << "  创建队列\n";
             } else if (op == "push") {
                 queue->push(tc.args[j][0]);
@@ -100,7 +102,6 @@ void runTests() {
         }
         std::cout << "\n";
         
-        delete queue;
     }
     
     std::cout << "=== 测试总结 ===\n";
@@ -111,6 +112,24 @@ void runTests() {
     } else {
         std::cout << "⚠️ 有 " << (total - passed) << " 个测试用例失败\n";
     }
+
+    MyQueue emptyQueue;
+    bool popThrew = false;
+    bool peekThrew = false;
+    try {
+        (void)emptyQueue.pop();
+    } catch (const std::underflow_error&) {
+        popThrew = true;
+    }
+    try {
+        (void)emptyQueue.peek();
+    } catch (const std::underflow_error&) {
+        peekThrew = true;
+    }
+    std::cout << "空队列 pop 契约: " << (popThrew ? "✅ 通过" : "❌ 失败") << "\n";
+    std::cout << "空队列 peek 契约: " << (peekThrew ? "✅ 通过" : "❌ 失败") << "\n";
+
+    return passed == total && popThrew && peekThrew;
 }
 
 // 详细演示
@@ -153,8 +172,9 @@ void detailedDemo() {
     std::cout << "• 栈A只负责接收新元素（入队）\n";
     std::cout << "• 栈B只负责弹出元素（出队）\n";
     std::cout << "• 栈B为空时，从栈A转移所有元素\n";
-    std::cout << "• 两次栈操作 = 一次队列操作\n";
-    std::cout << "• 均摊时间复杂度 O(1)\n";
+    std::cout << "• 单次转移可能是 O(n)，所以 pop/peek 的单次最坏复杂度是 O(n)\n";
+    std::cout << "• 每个元素只会进入栈A一次、转移到栈B一次、从栈B弹出一次\n";
+    std::cout << "• 一串 n 次入队和出队的总栈操作数是 O(n)，因此均摊 O(1)\n";
 }
 
 // 性能测试
@@ -186,8 +206,8 @@ void performanceTest() {
 }
 
 int main() {
-    runTests();
+    const bool passed = runTests();
     detailedDemo();
     performanceTest();
-    return 0;
+    return passed ? 0 : 1;
 }

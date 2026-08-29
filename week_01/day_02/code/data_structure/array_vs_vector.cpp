@@ -14,6 +14,7 @@
 #include <vector>
 #include <chrono>
 #include <iomanip>
+#include <memory>
 
 // 辅助宏
 #define PRINT_SEPARATOR() std::cout << "\n" << std::string(60, '=') << "\n"
@@ -23,7 +24,7 @@
  * @brief 对比三种数组类型的大小
  * 
  * 原生数组和 std::array 的大小就是元素大小之和
- * std::vector 有额外开销（三个指针）
+ * std::vector 管理对象有实现相关的固定开销，元素存储不计入 sizeof(vec)
  */
 void demonstrateSizeDifference() {
     PRINT_TITLE("1. 内存大小对比");
@@ -49,48 +50,48 @@ void demonstrateSizeDifference() {
     std::cout << "│ std::array<int,N> │" << std::setw(11) << sizeof(stdArr) 
               << " 字节 │ 无额外开销              │\n";
     std::cout << "│ std::vector<int>  │" << std::setw(11) << sizeof(vec) 
-              << " 字节 │ 3个指针开销 (start/finish/end_of_storage) │\n";
+              << " 字节 │ 管理对象开销（实现相关，不含元素区） │\n";
     std::cout << "└───────────────────┴────────────────┴─────────────────────────┘\n";
     
     // 计算元素数据大小
     std::cout << "\n元素数据大小: " << N << " * " << sizeof(int) 
               << " = " << N * sizeof(int) << " 字节\n";
     
-    // vector 内部结构
+    // vector 内部结构（只描述常见实现思路，不要求固定为三个指针）
     PRINT_SEPARATOR();
-    std::cout << "\nstd::vector 内部结构（3个指针）:\n";
-    std::cout << "  - start: 指向数组起始位置\n";
-    std::cout << "  - finish: 指向最后一个元素之后的位置\n";
-    std::cout << "  - end_of_storage: 指向分配内存的末尾\n\n";
-    std::cout << "  容量 (capacity) = end_of_storage - start = " << vec.capacity() << "\n";
-    std::cout << "  大小 (size) = finish - start = " << vec.size() << "\n";
+    std::cout << "\nstd::vector 常见实现会记录：\n";
+    std::cout << "  - 连续元素区的位置\n";
+    std::cout << "  - 已构造元素数量（size）\n";
+    std::cout << "  - 当前可容纳元素数量（capacity）\n";
+    std::cout << "标准只规定可观察行为，不规定必须恰好用三个指针实现。\n\n";
+    std::cout << "  容量 (capacity) = " << vec.capacity() << "\n";
+    std::cout << "  大小 (size) = " << vec.size() << "\n";
 }
 
 /**
  * @brief 演示内存位置的区别
  * 
- * 原生数组和 std::array 通常在栈上（自动存储期）
- * std::vector 的元素在堆上
+ * 本函数中的原生数组和 std::array 具有自动存储期，常见实现放在线程栈中；
+ * vector 的元素来自动态分配存储。标准不要求具体的“栈/堆”布局。
  */
 void demonstrateMemoryLocation() {
     PRINT_TITLE("2. 内存位置对比");
     
     int stackVar = 42;  // 栈变量
-    int nativeArr[100];  // 栈上分配
-    std::array<int, 100> stdArr;  // 栈上分配
-    std::vector<int> vec(100);  // 元素在堆上
+    int nativeArr[100];  // 自动存储期
+    std::array<int, 100> stdArr;  // 自动存储期
+    std::vector<int> vec(100);  // 元素使用动态分配存储
     
     std::cout << "变量地址分析:\n";
-    std::cout << "  栈变量地址: " << &stackVar << "\n";
-    std::cout << "  原生数组地址: " << nativeArr << " (栈上)\n";
-    std::cout << "  std::array地址: " << stdArr.data() << " (栈上)\n";
-    std::cout << "  vector数据地址: " << vec.data() << " (堆上)\n";
+    std::cout << "  自动存储期变量地址: " << &stackVar << "\n";
+    std::cout << "  原生数组元素地址: " << nativeArr << "\n";
+    std::cout << "  std::array元素地址: " << stdArr.data() << "\n";
+    std::cout << "  vector动态元素区地址: " << vec.data() << "\n";
     
     std::cout << "\n【结论】\n";
-    std::cout << "  - 原生数组和 std::array 的地址接近栈变量（在栈上）\n";
-    std::cout << "  - vector 的数据地址远离栈变量（在堆上）\n";
-    std::cout << "  - 栈上分配更快，但大小受限\n";
-    std::cout << "  - 堆上分配可以处理大数据\n";
+    std::cout << "  - 地址只展示本次运行的常见布局，不能据此推出标准保证\n";
+    std::cout << "  - 存储位置本身不能直接决定遍历速度；三者的元素都可连续存放\n";
+    std::cout << "  - vector 需要动态分配，但能在运行期调整容量并处理较大数据\n";
 }
 
 /**
@@ -103,10 +104,10 @@ void demonstratePerformance() {
     const int SIZE = 1000;
     
     // 原生数组
-    int* nativeArr = new int[SIZE]();
+    auto nativeArr = std::make_unique<int[]>(SIZE);
     
     // std::array
-    auto* stdArr = new std::array<int, SIZE>();
+    auto stdArr = std::make_unique<std::array<int, SIZE>>();
     stdArr->fill(0);
     
     // std::vector
@@ -115,7 +116,7 @@ void demonstratePerformance() {
     // 测试1：顺序访问 - 原生数组
     auto start = std::chrono::high_resolution_clock::now();
     for (int iter = 0; iter < ITERATIONS / SIZE; ++iter) {
-        for (int i = 0; i < SIZE; ++i) {
+        for (std::size_t i = 0; i < static_cast<std::size_t>(SIZE); ++i) {
             nativeArr[i] += 1;
         }
     }
@@ -125,7 +126,7 @@ void demonstratePerformance() {
     // 测试2：顺序访问 - std::array
     start = std::chrono::high_resolution_clock::now();
     for (int iter = 0; iter < ITERATIONS / SIZE; ++iter) {
-        for (int i = 0; i < SIZE; ++i) {
+        for (std::size_t i = 0; i < static_cast<std::size_t>(SIZE); ++i) {
             (*stdArr)[i] += 1;
         }
     }
@@ -135,7 +136,7 @@ void demonstratePerformance() {
     // 测试3：顺序访问 - std::vector
     start = std::chrono::high_resolution_clock::now();
     for (int iter = 0; iter < ITERATIONS / SIZE; ++iter) {
-        for (int i = 0; i < SIZE; ++i) {
+        for (std::size_t i = 0; i < static_cast<std::size_t>(SIZE); ++i) {
             vec[i] += 1;
         }
     }
@@ -153,10 +154,9 @@ void demonstratePerformance() {
     
     std::cout << "\n【结论】\n";
     std::cout << "  顺序访问性能接近（都是连续内存，缓存友好）\n";
-    std::cout << "  编译器优化后差异几乎可以忽略\n";
+    std::cout << "  单次微基准受优化、缓存和机器影响，不能证明所有场景性能相同\n";
     
-    delete[] nativeArr;
-    delete stdArr;
+    std::cout << "  两块动态存储都由 unique_ptr 独占，异常或正常返回都会自动释放\n";
 }
 
 /**
@@ -184,8 +184,8 @@ void demonstrateDynamicResize() {
     
     std::cout << "\n【扩容策略】\n";
     std::cout << "  - 当 size == capacity 时需要扩容\n";
-    std::cout << "  - 通常按 2 倍扩容（实现可能不同）\n";
-    std::cout << "  - 扩容涉及：分配新内存、复制元素、释放旧内存\n";
+    std::cout << "  - 容量按某个增长策略扩大，具体倍率由实现决定\n";
+    std::cout << "  - 扩容涉及：分配新内存、移动或复制元素、销毁旧元素并释放旧内存\n";
     std::cout << "  - 均摊时间复杂度：O(1)\n";
     
     // 预分配优化
@@ -213,11 +213,11 @@ void demonstrateIteratorSupport() {
     
     // 原生数组：有限支持
     int nativeArr[] = {1, 2, 3, 4, 5};
-    int size = sizeof(nativeArr) / sizeof(nativeArr[0]);
+    const std::size_t size = sizeof(nativeArr) / sizeof(nativeArr[0]);
     
     std::cout << "原生数组遍历:\n";
     std::cout << "  方式1: 下标循环\n    ";
-    for (int i = 0; i < size; ++i) {
+    for (std::size_t i = 0; i < size; ++i) {
         std::cout << nativeArr[i] << " ";
     }
     
@@ -263,17 +263,16 @@ void printSelectionGuide() {
 ┌─────────────────┬────────────────────────────────────────────────────┐
 │      类型       │                    适用场景                         │
 ├─────────────────┼────────────────────────────────────────────────────┤
-│ 原生数组        │ - C 风格 API 交互                                  │
-│                 │ - 极致性能要求的底层代码                            │
-│                 │ - 已知大小的常量数组                                │
+│ 原生数组        │ - C 风格 API 或特定底层布局交互                      │
+│                 │ - 维护既有 C/C++ 接口                                │
 ├─────────────────┼────────────────────────────────────────────────────┤
 │ std::array      │ - 固定大小容器，需要 STL 接口                       │
 │                 │ - 编译时已知大小                                    │
 │                 │ - 不需要动态扩容                                    │
-│                 │ - 性能敏感场景（栈分配）                            │
+│                 │ - 希望大小成为类型一部分                            │
 ├─────────────────┼────────────────────────────────────────────────────┤
 │ std::vector     │ - 运行时大小可变                                    │
-│                 │ - 需要频繁增删元素                                  │
+│                 │ - 需要在尾部动态增删元素                            │
 │                 │ - 一般用途的动态数组                                │
 │                 │ - 作为默认容器首选                                  │
 └─────────────────┴────────────────────────────────────────────────────┘
@@ -283,7 +282,7 @@ void printSelectionGuide() {
 2. 固定大小且已知时，优先 std::array
 3. 需要与 C 代码交互时，使用原生数组或 std::array::data()
 4. 大数组（超过栈大小限制）使用 std::vector
-5. 使用 at() 进行边界检查，[] 用于性能关键代码
+5. 下标范围尚未证明时使用 at()；证明不变量后再按需要使用 []
 )";
 }
 

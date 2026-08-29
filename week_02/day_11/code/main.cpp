@@ -9,9 +9,10 @@
  */
 
 #include <iostream>
-#include <string>
 #include <functional>
+#include <limits>
 #include <map>
+#include <string>
 
 // 声明外部演示函数
 int runPimplDemo();
@@ -70,9 +71,9 @@ void showKnowledgeSummary() {
    ┌──────────────────┬────────────────────────────────────┐
    │      优势        │              说明                   │
    ├──────────────────┼────────────────────────────────────┤
-   │ 编译防火墙       │ 修改实现类无需重新编译使用者代码     │
+   │ 编译防火墙       │ 只改实现细节时通常无需重编使用者     │
    │ 减少头文件依赖   │ 实现依赖不会传播给使用者             │
-   │ ABI兼容          │ 二进制接口更稳定，便于库升级         │
+   │ ABI稳定辅助      │ 布局更稳定，但不自动保证ABI兼容      │
    │ 更快的编译速度   │ 头文件更简洁，包含更少               │
    └──────────────────┴────────────────────────────────────┘
 
@@ -87,7 +88,7 @@ void showKnowledgeSummary() {
 核心要点：
 • 当使用Pimpl模式时，将特殊成员函数定义在实现文件中
 • unique_ptr的析构需要完整类型，不能在头文件中=default
-• shared_ptr不要求在声明点有完整类型，但性能略低
+• shared_ptr析构处通常可不完整，但创建Impl时仍必须完整
 
 【三、LeetCode题目】
 
@@ -97,7 +98,7 @@ void showKnowledgeSummary() {
    ├──────────────┼────────────────┼─────────────────┤
    │   分治合并   │   O(N log K)   │    O(log K)     │
    │   优先队列   │   O(N log K)   │    O(K)         │
-   │   顺序合并   │   O(K²N)       │    O(1)         │
+   │   顺序合并   │   O(NK)        │    O(1)         │
    └──────────────┴────────────────┴─────────────────┘
 
 2. 旋转链表（LeetCode 61）
@@ -114,7 +115,7 @@ void showKnowledgeSummary() {
 
 2. 注意事项：
    • 每个公共接口函数都需要转发调用
-   • 增加了一层间接调用，可能有轻微性能开销
+   • 通常增加一次动态分配和一层间接访问
    • 需要仔细处理所有特殊成员函数
 
 ╔════════════════════════════════════════════════════════════════════════╗
@@ -146,8 +147,52 @@ void showQuickRef() {
     std::cout << std::endl;
 }
 
-int main() {
+int runAllNonInteractive() {
+    const int demoStatus = runPimplDemo();
+    showKnowledgeSummary();
+    showQuickRef();
+
+    if (demoStatus != 0) {
+        std::cerr << "Pimpl演示失败，状态码: " << demoStatus << std::endl;
+    }
+    return demoStatus;
+}
+
+bool waitForEnter() {
+    std::cout << "\n按Enter继续...";
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    std::string line;
+    if (!std::getline(std::cin, line)) {
+        std::cout << "\n检测到输入结束，退出交互模式。" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+void printUsage(const char* program) {
+    std::cout << "用法: " << program << " [--all|--help]\n"
+              << "  不带参数  进入交互学习菜单\n"
+              << "  --all     非交互运行Pimpl演示和知识总结\n";
+}
+
+int main(int argc, char* argv[]) {
     printBanner();
+
+    if (argc > 1) {
+        const std::string option = argv[1];
+        if (option == "--all" && argc == 2) {
+            return runAllNonInteractive();
+        }
+        if ((option == "--help" || option == "-h") && argc == 2) {
+            printUsage(argv[0]);
+            return 0;
+        }
+
+        std::cerr << "未知参数或参数过多。\n";
+        printUsage(argv[0]);
+        return 2;
+    }
 
     std::map<int, std::function<void()>> actions = {
         {1, []() { runPimplDemo(); }},
@@ -181,7 +226,17 @@ int main() {
 
         std::cout << "请选择 (0-6): ";
         int choice;
-        std::cin >> choice;
+        if (!(std::cin >> choice)) {
+            if (std::cin.eof()) {
+                std::cout << "\n检测到输入结束，退出交互模式。" << std::endl;
+                break;
+            }
+
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "输入无效，请输入0到6之间的数字。" << std::endl;
+            continue;
+        }
 
         if (choice == 0) {
             std::cout << "\n感谢学习Day 11内容！再见！" << std::endl;
@@ -195,9 +250,9 @@ int main() {
             std::cout << "无效选择，请重新输入。" << std::endl;
         }
 
-        std::cout << "\n按Enter继续...";
-        std::cin.ignore();
-        std::cin.get();
+        if (!waitForEnter()) {
+            break;
+        }
     }
 
     return 0;

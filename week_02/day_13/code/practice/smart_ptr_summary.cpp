@@ -11,8 +11,8 @@
 
 #include <iostream>
 #include <memory>
-#include <vector>
 #include <string>
+#include <vector>
 
 // ============================================
 // 1. unique_ptr 实现链表
@@ -64,9 +64,11 @@ public:
         }
     }
     
-    T* front() const {
+    T* front() {
         return head_ ? &head_->data : nullptr;
     }
+
+    const T* front() const { return head_ ? &head_->data : nullptr; }
     
     size_t size() const { return size_; }
     bool empty() const { return size_ == 0; }
@@ -103,6 +105,13 @@ template<typename T>
 class SharedPtrList {
 public:
     SharedPtrList() : head_(nullptr), size_(0) {}
+
+    ~SharedPtrList() noexcept {
+        // createCycle仅用于反例演示；析构路径不能用unordered_set等可能分配的
+        // 容器，否则bad_alloc会穿越隐式noexcept析构边界。这里用Floyd算法
+        // O(1)定位环入口，再断开环尾的强拥有边。
+        breakCycle();
+    }
     
     void push_front(T val) {
         auto newNode = std::make_shared<SharedListNode<T>>(std::move(val));
@@ -159,6 +168,30 @@ public:
     std::shared_ptr<SharedListNode<T>> getHead() const { return head_; }
     
 private:
+    void breakCycle() noexcept {
+        auto slow = head_;
+        auto fast = head_;
+        do {
+            if (!fast || !fast->next) {
+                return;
+            }
+            slow = slow->next;
+            fast = fast->next->next;
+        } while (slow != fast);
+
+        slow = head_;
+        while (slow != fast) {
+            slow = slow->next;
+            fast = fast->next;
+        }
+
+        auto cycle_tail = slow;
+        while (cycle_tail->next != slow) {
+            cycle_tail = cycle_tail->next;
+        }
+        cycle_tail->next.reset();
+    }
+
     std::shared_ptr<SharedListNode<T>> head_;
     size_t size_;
 };

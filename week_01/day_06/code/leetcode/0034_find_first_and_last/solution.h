@@ -35,7 +35,7 @@ public:
      * @param target 目标值
      * @return {起始位置, 结束位置}，不存在则返回 {-1, -1}
      */
-    std::vector<int> searchRange(std::vector<int>& nums, int target);
+    std::vector<int> searchRange(const std::vector<int>& nums, int target);
     
     /**
      * @brief 查找左边界
@@ -43,7 +43,7 @@ public:
      * @param target 目标值
      * @return 第一个等于 target 的索引，不存在返回 -1
      */
-    int findLeftBound(std::vector<int>& nums, int target);
+    int findLeftBound(const std::vector<int>& nums, int target);
     
     /**
      * @brief 查找右边界
@@ -51,18 +51,18 @@ public:
      * @param target 目标值
      * @return 最后一个等于 target 的索引，不存在返回 -1
      */
-    int findRightBound(std::vector<int>& nums, int target);
+    int findRightBound(const std::vector<int>& nums, int target);
 
 private:
     /**
      * @brief 二分查找左边界（内部实现）
      */
-    int binarySearchLeft(std::vector<int>& nums, int target);
+    int binarySearchLeft(const std::vector<int>& nums, int target);
     
     /**
      * @brief 二分查找右边界（内部实现）
      */
-    int binarySearchRight(std::vector<int>& nums, int target);
+    int binarySearchRight(const std::vector<int>& nums, int target);
 };
 
 #endif // SOLUTION_34_H

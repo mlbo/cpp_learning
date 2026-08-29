@@ -4,19 +4,26 @@
  */
 
 #include <iostream>
-#include <cassert>
-#include "solution.cpp"
+#include <type_traits>
+
+#include "solution.h"
+
+static_assert(std::is_unsigned<LFUCache::Frequency>::value,
+              "LFU frequency must use an unsigned representation");
 
 namespace lfu_cache_test {
 
 /**
  * @brief 打印测试结果
  */
+int failures = 0;
+
 void printResult(bool passed, const std::string& testName) {
     if (passed) {
         std::cout << "  ✓ " << testName << " 通过\n";
     } else {
         std::cout << "  ✗ " << testName << " 失败\n";
+        ++failures;
     }
 }
 
@@ -184,6 +191,67 @@ void test() {
         printResult(cache.size() == 1, "重复put不增加大小");
         std::cout << "\n";
     }
+
+    // 测试10：负容量与频率链表反复迁移
+    {
+        std::cout << "测试10：容量规范化与生命周期压力\n";
+        LFUCache disabled(-1);
+        disabled.put(1, 1);
+        printResult(disabled.capacity() == 0 && disabled.size() == 0,
+                    "负容量被规范化为0");
+
+        LFUCache cache(2);
+        cache.put(1, 10);
+        cache.put(2, 20);
+        bool survivedPromotions = true;
+        for (int i = 0; i < 100; ++i) {
+            survivedPromotions = survivedPromotions && cache.get(1) == 10;
+        }
+        printResult(survivedPromotions, "高频节点反复迁移后仍可访问");
+        cache.put(3, 30);
+        printResult(cache.get(2) == -1 && cache.get(3) == 30,
+                    "反复迁移后仍淘汰最低频节点");
+        std::cout << "\n";
+    }
+
+    // 测试11：长序列不得留下空频率桶
+    {
+        std::cout << "测试11：辅助状态空间上界\n";
+        LFUCache cache(1);
+        cache.put(7, 70);
+
+        bool allHits = true;
+        for (int i = 0; i < 10000; ++i) {
+            allHits = allHits && cache.get(7) == 70;
+        }
+
+        printResult(allHits, "容量1时连续10000次get均命中");
+        printResult(cache.size() == 1 && cache.frequencyBucketCount() == 1,
+                    "空频率桶及时释放，辅助桶数不超过缓存节点数");
+        printResult(cache.minFreq() == 10001,
+                    "长序列中的最小频率保持一致");
+        std::cout << "\n";
+    }
+
+    // 测试12：在有限步内验证频率上界和桶内LRU规则
+    {
+        std::cout << "测试12：频率表示边界\n";
+        LFUCache cache(2, 3);
+        cache.put(1, 10);
+        cache.put(2, 20);
+        cache.get(1);
+        cache.get(1);  // key=1 达到上界3
+        cache.get(2);
+        cache.get(2);  // key=2 也达到上界3
+        cache.get(1);  // 上界上不递增，但更新桶内的LRU顺序
+        cache.put(3, 30);
+
+        printResult(cache.get(2) == -1 && cache.get(1) == 10 && cache.get(3) == 30,
+                    "频率饱和后按同频LRU规则淘汰");
+        printResult(cache.frequencyBucketCount() <= cache.size(),
+                    "频率边界下仍满足O(capacity)辅助空间");
+        std::cout << "\n";
+    }
     
     std::cout << "所有LFU缓存测试完成！\n";
 }
@@ -193,5 +261,5 @@ void test() {
 // 如果直接运行此文件
 int main() {
     lfu_cache_test::test();
-    return 0;
+    return lfu_cache_test::failures == 0 ? 0 : 1;
 }

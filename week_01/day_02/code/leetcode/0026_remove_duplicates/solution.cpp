@@ -14,9 +14,13 @@
  * 空间复杂度：O(1)
  */
 
-#include <iostream>
-#include <vector>
 #include <algorithm>
+#include <iostream>
+#include <stdexcept>
+#include <vector>
+
+#include "solution.h"
+#include "../../../../common/integer_contracts.h"
 
 namespace leetcode {
 namespace p0026 {
@@ -37,17 +41,17 @@ int removeDuplicates(std::vector<int>& nums) {
         return 0;
     }
     
-    int slow = 0;  // 慢指针：指向已处理区域末尾
+    std::size_t slow = 0;  // 慢指针：指向已处理区域末尾
     
     // 快指针：遍历数组
-    for (int fast = 1; fast < static_cast<int>(nums.size()); ++fast) {
+    for (std::size_t fast = 1; fast < nums.size(); ++fast) {
         if (nums[fast] != nums[slow]) {
             ++slow;
             nums[slow] = nums[fast];
         }
     }
     
-    return slow + 1;
+    return week01::checked_index(slow + 1);
 }
 
 /**
@@ -55,7 +59,7 @@ int removeDuplicates(std::vector<int>& nums) {
  */
 void printVector(const std::vector<int>& nums, int length) {
     std::cout << "结果数组: ";
-    for (int i = 0; i < length; ++i) {
+    for (std::size_t i = 0; i < static_cast<std::size_t>(length); ++i) {
         std::cout << nums[i] << " ";
     }
     std::cout << std::endl;
@@ -139,3 +143,33 @@ void test_remove_duplicates() {
 }
 
 } // namespace leetcode
+
+int Solution::removeDuplicates(std::vector<int>& nums) {
+    return leetcode::p0026::removeDuplicates(nums);
+}
+
+int Solution::removeDuplicatesRecursive(std::vector<int>& nums) {
+    if (nums.empty()) {
+        return 0;
+    }
+    constexpr std::size_t max_recursive_elements = 4096;
+    if (nums.size() > max_recursive_elements) {
+        throw std::length_error(
+            "recursive teaching variant is limited to 4096 elements; use the iterative version");
+    }
+    week01::checked_index(nums.size());
+    return week01::checked_index(removeDuplicatesHelper(nums, 0, 1) + 1);
+}
+
+std::size_t Solution::removeDuplicatesHelper(std::vector<int>& nums,
+                                             std::size_t slow,
+                                             std::size_t fast) {
+    if (fast == nums.size()) {
+        return slow;
+    }
+    if (nums[fast] != nums[slow]) {
+        ++slow;
+        nums[slow] = nums[fast];
+    }
+    return removeDuplicatesHelper(nums, slow, fast + 1);
+}

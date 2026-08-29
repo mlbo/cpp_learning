@@ -9,18 +9,34 @@
  * 4. 常见 RAII 模式
  */
 
+#include <cstddef>
+#include <cstdio>
+#include <exception>
 #include <iostream>
 #include <fstream>
 #include <mutex>
 #include <memory>
+#include <string>
 #include <vector>
 #include <stdexcept>
+#include <streambuf>
+#include <type_traits>
+#include <utility>
 
 // ============================================
 // 辅助打印
 // ============================================
 
 #define PRINT_SECTION(title) std::cout << "\n=== " << title << " ===\n"
+
+template<typename Writer>
+void writeLogNoexcept(Writer&& writer) noexcept {
+    try {
+        std::forward<Writer>(writer)();
+    } catch (...) {
+        // 析构/清理路径不能让教学日志破坏资源释放契约。
+    }
+}
 
 // ============================================
 // 第一部分：RAII 核心思想
@@ -59,13 +75,13 @@ public:
         if (!file_) {
             throw std::runtime_error("无法打开文件");
         }
-        std::cout << "  [FileHandle] 打开文件\n";
+        writeLogNoexcept([] { std::cout << "  [FileHandle] 打开文件\n"; });
     }
     
     ~FileHandle() {
         if (file_) {
             std::fclose(file_);
-            std::cout << "  [FileHandle] 关闭文件\n";
+            writeLogNoexcept([] { std::cout << "  [FileHandle] 关闭文件\n"; });
         }
     }
     
@@ -107,12 +123,14 @@ class DynamicArray {
 public:
     explicit DynamicArray(size_t size) 
         : data_(new T[size]()), size_(size) {
-        std::cout << "  [DynamicArray] 分配 " << size << " 个元素\n";
+        writeLogNoexcept([size] {
+            std::cout << "  [DynamicArray] 分配 " << size << " 个元素\n";
+        });
     }
     
     ~DynamicArray() {
         delete[] data_;
-        std::cout << "  [DynamicArray] 释放数组\n";
+        writeLogNoexcept([] { std::cout << "  [DynamicArray] 释放数组\n"; });
     }
     
     // 禁止拷贝
@@ -124,6 +142,17 @@ public:
         : data_(other.data_), size_(other.size_) {
         other.data_ = nullptr;
         other.size_ = 0;
+    }
+
+    DynamicArray& operator=(DynamicArray&& other) noexcept {
+        if (this != &other) {
+            delete[] data_;
+            data_ = other.data_;
+            size_ = other.size_;
+            other.data_ = nullptr;
+            other.size_ = 0;
+        }
+        return *this;
     }
     
     T& operator[](size_t index) { return data_[index]; }
@@ -141,12 +170,12 @@ class ScopedLock {
 public:
     explicit ScopedLock(std::mutex& mtx) : mutex_(mtx) {
         mutex_.lock();
-        std::cout << "  [ScopedLock] 加锁\n";
+        writeLogNoexcept([] { std::cout << "  [ScopedLock] 加锁\n"; });
     }
     
     ~ScopedLock() {
         mutex_.unlock();
-        std::cout << "  [ScopedLock] 解锁\n";
+        writeLogNoexcept([] { std::cout << "  [ScopedLock] 解锁\n"; });
     }
     
     // 禁止拷贝
@@ -205,16 +234,13 @@ void riskyOperation(int value) {
     std::cout << "  操作成功执行\n";
 }
 
-// 不安全的代码（可能泄漏）
+// 不安全模式（只打印，不真的执行泄漏，避免教学程序污染Sanitizer结果）
 void unsafe_code() {
-    std::cout << "\n--- 不安全的代码 ---\n";
-    int* ptr = new int(42);
-    std::cout << "  分配内存: " << ptr << "\n";
-    
-    riskyOperation(-1);  // 抛出异常
-    
-    delete ptr;  // 永远不会执行！
-    std::cout << "  释放内存（此行不会执行）\n";
+    std::cout << "\n--- 不安全的代码模式（不实际运行）---\n";
+    std::cout << "  int* ptr = new int(42);\n";
+    std::cout << "  riskyOperation(-1);  // 抛异常后跳过delete\n";
+    std::cout << "  delete ptr;\n";
+    std::cout << "  这段模式会泄漏；演示程序不应故意制造真实泄漏。\n";
 }
 
 // 安全的代码（RAII保证）
@@ -241,12 +267,7 @@ void demo_exception_safety() {
     // 演示异常安全
     std::cout << "\n--- 演示异常处理 ---\n";
     
-    try {
-        unsafe_code();
-    } catch (const std::exception& e) {
-        std::cout << "  捕获异常: " << e.what() << "\n";
-        std::cout << "  注意：上述代码存在内存泄漏！\n";
-    }
+    unsafe_code();
     
     try {
         safe_code();
@@ -264,17 +285,21 @@ void demo_exception_safety() {
 template<typename F>
 class ScopeGuard {
 public:
-    explicit ScopeGuard(F f) : func_(std::move(f)), active_(true) {}
-    ~ScopeGuard() { if (active_) func_(); }
+    static_assert(std::is_nothrow_invocable_v<F&>,
+                  "ScopeGuard清理函数必须承诺不抛；可抛工作应在回调内部处理");
+
+    explicit ScopeGuard(F f) noexcept(std::is_nothrow_move_constructible_v<F>)
+        : func_(std::move(f)), active_(true) {}
+    ~ScopeGuard() noexcept { if (active_) func_(); }
     
-    void dismiss() { active_ = false; }
+    void dismiss() noexcept { active_ = false; }
     
     // 禁止拷贝
     ScopeGuard(const ScopeGuard&) = delete;
     ScopeGuard& operator=(const ScopeGuard&) = delete;
     
     // 支持移动
-    ScopeGuard(ScopeGuard&& other) noexcept
+    ScopeGuard(ScopeGuard&& other) noexcept(std::is_nothrow_move_constructible_v<F>)
         : func_(std::move(other.func_)), active_(other.active_) {
         other.active_ = false;
     }
@@ -285,22 +310,26 @@ private:
 };
 
 template<typename F>
-ScopeGuard<F> makeScopeGuard(F f) {
+ScopeGuard<F> makeScopeGuard(F f) noexcept(std::is_nothrow_move_constructible_v<F>) {
     return ScopeGuard<F>(std::move(f));
 }
 
 // 4.2 引用计数 RAII
 class RefCounted {
 public:
-    RefCounted() : count_(new size_t(1)), data_(new int(0)) {
-        std::cout << "  [RefCounted] 创建资源\n";
+    RefCounted() : count_(nullptr), data_(nullptr) {
+        auto count = std::make_unique<std::size_t>(1U);
+        auto data = std::make_unique<int>(0);
+        count_ = count.release();
+        data_ = data.release();
+        writeLogNoexcept([] { std::cout << "  [RefCounted] 创建资源\n"; });
     }
     
     ~RefCounted() {
         if (--(*count_) == 0) {
             delete data_;
             delete count_;
-            std::cout << "  [RefCounted] 释放资源\n";
+            writeLogNoexcept([] { std::cout << "  [RefCounted] 释放资源\n"; });
         }
     }
     
@@ -308,7 +337,9 @@ public:
     RefCounted(const RefCounted& other)
         : count_(other.count_), data_(other.data_) {
         ++(*count_);
-        std::cout << "  [RefCounted] 引用计数: " << *count_ << "\n";
+        writeLogNoexcept([this] {
+            std::cout << "  [RefCounted] 引用计数: " << *count_ << "\n";
+        });
     }
     
     RefCounted& operator=(const RefCounted& other) {
@@ -342,8 +373,10 @@ void demo_raii_patterns() {
     std::cout << "\n--- 4.1 Scope Guard ---\n";
     {
         std::cout << "  进入作用域\n";
-        auto guard = makeScopeGuard([]() {
-            std::cout << "  Scope Guard: 退出作用域时执行\n";
+        auto guard = makeScopeGuard([]() noexcept {
+            writeLogNoexcept([] {
+                std::cout << "  Scope Guard: 退出作用域时执行\n";
+            });
         });
         
         std::cout << "  执行某些操作\n";
@@ -401,13 +434,13 @@ void print_raii_guidelines() {
   │     • 在析构函数中释放资源                                  │
   │     • 析构函数不应抛出异常                                  │
   │                                                             │
-  │  3. 禁止拷贝或实现深拷贝                                    │
-  │     • 删除拷贝构造/赋值运算符                               │
-  │     • 或实现正确的深拷贝语义                                │
+  │  3. 按资源语义定义拷贝                                      │
+  │     • 独占资源可禁止拷贝；值语义可深拷贝                    │
+  │     • 共享资源也可显式共享，不能机械套同一规则               │
   │                                                             │
-  │  4. 支持移动语义                                            │
-  │     • 实现移动构造/赋值运算符                               │
-  │     • 转移资源所有权                                        │
+  │  4. 按需定义移动语义                                        │
+  │     • 资源允许转移时再实现移动                              │
+  │     • 固定地址或引用绑定型资源可以禁止移动                  │
   │                                                             │
   │  5. 提供资源访问接口                                        │
   │     • get() 返回原始资源                                    │
@@ -460,4 +493,74 @@ void run_raii_demo() {
     std::cout << "\n========================================\n";
     std::cout << "  RAII 演示完毕\n";
     std::cout << "========================================\n";
+}
+
+namespace {
+
+class ThrowingStreambuf final : public std::streambuf {
+protected:
+    int_type overflow(int_type) override {
+        throw std::runtime_error("injected output failure");
+    }
+
+    std::streamsize xsputn(const char*, std::streamsize) override {
+        throw std::runtime_error("injected output failure");
+    }
+};
+
+class CoutFailureInjection {
+public:
+    CoutFailureInjection()
+        : old_buffer_(std::cout.rdbuf()), old_exceptions_(std::cout.exceptions()) {
+        std::cout.exceptions(std::ios::goodbit);
+        std::cout.clear();
+        std::cout.rdbuf(&throwing_buffer_);
+        std::cout.exceptions(std::ios::badbit | std::ios::failbit);
+    }
+
+    ~CoutFailureInjection() noexcept {
+        std::cout.exceptions(std::ios::goodbit);
+        std::cout.rdbuf(old_buffer_);
+        std::cout.clear();
+        try {
+            std::cout.exceptions(old_exceptions_);
+        } catch (...) {
+            std::terminate();
+        }
+    }
+
+    CoutFailureInjection(const CoutFailureInjection&) = delete;
+    CoutFailureInjection& operator=(const CoutFailureInjection&) = delete;
+
+private:
+    ThrowingStreambuf throwing_buffer_;
+    std::streambuf* old_buffer_;
+    std::ios::iostate old_exceptions_;
+};
+
+} // namespace
+
+bool run_raii_contract_tests() {
+    bool ok = true;
+    try {
+        CoutFailureInjection inject_failure;
+
+        FileHandle file("/dev/null", "w");
+        FileHandle moved_file(std::move(file));
+        ok = ok && static_cast<bool>(moved_file) && !static_cast<bool>(file);
+
+        DynamicArray<int> values(4U);
+        DynamicArray<int> moved_values(std::move(values));
+        ok = ok && values.size() == 0U && moved_values.size() == 4U;
+
+        RefCounted first;
+        RefCounted second(first);
+        ok = ok && first.useCount() == 2U && second.useCount() == 2U;
+
+        std::mutex mutex;
+        ScopedLock lock(mutex);
+    } catch (...) {
+        ok = false;
+    }
+    return ok;
 }
